@@ -4,7 +4,7 @@ Per-file diagnostics from running `pykrete check` over the vendored Apache
 Spark sources after pykrete annotations were added. Regenerated on every CI
 run (once that's wired); for now updated by hand alongside pilots.
 
-**pykrete version:** 0.1.5
+**pykrete version:** main @ `483cc09` (post-v0.1.5 fix landed)
 **upstream commit:** [`c3096ee`](https://github.com/apache/spark/tree/c3096ee570572f385a409d07988e7a75c524ecd1)
 **run date:** 2026-05-21
 
@@ -39,16 +39,21 @@ Clean — no false positives.
 | Typo planted | pykrete output |
 |---|---|
 | `df.select("nmae")` (bare-string) | ✅ `D0030 unknownColumn: Column 'nmae' does not exist on schema 'People'` |
-| `df["aeg"] > 21` (subscript form) | ❌ no diagnostic |
+| `df["aeg"] > 21` (subscript form) | ✅ `D0030 unknownColumn: Column 'aeg' does not exist on schema 'People'` |
 
-The subscript-form miss is a real gap (`Column` subscript on a DataFrame
-isn't recognized as a column reference; only `col("X")` and `df.X` are).
-Worth filling — production PySpark code uses subscript ubiquitously.
+Both forms now caught.
 
-## Headline gaps surfaced by these files
+## Gaps surfaced and fixed in this iteration
 
-1. **`Column` subscript on a DataFrame** (`df["x"]`) isn't checked.
-   `basic.py` uses this exclusively in its filter/select examples.
+1. **`df["X"]` subscript wasn't recognized as a column reference.**
+   `basic.py` uses subscript form exclusively in its filter/select
+   examples; a typo on `df["aeg"]` slipped past silently. **Fixed** in
+   pykrete commit
+   [`483cc09`](https://github.com/amirnaderi93/pykrete/commit/483cc09) —
+   subscript form is now recognized alongside `col("X")` and `df.X`, in
+   both the general column-ref walker and the arg-position extractor
+   used by `groupBy`/`drop`. 11 regression tests in
+   [`tests/subscript_columns.rs`](https://github.com/amirnaderi93/pykrete/blob/main/crates/pykrete/tests/subscript_columns.rs).
 
 ## Files queued for next iteration
 
