@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# pykrete build artifacts
+target/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
