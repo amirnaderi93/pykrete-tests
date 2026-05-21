@@ -4,7 +4,7 @@ Per-file diagnostics from running `pykrete check` over the vendored Apache
 Spark sources after pykrete annotations were added. Regenerated on every CI
 run (once that's wired); for now updated by hand alongside pilots.
 
-**pykrete version:** main @ `0b70d9c` (post-pilot-4 fix landed)
+**pykrete version:** main @ `9a49bf6` (post-pilot-5 fix landed)
 **upstream commit:** [`c3096ee`](https://github.com/apache/spark/tree/c3096ee570572f385a409d07988e7a75c524ecd1)
 **run date:** 2026-05-21
 
@@ -133,6 +133,48 @@ Clean — no false positives.
 | `df[2]` (integer subscript out of range, df has 2 cols) | ❌ not yet flagged — queued (see below) |
 | `df["a"].dropFields("typo")` (typo on nested-struct field via Column.dropFields) | ❌ not yet flagged — queued (see below) |
 
+### `examples/src/main/python/sql/arrow.py` — pilot 5
+
+PySpark's Arrow + pandas_udf usage example, the canonical doc-tutorial
+for vectorized UDFs. 345 lines, ten example functions covering
+PyArrow-table interop, four pandas_udf signatures (series→frame,
+series→series, iter[series]→iter[series], iter[tuple[series]]→
+iter[series], series→scalar with Window), `applyInPandas`,
+`mapInPandas`, cogrouped `applyInPandas`, and two `@udf` shapes.
+
+**Annotations added** (kept minimal):
+
+- Eight schemas matching the data shapes used by the examples:
+  - `Inner(col1: string)` + `LongStringStruct(long_col, string_col,
+    struct_col: Inner)` — the struct-column shape from
+    `ser_to_frame_pandas_udf_example`.
+  - `X(x: long)` — single-column long for iter_ser/iter_sers/ser_to_ser.
+  - `IdV(id: int, v: double)` — for ser_to_scalar (groupby + Window)
+    and grouped_apply_in_pandas.
+  - `IdAge(id, age: int)` — for mapInPandas.
+  - `TimeIdV1` + `TimeIdV2` — cogrouped applyInPandas's two inputs.
+  - `IdNameAge(id, name, age)` — arrow_python_udf.
+- Nine module-level helpers extracting the dataframe-typed cores of
+  the most representative example bodies.
+
+**Result on the unmodified annotated file:**
+
+```
+8 schema(s), 9 typed function(s), 0 issue(s)
+```
+
+Clean — no false positives.
+
+**Probes** (planted bugs):
+
+| Typo planted | pykrete output |
+|---|---|
+| `df.select(mean_udf(df["typoval"]))` (pandas_udf inner arg) | ✅ `D0030 unknownColumn: Column 'typoval' does not exist on schema 'IdV'` |
+| `df.groupby("ido").agg(mean_udf(df["v"]))` (lowercase groupby key) | ✅ (after fix) `D0030 ... Did you mean 'id'?` |
+| `df.groupby("ido").applyInPandas(...)` (lowercase groupby key) | ✅ (after fix) same |
+| `df1.groupby("typo").cogroup(df2.groupby("id")).applyInPandas(...)` (cogroup left key) | ✅ (after fix) `D0030 ... 'typo' does not exist on schema 'TimeIdV1'` |
+| `w = Window.partitionBy("ido")` (Window key typo) | ❌ not yet flagged — queued |
+
 ## Gaps surfaced and fixed in this iteration
 
 1. **`df["X"]` subscript wasn't recognized as a column reference.**
@@ -174,13 +216,31 @@ Clean — no false positives.
    flagged as a missing field. 8 regression tests added to
    [`tests/dotted_columns.rs`](https://github.com/amirnaderi93/pykrete/blob/main/crates/pykrete/tests/dotted_columns.rs).
 
+4. **Lowercase `groupby` alias wasn't wired in.**
+   PySpark accepts both `df.groupBy(...)` (the camelCase form) and
+   `df.groupby(...)` (lowercase) with identical semantics. Real
+   doc-tutorial code uses the lowercase form exclusively (the
+   arrow.py example here does). pykrete only had `groupBy` in
+   `column_method_shape` and `apply_method` — a typo on the groupby
+   key with lowercase slipped past silently, and downstream pivot /
+   shortcut-aggregate checks were also skipped. **Fixed** in pykrete
+   commit
+   [`9a49bf6`](https://github.com/amirnaderi93/pykrete/commit/9a49bf6) —
+   `groupby` is now treated identically to `groupBy` in both arms.
+   4 regression tests added to
+   [`tests/groupby_agg.rs`](https://github.com/amirnaderi93/pykrete/blob/main/crates/pykrete/tests/groupby_agg.rs).
+
 ## Gaps surfaced but queued for a later iteration
 
-These are real but lower-priority — Spark's `Column` object methods
-that interact with nested-struct fields. Same shape as the chained-
-access fix above, just on the Column-method side rather than the
-DataFrame-method side.
+These are real but lower-priority — mostly require type-tracking
+beyond what pykrete v0.1 currently models (Column-expression types,
+Window objects as locals).
 
+- **`Window.partitionBy("typo")` / `.orderBy("typo")`** — Window keys
+  aren't checked against any DataFrame schema. Common pattern:
+  `w = Window.partitionBy("city").orderBy("ts"); df.withColumn(...).over(w)`.
+  Needs local-binding tracking for Window objects, then resolution
+  of the keys against the schema at the `.over(w)` site.
 - **`df[N]` integer subscript out-of-bounds.** `df[0]` returns the
   first column; `df[N]` for `N >= len(df.columns)` raises `IndexError`
   at runtime. Static-bounds check is doable but rare in real code.
