@@ -1,5 +1,7 @@
 # pykrete-tests
 
+[![pykrete check](https://github.com/amirnaderi93/pykrete-tests/actions/workflows/check.yml/badge.svg)](https://github.com/amirnaderi93/pykrete-tests/actions/workflows/check.yml)
+
 Real-world PySpark codebases used as [pykrete](https://github.com/amirnaderi93/pykrete)'s
 integration test suite. pykrete-tests vendors snapshots of well-known PySpark
 projects, adds pykrete annotations (Schema classes, typed signatures), and runs
@@ -12,12 +14,24 @@ pykrete on every push and nightly. Its purpose is twofold:
 
 ## Status
 
-Initial scaffold. Targets:
+Three pilots landed, three pykrete gaps surfaced and fixed upstream:
+
+- **Apache Spark** — `examples/src/main/python/sql/basic.py` (pilot 1),
+  `python/pyspark/sql/tests/test_group.py` (pilot 2). See
+  [spark/RESULTS.md](spark/RESULTS.md).
+- **MLflow** — `tests/spark/autologging/datasource/test_spark_datasource_autologging.py`
+  (pilot 3). See [mlflow/RESULTS.md](mlflow/RESULTS.md).
+
+Source pools (for future pilots):
 
 - **Apache Spark** — `python/pyspark/sql/tests/` and `python/pyspark/tests/`
   (149 + 33 PySpark files at the time of selection).
 - **MLflow** — files importing `pyspark.sql` (65 across the repo at the time
   of selection).
+
+CI builds pykrete from its `main` branch on every push and nightly, then
+runs `pykrete check` on every `**/annotated/**/*.pyk` file in this repo.
+See [.github/workflows/check.yml](.github/workflows/check.yml).
 
 See [pykrete's roadmap](https://github.com/amirnaderi93/pykrete/blob/main/docs/roadmap.md)
 for context.
