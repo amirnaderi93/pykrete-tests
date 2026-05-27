@@ -48,8 +48,21 @@ jobs:
 
       - name: Build pykrete from ${{ env.PYKRETE_REF }}
         run: |
-          git clone --depth=1 --branch "$PYKRETE_REF" \
-            https://github.com/amirnaderi93/pykrete.git pykrete-src
+          # The cache restore above populates pykrete-src/target — that
+          # creates pykrete-src/ as a non-empty directory, so a plain
+          # `git clone ... pykrete-src` fails ("destination path exists").
+          # Set up the checkout in-place instead: git init + fetch + checkout
+          # works whether the dir is empty (cold run) or has target/ (warm).
+          mkdir -p pykrete-src
+          (
+            cd pykrete-src
+            if [ ! -d .git ]; then
+              git init -q
+              git remote add origin https://github.com/amirnaderi93/pykrete.git
+            fi
+            git fetch --depth=1 origin "$PYKRETE_REF"
+            git checkout -f FETCH_HEAD
+          )
           (cd pykrete-src && cargo build --release -p pykrete)
           # Resolve the actual commit we built against so the run log
           # makes the bisection target obvious.
