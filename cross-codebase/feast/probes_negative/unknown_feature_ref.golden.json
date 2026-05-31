@@ -5,7 +5,7 @@
       "column": 26,
       "endColumn": 41,
       "endLine": 20,
-      "file": "cross-codebase/feast/probes_negative/unknown_feature_ref.pyk",
+      "file": "feast/probes_negative/unknown_feature_ref.pyk",
       "line": 20,
       "message": "Column 'feature_score' does not exist on schema 'FeatureRowNeg'.",
       "relatedInformation": [],

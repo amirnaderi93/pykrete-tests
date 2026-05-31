@@ -289,19 +289,105 @@ from quinn.schemas import Order
 
 
 def pipeline(orders: DataFrame[Order]) -> DataFrame[Order]:
-    # PROBE-RESOLVES: id=quinn-select-region -- region survives narrow select
+# PROBE-RESOLVES: id=quinn-select-region -- region survives narrow select
     df = orders.select("region", "amount")
 
-    # PROBE-TYPE-IS: string on "region" id=quinn-region-type
+# PROBE-TYPE-IS: string on "region" id=quinn-region-type
     df2 = df
 
-    # PROBE-EXPECTS: D0030 id=quinn-select-drops-product on "product"
+# PROBE-EXPECTS: D0030 id=quinn-select-drops-product on "product"
     return df2.select(col("product"))
 ```
+
+All three markers sit at column 0 even though the statements they
+target are indented inside `pipeline`. The parser only extracts
+COMMENT tokens at column 0; an indented `# PROBE-...` would be
+silently skipped (see "Probe placement convention" above).
 
 Three probes cover the same chain end-to-end: the `select` keeps
 `region` (`RESOLVES`), `region` stays a `string` (`TYPE-IS`), and a
 follow-up reference to `product` correctly fires D0030 (`EXPECTS`).
+
+### Tricky placement cases
+
+The "column 0, target = next logical statement" rule covers every
+case, but three placements come up often enough in PR #3b authoring
+that they're worth showing explicitly.
+
+**(a) Marker describing a class-method body line.** The marker sits
+at column 0 even though the method body it targets is double-indented
+inside the class:
+
+```python
+class Pipeline:
+    def run(self, orders: DataFrame[Order]) -> DataFrame:
+# PROBE-RESOLVES: id=pipeline-method-region
+        return orders.select("region")
+```
+
+The marker resolves to the `return` line — `target_line` is the
+first source line of the next logical statement, regardless of
+indent depth.
+
+**(b) Marker above a multi-line chained call.** When a chain like
+`.select(...).filter(...).withColumn(...)` is split across lines,
+the marker attaches to the first source line of the chain (the
+assignment or `return` it sits inside):
+
+```python
+def derive(df: DataFrame[Sale]) -> DataFrame:
+# PROBE-EXPECTS: D0030 on "\"missing\"" id=derive-missing-in-chain
+    return (df
+        .select(col("region"), col("amount"))
+        .filter(col("region") == "EU")
+        .withColumn("doubled", col("missing") * 2))
+```
+
+The marker resolves to the `return` line. The D0030 diagnostic
+fires on the `col("missing")` token deeper in the chain, but the
+marker's anchor is the statement, not the offending sub-expression.
+
+**(c) Marker right after a function `def` line.** A column-0 marker
+between the `def` and the first body statement anchors to that body
+statement, not to the `def`:
+
+```python
+def keep_region(orders: DataFrame[Order]) -> DataFrame:
+# PROBE-RESOLVES: id=keep-region-narrow-select
+    return orders.select("region")
+```
+
+The marker resolves to the `return`. To anchor to a `def` itself
+(e.g. a decorator placement), put the marker above the decorator —
+it then attaches to the decorated `def`.
+
+### Strict-mode caveat
+
+`probes.py` stages each fixture into a temp dir and runs pykrete from
+there. Staging copies the **entire source directory**, so a
+`pykrete.json` sitting beside a fixture applies to that fixture *and
+to every sibling fixture in the same directory*. This is what makes
+the D0081 / D0082 negative fixtures work — `cross-codebase/spark/
+probes_negative/pykrete.json` and `cross-codebase/mlflow/
+probes_negative/pykrete.json` are 31-byte files enabling strict mode
+across their directories.
+
+Two implications for PR #3b authors:
+
+- The existing `spark/probes_negative/` and `mlflow/probes_negative/`
+  directories are **strict-mode directories**. Adding a new fixture
+  there that exercises arithmetic or cross-type comparisons inherits
+  strict-mode checking whether you wanted it or not.
+- If you need a different config for a new fixture, put it in its own
+  per-fixture subdir: `probes_negative/<fixture-name>/<fixture-name>
+  .pyk` + `probes_negative/<fixture-name>/pykrete.json`. The runner
+  picks up the nearest sibling `pykrete.json` per the standard
+  pykrete config-discovery rules.
+
+A `pykrete.json` next to a fixture is silently scoped to its
+directory; if you find yourself wanting to opt one fixture out of
+strict mode, the right answer is to move it to its own subdir, not
+to delete the sibling `pykrete.json` for the others.
 
 ## Diagnostic catalog
 

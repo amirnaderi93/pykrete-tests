@@ -5,7 +5,7 @@
       "column": 26,
       "endColumn": 40,
       "endLine": 24,
-      "file": "cross-codebase/kedro-plugins/probes_negative/unknown_after_cast.pyk",
+      "file": "kedro-plugins/probes_negative/unknown_after_cast.pyk",
       "line": 24,
       "message": "Column 'humidity_pct' does not exist on schema 'WeatherNeg'.",
       "relatedInformation": [],

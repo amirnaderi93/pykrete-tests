@@ -5,7 +5,7 @@
       "column": 22,
       "endColumn": 47,
       "endLine": 21,
-      "file": "cross-codebase/spark/probes_negative/cross_type_comparison.pyk",
+      "file": "spark/probes_negative/cross_type_comparison.pyk",
       "line": 21,
       "message": "Comparison between unrelated types String and Int. Spark coerces them; cast explicitly if intended.",
       "relatedInformation": [],

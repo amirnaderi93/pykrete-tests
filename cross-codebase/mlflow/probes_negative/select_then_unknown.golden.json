@@ -5,7 +5,7 @@
       "column": 30,
       "endColumn": 38,
       "endLine": 23,
-      "file": "cross-codebase/mlflow/probes_negative/select_then_unknown.pyk",
+      "file": "mlflow/probes_negative/select_then_unknown.pyk",
       "line": 23,
       "message": "Column 'target' does not exist on inferred schema [feature_a].",
       "relatedInformation": [],
