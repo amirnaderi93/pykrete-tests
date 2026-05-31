@@ -113,6 +113,19 @@ pykrete from `main` and diffs each fixture's live JSON diagnostic
 output against its committed `.golden.json`. Any drift fails the
 build — that's the release-blocking contract.
 
+## Schema-tracking probes (v1.1, in progress)
+
+Goldens prove pykrete emits no false positives. **Probes** prove
+pykrete is actually tracking schemas — that columns survive a
+`.select()`, that types stay correct through `.withColumn()`, and
+that intentionally-broken references fire the expected D-codes.
+Probes are inline `# PROBE-*` comments in `.pyk` fixtures that the
+runner expands and asserts against `pykrete check --format json`.
+
+The runner ships in this PR; CI wiring and fixture seeding land in
+follow-up PRs. See [scripts/PROBES.md](scripts/PROBES.md) for marker
+syntax and usage.
+
 ## License attribution
 
 All 10 donors are Apache 2.0. License files are reproduced verbatim
