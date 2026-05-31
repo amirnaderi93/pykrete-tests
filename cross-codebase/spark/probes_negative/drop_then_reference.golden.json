@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 32,
+      "endColumn": 40,
+      "endLine": 24,
+      "file": "cross-codebase/spark/probes_negative/drop_then_reference.pyk",
+      "line": 24,
+      "message": "Column 'active' does not exist on inferred schema [name, age].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    },
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 31,
+      "endLine": 30,
+      "file": "cross-codebase/spark/probes_negative/drop_then_reference.pyk",
+      "line": 30,
+      "message": "Column 'nam' does not exist on schema 'NameAgeActiveNeg'. Did you mean 'name'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "name"
+    },
+    {
+      "code": "D0030",
+      "column": 38,
+      "endColumn": 44,
+      "endLine": 30,
+      "file": "cross-codebase/spark/probes_negative/drop_then_reference.pyk",
+      "line": 30,
+      "message": "Column 'agee' does not exist on schema 'NameAgeActiveNeg'. Did you mean 'age'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "age"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 3,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

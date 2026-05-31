@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 40,
+      "endLine": 24,
+      "file": "cross-codebase/kedro-plugins/probes_negative/unknown_after_cast.pyk",
+      "line": 24,
+      "message": "Column 'humidity_pct' does not exist on schema 'WeatherNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

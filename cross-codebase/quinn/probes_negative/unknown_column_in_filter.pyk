@@ -1,0 +1,30 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from quinn/dataframe_helpers.py's PersonRow shape. The real
+# quinn helpers .filter on name; this fixture references a column not
+# in the schema at all. Two helpers misuse the same column so a
+# file-scoped count marker can assert exactly two D0030 fire file-wide
+# — the 5th marker kind (file-count) gets its first production exercise
+# here.
+#
+# Failure modes exercised:
+#   - column not in schema at all (D0030)
+#   - file-scoped count assertion against D0030 == 2
+
+# PROBE-FILE-COUNT: D0030 == 2 id=quinn-neg-file-count-d0030 -- exactly two unknown-column refs file-wide
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class PersonRowNeg(Schema):
+    name: string
+    age: int
+
+
+def filter_unknown(df: DataFrame[PersonRowNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0030 on "\"nickname\"" id=quinn-neg-filter-unknown -- nickname is not in PersonRow
+    return df.filter(col("nickname") == "x")
+
+
+def select_unknown(df: DataFrame[PersonRowNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0030 on "\"surname\"" id=quinn-neg-select-unknown -- surname is not in PersonRow
+    return df.select(col("surname"))

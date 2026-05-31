@@ -1,0 +1,20 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from delta/examples/python/quickstart.py's write/read pattern
+# (IdRow schema, `.cast(DataFrame[IdRow])` re-anchor after the opaque
+# delta load). The real upstream code references `id` after the cast;
+# this fixture references a column that is not in IdRowNeg at all.
+#
+# Failure mode exercised: column not in schema (D0030) after a re-anchor.
+
+from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.functions import col
+
+
+class IdRowNeg(Schema):
+    id: long
+
+
+def read_then_unknown(spark: SparkSession) -> DataFrame:
+    df = spark.read.format("delta").load("/tmp/delta-table").cast(DataFrame[IdRowNeg])
+# PROBE-EXPECTS: D0030 on "\"value\"" id=delta-neg-unknown-after-cast -- value is not in IdRowNeg
+    return df.select(col("value"))

@@ -1038,5 +1038,143 @@ class FixtureRelpathTests(unittest.TestCase):
         self.assertTrue(rp.endswith("foo/bar.pyk"))
 
 
+# PR #3a (v1.1 split): the gate-flip in PR #3c is only safe if the runner
+# actually fails when a probe's expectation is broken. This test seeds a
+# real probes_negative/ fixture, mutates the captured diagnostics in two
+# ways the gate must catch (dropped expected diagnostic; injected unrelated
+# diagnostic on the probe-claimed line), and asserts verify_against_json
+# returns ProbeFailure entries both times. Without this regression test,
+# a refactor that quietly broadened "pass" to include silent-no-op would
+# only surface when a CI run on real code happened to produce no diags.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+class NegativeProbeCoverageRegressionTests(unittest.TestCase):
+    """PR #3a gate-flip safety: the runner must catch deliberately-broken probes."""
+
+    NEG_FIXTURE = (
+        REPO_ROOT
+        / "cross-codebase"
+        / "spark"
+        / "probes_negative"
+        / "drop_then_reference.pyk"
+    )
+
+    def _load_fixture_and_golden(self):
+        self.assertTrue(
+            self.NEG_FIXTURE.is_file(),
+            f"probes_negative fixture missing: {self.NEG_FIXTURE}",
+        )
+        golden_path = self.NEG_FIXTURE.with_suffix(".golden.json")
+        self.assertTrue(
+            golden_path.is_file(),
+            f"paired golden missing: {golden_path}",
+        )
+        source = self.NEG_FIXTURE.read_text(encoding="utf-8")
+        golden = probes.json.loads(golden_path.read_text(encoding="utf-8"))
+        relpath = probes._fixture_relpath(self.NEG_FIXTURE)
+        probes_list = probes.extract(self.NEG_FIXTURE, catalog=CATALOG)
+        non_type = [p for p in probes_list if p.kind != "TYPE-IS"]
+        self.assertTrue(non_type, "fixture must declare at least one non-TYPE-IS probe")
+        return source, golden, relpath, non_type
+
+    def test_baseline_golden_satisfies_probes(self):
+        # Sanity check before mutation: the unmutated golden must satisfy
+        # every probe. Otherwise the negative-mutation assertions below are
+        # vacuous.
+        source, golden, relpath, non_type = self._load_fixture_and_golden()
+        failures = probes.verify_against_json(
+            non_type,
+            golden,
+            self.NEG_FIXTURE.name,
+            fixture_source=source,
+            fixture_relpath=relpath,
+        )
+        self.assertEqual(
+            failures, [],
+            msg="\n".join(f"{f.probe.id}: {f.actual}" for f in failures),
+        )
+
+    def test_dropping_expected_diagnostic_fails(self):
+        # Mutate: drop one diagnostic that a PROBE-EXPECTS targets. The
+        # runner MUST surface a failure — silent pass here would mean a
+        # refactor could regress the checker without anyone noticing.
+        source, golden, relpath, non_type = self._load_fixture_and_golden()
+        expects_probes = [p for p in non_type if p.kind == "EXPECTS"]
+        self.assertTrue(expects_probes, "fixture must have at least one PROBE-EXPECTS")
+        target_probe = expects_probes[0]
+        mutated = dict(golden)
+        mutated["diagnostics"] = [
+            d for d in golden["diagnostics"]
+            if not (
+                d.get("code") == target_probe.expected_code
+                and d.get("line") == target_probe.target_line
+            )
+        ]
+        self.assertNotEqual(
+            len(mutated["diagnostics"]),
+            len(golden["diagnostics"]),
+            "mutation must actually drop a diagnostic",
+        )
+        failures = probes.verify_against_json(
+            non_type,
+            mutated,
+            self.NEG_FIXTURE.name,
+            fixture_source=source,
+            fixture_relpath=relpath,
+        )
+        self.assertTrue(
+            failures,
+            "runner returned no failures despite a dropped expected diagnostic",
+        )
+        self.assertTrue(
+            any(f.probe.id == target_probe.id for f in failures),
+            f"expected a ProbeFailure naming {target_probe.id!r}, got"
+            f" {[f.probe.id for f in failures]!r}",
+        )
+
+    def test_injecting_unrelated_diagnostic_fails(self):
+        # Mutate: add an unexpected diagnostic on the probe-claimed line.
+        # The bipartite matcher's "unclaimed extra diagnostic" rule (I1)
+        # must surface this — without it, a checker that emits noise
+        # alongside the expected diagnostic could slip a regression past
+        # the gate.
+        source, golden, relpath, non_type = self._load_fixture_and_golden()
+        expects_probes = [p for p in non_type if p.kind == "EXPECTS"]
+        target_probe = expects_probes[0]
+        injected = {
+            "code": "D0050",
+            "ruleName": "returnColumnsMismatch",
+            "severity": "error",
+            "source": "pykrete",
+            "message": "synthetic unrelated diagnostic for regression test",
+            "file": target_probe.fixture_path,
+            "line": target_probe.target_line,
+            "column": 1,
+            "endLine": target_probe.target_line,
+            "endColumn": 2,
+            "suggestion": None,
+            "relatedInformation": [],
+        }
+        mutated = dict(golden)
+        mutated["diagnostics"] = list(golden["diagnostics"]) + [injected]
+        failures = probes.verify_against_json(
+            non_type,
+            mutated,
+            self.NEG_FIXTURE.name,
+            fixture_source=source,
+            fixture_relpath=relpath,
+        )
+        self.assertTrue(
+            failures,
+            "runner returned no failures despite an injected unrelated diagnostic",
+        )
+        self.assertTrue(
+            any("unclaimed" in f.expected for f in failures),
+            f"expected an 'unclaimed' failure for the injected diagnostic, got"
+            f" expected={[f.expected for f in failures]!r}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

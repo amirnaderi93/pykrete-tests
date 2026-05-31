@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from kedro-datasets/kedro_datasets/spark/spark_dataset.py's
+# Weather schema. The real upstream load_demo re-anchors the opaque
+# spark.read.load result via .cast(DataFrame[Weather]); this fixture
+# follows the same pattern then references a column the anchor didn't
+# declare.
+#
+# Failure mode exercised: column not in schema (D0030) after a
+# .cast(DataFrame[X]) re-anchor — the common kedro idiom.
+
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
+
+
+class WeatherNeg(Schema):
+    station_id: int
+    timestamp: timestamp
+    temperature_c: double
+
+
+def load_then_unknown(spark: SparkSession, file_format: str, load_path: str) -> DataFrame:
+    df = spark.read.load(load_path, file_format).cast(DataFrame[WeatherNeg])
+# PROBE-EXPECTS: D0030 on "\"humidity_pct\"" id=kedro-neg-unknown-after-cast -- humidity_pct is not in WeatherNeg
+    return df.select(col("humidity_pct"))

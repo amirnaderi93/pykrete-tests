@@ -9,6 +9,108 @@ schemas evolve through `.select()`, `.withColumn()`, joins, etc."
 Status: v1.1, informational only. The runner ships now; CI wiring lands
 in the next PR. Fixture seeding lands in PR #3.
 
+## Operating model
+
+The probes runner (`scripts/probes.py`) is wired into CI via
+`scripts/probes_ci.sh` and the `probes · informational coverage` job
+in `.github/workflows/probes.yml`. **Today (v1.1) it is informational
+only** — a probe failure surfaces in the PR check list and the
+structured JSON report uploads as the `probes-report` artifact, but
+the job runs `continue-on-error: true` and does not block merge.
+PR #3c of the v1.1 series flips this to release-blocking once the
+fixture corpus is fully seeded; this happens atomically with the
+trust-claim migration in README so the public claim never overruns
+the gate.
+
+Two fixture trees feed the runner:
+
+- **`cross-codebase/<donor>/annotated/`** — donor-faithful PySpark
+  code with positive probes (`PROBE-RESOLVES`, `PROBE-TYPE-IS`,
+  `PROBE-FILE-CLEAN-OF`). Each fixture's `.golden.json` has an empty
+  `diagnostics: []` array. These probes assert that pykrete correctly
+  tracks schemas through real transforms.
+- **`cross-codebase/<donor>/probes_negative/`** — deliberately-corrupted
+  fixtures with negative probes (`PROBE-EXPECTS`, `PROBE-FILE-COUNT`).
+  Each fixture's `.golden.json` has a NON-EMPTY `diagnostics[]` array
+  encoding exactly the diagnostics pykrete must fire. These probes
+  assert that pykrete actually catches regressions — without them, a
+  silently-passing checker would satisfy every annotated/ probe
+  vacuously.
+
+The two trees together close the trust gap: annotated/ proves we
+don't false-positive on real PySpark; probes_negative/ proves we
+don't false-negative when the schema is violated.
+
+**Catalog drift.** `scripts/diagnostic_catalog.json` is a vendored
+snapshot of pykrete-core's `DIAGNOSTIC_CATALOG`. When pykrete-core
+ships a release that adds or renames D-codes, the
+`catalog-drift-watch` workflow opens a one-step refresh PR (typically
+weekly cadence). Probe fixtures keep working across these refreshes
+because PR #3a's `probes_negative/` exercises the catalog-resolution
+path — a stale catalog or a renamed D-code surfaces here first.
+
+**Authoring expectations for new donors.** When a future donor lands
+under `cross-codebase/<donor>/`, it should ship with at least three
+probes split across positive and negative — typically one
+`PROBE-RESOLVES` on a representative DataFrame binding in `annotated/`
+plus two `probes_negative/` fixtures covering different failure modes
+the donor exercises (e.g. a dropped column the donor's code reads
+from, a type mismatch in the donor's arithmetic surface). The
+per-donor target (3 probes; mix of positive + negative) becomes
+release-blocking in v1.2; v1.1 ships it as a checked-on-merge
+expectation in code review.
+
+## Probe placement convention
+
+Markers are single-line `#`-prefixed comments and **must start at
+column 0** — the parser only extracts COMMENT tokens whose source
+column is 0. An indented `# PROBE-...` comment in a function body
+is treated as a normal comment and silently skipped. This is the
+v1.1 convention; PR #3b authors ~80-120 probes following it. Two
+implications for authors:
+
+- **Line-anchored markers above an indented statement.** The target
+  line is resolved by AST walk — the marker still attaches to the
+  next logical Python statement, even when that statement is
+  indented inside a function body. A column-0 marker followed by an
+  indented `return df.select(...)` correctly targets the `return`.
+- **Markers at module scope.** Same convention — column 0. The
+  target line is the next module-level statement (e.g. a `class`,
+  `def`, or top-level assignment).
+
+```python
+# PROBE-FILE-CLEAN-OF: D0030
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class Sale(Schema):
+    region: string
+    amount: int
+
+
+# PROBE-RESOLVES: id=spark-select-region -- region survives narrow select
+def pipeline(d: DataFrame[Sale]) -> DataFrame:
+# PROBE-EXPECTS: D0030 on "\"missing\"" id=spark-select-unknown
+    return d.select(col("region"), col("missing"))
+```
+
+The third marker shows the common pattern: a marker at column 0
+sitting between a function header and the function body, attached
+to the `return` statement on the next non-blank source line. The
+`on "\"missing\""` value includes the surrounding quotes because
+the diagnostic's span text is `column..endColumn` over the source
+text — for `col("missing")`, the span is `"missing"` (with quotes).
+
+To preview what a marker resolves to before committing, run:
+
+```bash
+python scripts/probes.py extract path/to/fixture.pyk
+```
+
+It prints each parsed marker's `comment_line` and `target_line` so
+authors can confirm placement without firing pykrete.
+
 ## Marker syntax
 
 There are five marker kinds. All are single-line `#`-prefixed comments

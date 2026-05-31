@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 30,
+      "endColumn": 38,
+      "endLine": 23,
+      "file": "cross-codebase/mlflow/probes_negative/select_then_unknown.pyk",
+      "line": 23,
+      "message": "Column 'target' does not exist on inferred schema [feature_a].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
