@@ -113,6 +113,36 @@ python scripts/probes.py --version
 python scripts/probes.py --help
 ```
 
+### Running the CI driver locally
+
+`scripts/probes_ci.sh` is the wrapper CI invokes. It walks every
+donor's `annotated/` and `probes_negative/` subtree, runs `probes.py
+run` against each, and emits a combined JSON report.
+
+```bash
+PYKRETE_BIN=/path/to/pykrete bash scripts/probes_ci.sh
+# Prints a human-readable summary (probes-found / passed / failed,
+# failedProbeIds list) and writes the combined report to
+# $PROBES_REPORT (default /tmp/probes-report.json).
+```
+
+Exit codes match `probes.py run`: 0 = all green (or no probes
+found), 1 = at least one probe failed, 2 = setup error.
+
+### CI behavior (v1.1)
+
+The `probes · informational coverage` job runs on every push and
+PR. It uses `continue-on-error: true` — a probe failure surfaces in
+the PR check list and the structured JSON report uploads as a
+workflow artifact (`probes-report`), but the failure does NOT block
+merge. PR #3 of the v1.1 series flips this to release-blocking
+once probes are seeded across the 32 annotated fixtures.
+
+If you're reading CI output and see a yellow/orange check on
+`probes · informational coverage`, that's the contract: investigate
+the failed probes, but it's intentional that the PR can still
+merge.
+
 ### Env vars
 
 - `PYKRETE_BIN` — path to the pykrete binary. Defaults to `pykrete` on
@@ -177,8 +207,40 @@ follow-up reference to `product` correctly fires D0030 (`EXPECTS`).
 pykrete-core's `DIAGNOSTIC_CATALOG`. Every `PROBE-EXPECTS` /
 `PROBE-FILE-CLEAN-OF` / `PROBE-FILE-COUNT` D-code must exist in this
 catalog or the probe fails to parse. The catalog is refreshed in
-lockstep with `PYKRETE_REF` bumps; a scheduled drift-watch GHA (PR #2
-of v1.1) surfaces upstream additions before the next bump.
+lockstep with `PYKRETE_REF` bumps; a scheduled drift-watch GHA
+(`catalog-drift-watch.yml`) surfaces upstream additions before the
+next bump.
+
+### catalog-drift-watch contract
+
+The workflow runs weekly (Mondays 14:00 UTC) and can be triggered
+manually from the GitHub Actions tab via `workflow_dispatch`. It:
+
+1. Polls pykrete-core's `main` for the current HEAD commit.
+2. Skips with a warning if the upstream commit's check-runs report
+   any failure / timeout / action-required conclusion (we won't
+   vendor a known-broken upstream state).
+3. Otherwise fetches `crates/pykrete/src/diagnostics.rs` at that
+   commit, regenerates `scripts/diagnostic_catalog.json` via
+   `scripts/build_catalog_from_source.py`, and opens a
+   `chore(catalog): refresh from pykrete <sha>` PR if the file
+   changed. The PR body cites the source commit and lists the
+   added / renamed / removed D-codes.
+4. Network failure fails the workflow with a clear message; the
+   next weekly cron retries.
+
+Run the builder by hand to preview drift without opening a PR:
+
+```bash
+python scripts/build_catalog_from_source.py \
+  --diagnostics /path/to/pykrete/crates/pykrete/src/diagnostics.rs \
+  --commit "$(git -C /path/to/pykrete rev-parse HEAD)" \
+  --previous scripts/diagnostic_catalog.json \
+  --out /tmp/new_catalog.json \
+  --summary /tmp/catalog_summary.txt
+diff scripts/diagnostic_catalog.json /tmp/new_catalog.json
+cat /tmp/catalog_summary.txt
+```
 
 ## Authoring API
 

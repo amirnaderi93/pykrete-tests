@@ -1,0 +1,120 @@
+name: catalog-drift-watch
+
+# Detects when pykrete-core ships new D-codes that aren't reflected
+# in scripts/diagnostic_catalog.json, and opens a refresh PR.
+#
+# Failure-mode contract (resolves the spec's open question on this):
+#   - pykrete-core main is CI-red → log a warning, do NOT open a PR.
+#     (We don't want to vendor a broken upstream state.)
+#   - Network failure → workflow fails with a clear message; the next
+#     weekly cron retries.
+#   - pykrete-core ships a patch release between weekly runs → next
+#     weekly run picks it up. No mid-week reactive trigger.
+
+on:
+  schedule:
+    # Weekly Monday 14:00 UTC.
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  watch:
+    name: catalog-drift-watch · weekly refresh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check pykrete-core main CI status
+        id: upstream
+        run: |
+          set -euo pipefail
+          api_root="https://api.github.com/repos/amirnaderi93/pykrete"
+          head_sha=$(curl -sSf "$api_root/commits/main" \
+            | python3 -c "import sys, json; print(json.load(sys.stdin)['sha'])")
+          echo "upstream HEAD: $head_sha"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          conclusions=$(curl -sSf "$api_root/commits/$head_sha/check-runs?per_page=100" \
+            | python3 -c "import sys, json; rs = json.load(sys.stdin).get('check_runs', []); print(' '.join(sorted({r.get('conclusion') or '' for r in rs})))")
+          echo "check conclusions: '$conclusions'"
+          if echo "$conclusions" | grep -qE '(^|[[:space:]])(failure|timed_out|action_required)([[:space:]]|$)'; then
+            echo "::warning::pykrete-core main has failing checks at $head_sha — skipping refresh PR."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch upstream diagnostics.rs
+        if: steps.upstream.outputs.skip != 'true'
+        env:
+          HEAD_SHA: ${{ steps.upstream.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://raw.githubusercontent.com/amirnaderi93/pykrete/${HEAD_SHA}/crates/pykrete/src/diagnostics.rs" \
+            -o /tmp/diagnostics.rs
+
+      - name: Build refreshed catalog
+        if: steps.upstream.outputs.skip != 'true'
+        id: build
+        env:
+          HEAD_SHA: ${{ steps.upstream.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/build_catalog_from_source.py \
+            --diagnostics /tmp/diagnostics.rs \
+            --commit "$HEAD_SHA" \
+            --previous scripts/diagnostic_catalog.json \
+            --out /tmp/new_catalog.json \
+            --summary /tmp/catalog_summary.txt
+          if diff -q scripts/diagnostic_catalog.json /tmp/new_catalog.json > /dev/null; then
+            echo "no drift detected at $HEAD_SHA"
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "drift detected at $HEAD_SHA"
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            cp /tmp/new_catalog.json scripts/diagnostic_catalog.json
+            {
+              echo "## Catalog drift detected"
+              echo ""
+              echo '```'
+              cat /tmp/catalog_summary.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Render PR body
+        if: steps.upstream.outputs.skip != 'true' && steps.build.outputs.drift == 'true'
+        env:
+          HEAD_SHA: ${{ steps.upstream.outputs.head_sha }}
+        run: |
+          {
+            echo "Automated catalog refresh from"
+            echo "[amirnaderi93/pykrete@${HEAD_SHA}](https://github.com/amirnaderi93/pykrete/commit/${HEAD_SHA})."
+            echo ""
+            echo "Detected by the weekly \`catalog-drift-watch\` workflow."
+            echo "Review the new/changed D-codes below; merging this PR updates"
+            echo "the vendored \`scripts/diagnostic_catalog.json\` snapshot used"
+            echo "by \`PROBE-EXPECTS\` and related markers."
+            echo ""
+            echo "## Summary"
+            echo ""
+            echo '```'
+            cat /tmp/catalog_summary.txt
+            echo '```'
+          } > /tmp/pr_body.md
+
+      - name: Open refresh PR
+        if: steps.upstream.outputs.skip != 'true' && steps.build.outputs.drift == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(catalog): refresh from pykrete ${{ steps.upstream.outputs.head_sha }}"
+          title: "chore(catalog): refresh from pykrete ${{ steps.upstream.outputs.head_sha }}"
+          branch: "catalog-drift/${{ steps.upstream.outputs.head_sha }}"
+          delete-branch: true
+          body-path: /tmp/pr_body.md
+          add-paths: |
+            scripts/diagnostic_catalog.json
