@@ -122,9 +122,23 @@ that intentionally-broken references fire the expected D-codes.
 Probes are inline `# PROBE-*` comments in `.pyk` fixtures that the
 runner expands and asserts against `pykrete check --format json`.
 
-The runner ships in this PR; CI wiring and fixture seeding land in
-follow-up PRs. See [scripts/PROBES.md](scripts/PROBES.md) for marker
-syntax and usage.
+The runner ships in PR #1. **CI is now wired** (this PR): the
+`probes` workflow runs `scripts/probes_ci.sh` on every push/PR and
+uploads a structured JSON report as a build artifact. **For v1.1
+the job is `continue-on-error: true`** — probe failures surface in
+the PR check list but do **not** block merge. PR #3 flips that to
+release-blocking once the 32 annotated fixtures have been seeded
+with probes. Until then, the runner reports "0 probes found" on a
+clean tree and the workflow stays green.
+
+A weekly `catalog-drift-watch` workflow polls pykrete-core's
+`main` and opens a `chore(catalog): refresh from pykrete <sha>` PR
+when new D-codes appear, so `PROBE-EXPECTS` validation stays in
+sync with upstream. Trigger it manually from the Actions tab to
+verify end-to-end.
+
+See [scripts/PROBES.md](scripts/PROBES.md) for marker syntax,
+running locally, and the drift-watch contract.
 
 ## License attribution
 

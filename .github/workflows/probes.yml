@@ -1,0 +1,110 @@
+name: probes
+
+# Runs the schema-tracking probes runner (scripts/probes.py via
+# scripts/probes_ci.sh) across the cross-codebase tree.
+#
+# v1.1 ship: continue-on-error: true — probe failures surface in the
+# PR check list but do not block merge. PR #3 of the v1.1 series
+# flips this to release-blocking after the 32 annotated fixtures
+# have been seeded with probes.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: probes-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  probes:
+    name: probes · informational coverage
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read pinned pykrete source commit from catalog
+        id: catalog
+        run: |
+          sha=$(python3 -c "import json; print(json.load(open('scripts/diagnostic_catalog.json'))['pykreteSourceCommit'])")
+          echo "PYKRETE_REF=$sha" >> "$GITHUB_ENV"
+          echo "ref=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Cache pykrete build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            pykrete-src/target
+          key: pykrete-${{ steps.catalog.outputs.ref }}-${{ runner.os }}
+          restore-keys: |
+            pykrete-${{ steps.catalog.outputs.ref }}-
+            pykrete-
+
+      # Build from source. A future iteration may try to download a
+      # release-asset pykrete binary when the pinned commit happens to
+      # be tagged; today the catalog pin can be any commit on main, so
+      # source-build is the realistic universal path.
+      - name: Build pykrete from ${{ env.PYKRETE_REF }}
+        run: |
+          mkdir -p pykrete-src
+          (
+            cd pykrete-src
+            if [ ! -d .git ]; then
+              git init -q
+              git remote add origin https://github.com/amirnaderi93/pykrete.git
+            fi
+            git fetch --depth=1 origin "$PYKRETE_REF"
+            git checkout -f FETCH_HEAD
+          )
+          (cd pykrete-src && cargo build --release -p pykrete)
+          echo "pykrete built from $PYKRETE_REF" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run probes
+        env:
+          PYKRETE_BIN: ${{ github.workspace }}/pykrete-src/target/release/pykrete
+          PROBES_REPORT: ${{ github.workspace }}/probes-report.json
+        run: |
+          set -o pipefail
+          set +e
+          bash scripts/probes_ci.sh | tee /tmp/probes-out.txt
+          rc=${PIPESTATUS[0]}
+          {
+            echo "## Schema-tracking probes (informational)"
+            echo ""
+            echo '```'
+            tail -n 40 /tmp/probes-out.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+      - name: Upload probes report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probes-report
+          path: probes-report.json
+          if-no-files-found: warn
