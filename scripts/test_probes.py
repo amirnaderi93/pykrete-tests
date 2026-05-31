@@ -74,11 +74,13 @@ class MarkerParserTests(unittest.TestCase):
         self.assertEqual(p.rationale, "region survives")
 
     def test_type_is_atomic(self):
-        s = _src('# PROBE-TYPE-IS: double on "amount"', "x = 1")
+        # Numeric subtypes (double here) are rejected at parse time per the
+        # v1.1 carve-out; use a non-numeric atomic to exercise the happy path.
+        s = _src('# PROBE-TYPE-IS: string on "name"', "x = 1")
         p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
         self.assertEqual(p.kind, "TYPE-IS")
-        self.assertEqual(p.type_expr, "double")
-        self.assertEqual(p.span_text, "amount")
+        self.assertEqual(p.type_expr, "string")
+        self.assertEqual(p.span_text, "name")
 
     def test_type_is_array_aliases(self):
         for spelling, canon in [
@@ -89,10 +91,17 @@ class MarkerParserTests(unittest.TestCase):
             p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
             self.assertEqual(p.type_expr, canon)
 
-    def test_type_is_decimal_parametric(self):
-        s = _src('# PROBE-TYPE-IS: decimal(10,2) on "p"', "x = 1")
-        p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
-        self.assertEqual(p.type_expr, "decimal(10, 2)")
+    def test_type_is_decimal_parametric_normalizes(self):
+        # decimal(p, s) parses + normalizes, then the numeric-subtype carve-
+        # out rejects it. Asserting both forms via the parse-time error keeps
+        # coverage of the normalizer path.
+        with self.assertRaisesRegex(probes.ProbeError, "numeric-subtype"):
+            probes.extract_from_source(
+                _src('# PROBE-TYPE-IS: decimal(10,2) on "p"', "x = 1"),
+                "f.pyk", CATALOG,
+            )
+        # Pure normalizer (no marker context) still works as before.
+        self.assertEqual(probes._normalize_type_expr("decimal(10,2)"), "decimal(10, 2)")
 
     def test_type_is_unsupported_type(self):
         s = _src('# PROBE-TYPE-IS: weirdtype on "p"', "x = 1")
@@ -471,22 +480,16 @@ class ParserRound2Tests(unittest.TestCase):
 class SynthesizerRound2Tests(unittest.TestCase):
     """B1 + B2 + B6 + B9: per-type distinct, scope-aware, ident-safe, struct-aware."""
 
-    def test_b1_numeric_and_non_numeric_get_distinct_targets(self):
-        # Round-1 collapsed all numeric subtypes to a byte-identical expr.
-        # We at minimum distinguish numeric vs non-numeric via different
-        # D-codes (D0082 vs D0081). Subtype-level distinguishability is
-        # bounded by pykrete-core's checker today.
+    def test_b1_non_numeric_targets_d0081(self):
+        # Round-3 directive (TM): within-family numeric-subtype probes are
+        # rejected at parse time (see test_numeric_subtype_probe_rejected
+        # below), so _TYPE_TARGET only carries non-numeric atomics. Each
+        # one fires D0081 by adding a numeric literal to the column.
         from probes import _TYPE_TARGET
-        self.assertEqual(_TYPE_TARGET["int"], "D0082")
-        self.assertEqual(_TYPE_TARGET["double"], "D0082")
-        self.assertEqual(_TYPE_TARGET["string"], "D0081")
-        self.assertEqual(_TYPE_TARGET["boolean"], "D0081")
-        # All numeric subtypes target the same family-distinguishing code:
-        for t in ("int", "long", "short", "byte", "double", "float", "decimal"):
-            self.assertEqual(_TYPE_TARGET[t], "D0082")
-        # All non-numeric: target D0081.
         for t in ("string", "binary", "date", "timestamp", "boolean", "bool"):
             self.assertEqual(_TYPE_TARGET[t], "D0081")
+        for t in ("int", "long", "short", "byte", "double", "float", "decimal"):
+            self.assertNotIn(t, _TYPE_TARGET)
 
     def test_b2_type_is_synth_injects_inside_enclosing_function(self):
         # Marker at column 0 per spec; its target line resolves to the next
@@ -497,8 +500,8 @@ class SynthesizerRound2Tests(unittest.TestCase):
             "from pykrete import col, lit",
             "def f(d):",
             "    if True:",
-            "# PROBE-TYPE-IS: int on \"amount\"",
-            "        x = d.select(\"amount\")",
+            "# PROBE-TYPE-IS: string on \"name\"",
+            "        x = d.select(\"name\")",
             "        return x",
         )
         probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
@@ -515,7 +518,7 @@ class SynthesizerRound2Tests(unittest.TestCase):
     def test_b2_type_is_synth_appends_at_module_scope(self):
         src = _src(
             "from pykrete import col, lit",
-            "# PROBE-TYPE-IS: int on \"amount\"",
+            "# PROBE-TYPE-IS: string on \"name\"",
             "df = something",
         )
         probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
@@ -872,6 +875,167 @@ class EndToEndSmokeTests(unittest.TestCase):
                 "inconclusive" in f.actual or "synthesizer cannot encode" in f.actual,
                 f"unexpected synthesis failure shape: {f.actual!r}",
             )
+
+
+# ---------------------------------------------------------------------------
+# Round-3 closeout tests.
+# ---------------------------------------------------------------------------
+
+
+class Round3ClosesOutTests(unittest.TestCase):
+    """B1 parse-time numeric reject, B5 production wiring, B7/B8 docs+tests, I9 crash."""
+
+    def test_numeric_subtype_probe_rejected_at_parse_time(self):
+        # B1: every numeric subtype is rejected at parse time. Trust claim
+        # is "v1.1 verifies schema tracking correctness"; a vacuous green
+        # on int-vs-double would violate it.
+        for t in ("int", "long", "short", "byte", "double", "float", "decimal"):
+            s = _src(f'# PROBE-TYPE-IS: {t} on "amount"', "x = 1")
+            with self.assertRaisesRegex(
+                probes.ProbeError, "numeric-subtype assertion"
+            ):
+                probes.extract_from_source(s, "f.pyk", CATALOG)
+        # Cross-family stays clean.
+        s = _src('# PROBE-TYPE-IS: string on "name"', "x = 1")
+        out = probes.extract_from_source(s, "f.pyk", CATALOG)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].type_expr, "string")
+
+    def test_numeric_subtype_decimal_parametric_also_rejected(self):
+        s = _src('# PROBE-TYPE-IS: decimal(10,2) on "p"', "x = 1")
+        with self.assertRaisesRegex(probes.ProbeError, "numeric-subtype"):
+            probes.extract_from_source(s, "f.pyk", CATALOG)
+
+    def test_b8_unterminated_quoted_string_hard_fails(self):
+        # Round-2 silently swallowed unterminated quoted spans (the slot
+        # regex didn't match, the outer scanner consumed to EOL). Now the
+        # tokenizer raises a named ParseError on the marker line.
+        s = _src('# PROBE-EXPECTS: D0030 on "foo', "x = 1")
+        with self.assertRaisesRegex(
+            probes.ProbeError, "unterminated quoted string"
+        ):
+            probes.extract_from_source(s, "f.pyk", CATALOG)
+
+    def test_b7_literal_backslash_n_not_a_newline(self):
+        # B7 escape behavior: only \" and \\ are unescaped. \n is preserved
+        # as the two-character sequence backslash + n, NOT a newline. This
+        # locks the documented behavior (see scripts/PROBES.md "Quoting rules").
+        s = _src(r'# PROBE-EXPECTS: D0030 on "a\nb"', "x = 1")
+        p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
+        self.assertEqual(p.span_text, "a\\nb")
+        self.assertNotIn("\n", p.span_text)
+
+    def test_i9_empty_stdout_with_nonzero_exit_is_crash(self):
+        # B-script that exits 1 with empty stdout — must surface as
+        # CheckerError, not silently parse as "no diagnostics".
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "crashing_pykrete.sh"
+            fake.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            fake.chmod(0o755)
+            f = Path(tmp) / "f.pyk"
+            f.write_text("x = 1\n", encoding="utf-8")
+            old = os.environ.get("PYKRETE_BIN")
+            os.environ["PYKRETE_BIN"] = str(fake)
+            try:
+                with self.assertRaises(probes.CheckerError) as cm:
+                    probes._run_checker(f)
+                self.assertIn("empty stdout", str(cm.exception))
+                self.assertIn("crash", str(cm.exception))
+            finally:
+                if old is None:
+                    del os.environ["PYKRETE_BIN"]
+                else:
+                    os.environ["PYKRETE_BIN"] = old
+
+    def test_two_donors_same_basename(self):
+        # B5 end-to-end: two fixtures with the same basename under different
+        # donor roots. Each probe must only pass on its own donor's diagnostic.
+        # We stub _run_checker so the test does not need a real pykrete binary.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "cross-codebase"
+            donor_a = root / "donor_a" / "annotated"
+            donor_b = root / "donor_b" / "annotated"
+            donor_a.mkdir(parents=True)
+            donor_b.mkdir(parents=True)
+            fixture_a = donor_a / "x.pyk"
+            fixture_b = donor_b / "x.pyk"
+            # Each fixture has a PROBE-RESOLVES on its own line 2.
+            # If diagnostics leaked across donors, donor_b's RESOLVES would
+            # incorrectly see the diagnostic that pykrete fires for donor_a.
+            fixture_a.write_text(
+                "# PROBE-RESOLVES: id=a-clean\n"
+                "x = 1\n",
+                encoding="utf-8",
+            )
+            fixture_b.write_text(
+                "# PROBE-RESOLVES: id=b-clean\n"
+                "x = 1\n",
+                encoding="utf-8",
+            )
+
+            # Fake checker: emits a D0030 on whichever fixture it's asked
+            # about. The diagnostic file is the staged tempdir copy's name.
+            real_run = probes._run_checker
+
+            def fake_run(p, *, strict=False):
+                return {
+                    "diagnostics": [
+                        {
+                            "file": p.name,
+                            "line": 2,
+                            "column": 1,
+                            "endLine": 2,
+                            "endColumn": 2,
+                            "code": "D0030",
+                            "ruleName": "u",
+                            "message": "fake",
+                        }
+                    ]
+                }
+
+            probes._run_checker = fake_run  # type: ignore[assignment]
+            old_cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                # Drive _cmd_run end-to-end through main() so the relpath
+                # threading is exercised in production.
+                import io as _io
+                stdout_buf = _io.StringIO()
+                real_stdout = sys.stdout
+                sys.stdout = stdout_buf
+                try:
+                    exit_code = probes.main(["run", "cross-codebase"])
+                finally:
+                    sys.stdout = real_stdout
+            finally:
+                probes._run_checker = real_run  # type: ignore[assignment]
+                os.chdir(old_cwd)
+
+            # Both fixtures should report a RESOLVES failure (their own
+            # diagnostic fires on line 2). Neither should vacuously pass
+            # because the other donor's diag matched their basename.
+            self.assertEqual(exit_code, 1)
+            import json as _json
+            payload = _json.loads(stdout_buf.getvalue())
+            failed_ids = payload["failedProbeIds"]
+            joined = " ".join(failed_ids)
+            self.assertIn("a-clean", joined)
+            self.assertIn("b-clean", joined)
+            self.assertEqual(payload["probesTotal"], 2)
+            self.assertEqual(payload["failuresTotal"], 2)
+
+
+class FixtureRelpathTests(unittest.TestCase):
+    def test_relpath_for_cross_codebase_fixture(self):
+        rp = probes._fixture_relpath(Path("cross-codebase/quinn/annotated/f.pyk"))
+        self.assertEqual(rp, "quinn/annotated/f.pyk")
+
+    def test_relpath_for_non_cross_codebase_fixture(self):
+        # Outside cross-codebase, falls back to a CWD-relative or absolute
+        # POSIX path — but the test just checks it's a string (env-dependent).
+        rp = probes._fixture_relpath(Path("/tmp/foo/bar.pyk"))
+        self.assertIsInstance(rp, str)
+        self.assertTrue(rp.endswith("foo/bar.pyk"))
 
 
 if __name__ == "__main__":

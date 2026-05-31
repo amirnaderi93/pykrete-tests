@@ -31,8 +31,8 @@ Python statement**); two are file-scoped.
   to verify columns survive a narrow `.select()`, an alias chain, etc.
 - `PROBE-TYPE-IS` — pykrete's tracked schema gives `<column>` the
   asserted type at the target line. Implemented via a synthesizer
-  rewrite that targets D0081/D0082 (strict-mode operator checks). One
-  type expression per probe.
+  rewrite that targets D0081 (strict-mode operator check). One type
+  expression per probe.
 
 ### File-scoped
 
@@ -52,25 +52,45 @@ All optional arguments are **order-insensitive named slots**. The parser
 keys on the slot keyword, not on position:
 
 - `id=<handle>` — stable handle shown in failure output and reports.
-  Synthesized if omitted. IDs must be unique within a fixture.
+  Synthesized if omitted. IDs must be unique within a fixture (and,
+  for cross-file uniqueness, within a donor under `cross-codebase/`).
 - `on "<text>"` — pins `PROBE-EXPECTS` to a diagnostic whose source
-  span (sliced by `column..endColumn`) equals `<text>`. For
-  `PROBE-TYPE-IS`, names the column under assertion. Double-quoted;
-  `\"` escapes.
+  span (sliced by `column..endColumn`, strict equal — no substring
+  fallback) equals `<text>`. For `PROBE-TYPE-IS`, names the column
+  under assertion.
 - `match /<regex>/[flags]` — pins `PROBE-EXPECTS` by message regex
   (Python `re`; flags `i m s x`). Prefer `on` — diagnostic message
   wording is NOT stable across pykrete-core minor releases.
 - `-- <rationale>` — free-form note that ends the marker. Shown in
   failure output.
 
+### Quoting rules
+
+The `on "..."` value is parsed verbatim with two escapes only:
+
+- `\"` → literal `"`
+- `\\` → literal `\`
+
+No other escape is interpreted. `\n`, `\t`, etc. are preserved as the
+literal two-character sequences. Unterminated quoted strings hard-fail
+at parse time with a named `ProbeError`. Non-ASCII bytes (e.g. `café`)
+pass through unchanged.
+
 ### Type expressions
 
 `PROBE-TYPE-IS` accepts the same atomic type names as `Schema`
-annotations: `int`, `long`, `double`, `float`, `string`, `boolean`,
-`bool`, `date`, `timestamp`, `binary`, `byte`, `short`, `decimal`,
-`decimal(p, s)`. Collections: `Array[T]` and `array<T>` are accepted
-(normalized to `array<T>`). `decimal` unparameterized matches Spark's
-default `decimal(10, 0)`.
+annotations: `string`, `boolean`, `bool`, `date`, `timestamp`, `binary`.
+Collections: `Array[T]` and `array<T>` are accepted (normalized to
+`array<T>`).
+
+**Numeric carve-out (v1.1).** Within-family numeric subtypes
+(`int`, `long`, `short`, `byte`, `double`, `float`, `decimal`,
+`decimal(p, s)`) are rejected at parse time with a named `ProbeError`.
+The synthesizer can only fire family-level D-codes (D0080-D0082), so a
+green for an int-vs-double probe would be vacuous. v1.2 will re-enable
+numeric subtypes once pykrete-core ships numeric-subtype-mismatch
+D-codes. For now, use a cross-family assertion (e.g., `string on
+"name"`) to prove a column is non-numeric.
 
 ## Target-line resolution
 
@@ -83,14 +103,14 @@ statement is a parse error.
 ## Running
 
 ```bash
-# Verify probes in a single file:
-python scripts/probes.py verify path/to/fixture.pyk
-
-# Verify everything under a directory (recursive):
+# Verify every .pyk under one or more paths (recursive; default = CWD):
 python scripts/probes.py run cross-codebase/
 
 # Extract probes as JSON (for tooling / inspection):
 python scripts/probes.py extract path/to/fixture.pyk
+
+python scripts/probes.py --version
+python scripts/probes.py --help
 ```
 
 ### Env vars
@@ -99,6 +119,8 @@ python scripts/probes.py extract path/to/fixture.pyk
   PATH. The runner does not assume a build location.
 - `PROBES_CATALOG` — override path to `diagnostic_catalog.json`.
   Defaults to the file next to `probes.py`.
+- `PYKRETE_TIMEOUT` — seconds for the pykrete subprocess (default 30).
+  Raise this if the checker is slow on a particular fixture.
 
 ### Exit codes
 
@@ -106,7 +128,7 @@ python scripts/probes.py extract path/to/fixture.pyk
 |------|---------|
 | 0    | all probes satisfied (or no probes found) |
 | 1    | one or more probes failed |
-| 2    | usage error, parse error, or catalog drift |
+| 2    | usage error, parse error, catalog drift, or checker crash |
 
 ### Output
 
@@ -123,7 +145,9 @@ PROBE FAILURE: <fixture>
 
 The format is greppable and includes both the comment line (where the
 marker lives) and the target line (where the assertion applies), so a
-CI log reader can jump straight to the failing assertion.
+CI log reader can jump straight to the failing assertion. An empty
+checker stdout with a non-zero exit is treated as a crash (`CHECKER
+ERROR: ...` on stderr, exit 2), not a silent pass.
 
 ## Worked example
 
@@ -136,7 +160,7 @@ def pipeline(orders: DataFrame[Order]) -> DataFrame[Order]:
     # PROBE-RESOLVES: id=quinn-select-region -- region survives narrow select
     df = orders.select("region", "amount")
 
-    # PROBE-TYPE-IS: double on "amount" id=quinn-amount-type
+    # PROBE-TYPE-IS: string on "region" id=quinn-region-type
     df2 = df
 
     # PROBE-EXPECTS: D0030 id=quinn-select-drops-product on "product"
@@ -144,7 +168,7 @@ def pipeline(orders: DataFrame[Order]) -> DataFrame[Order]:
 ```
 
 Three probes cover the same chain end-to-end: the `select` keeps
-`region` (`RESOLVES`), `amount` stays a `double` (`TYPE-IS`), and a
+`region` (`RESOLVES`), `region` stays a `string` (`TYPE-IS`), and a
 follow-up reference to `product` correctly fires D0030 (`EXPECTS`).
 
 ## Diagnostic catalog

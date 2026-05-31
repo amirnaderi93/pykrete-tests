@@ -5,7 +5,6 @@ Spec: pykrete repo `docs/design/schema-tracking-probes.md` (commit 565183e).
 
 Usage:
     python scripts/probes.py extract <fixture.pyk>...
-    python scripts/probes.py verify <fixture.pyk>...
     python scripts/probes.py run [<path>...]   # default scope; recursive
     python scripts/probes.py --version
     python scripts/probes.py --help
@@ -156,6 +155,10 @@ _MARKER_HEAD = re.compile(r"^#\s*PROBE-([A-Z][A-Z\-]*)\b\s*:?\s*(.*?)\s*$")
 _MARKER_DETECT = re.compile(r"^#\s*PROBE-([A-Z][A-Z\-]*)\b\s*(:|\s|$)")
 
 
+class _UnterminatedQuoteError(Exception):
+    pass
+
+
 def _tokenize_slots(text: str) -> list[tuple[str, str]]:
     """Tokenize the marker tail into (slot_name, value) pairs.
 
@@ -184,14 +187,20 @@ def _tokenize_slots(text: str) -> list[tuple[str, str]]:
         c = text[i]
         if c == '"':
             j = i + 1
+            closed = False
             while j < n:
                 if text[j] == "\\" and j + 1 < n:
                     j += 2
                     continue
                 if text[j] == '"':
                     j += 1
+                    closed = True
                     break
                 j += 1
+            if not closed:
+                raise _UnterminatedQuoteError(
+                    f"unterminated quoted string starting at column {i}"
+                )
             i = j
             continue
         if c == "/":
@@ -342,7 +351,12 @@ def _parse_marker(
             )
         return None
 
-    slots = _tokenize_slots(body)
+    try:
+        slots = _tokenize_slots(body)
+    except _UnterminatedQuoteError as exc:
+        raise ProbeError(
+            f"{fixture_path}:{line_no}: {exc} in PROBE-{kind_raw} marker"
+        ) from exc
     head_value = ""
     probe_id: Optional[str] = None
     span: Optional[str] = None
@@ -432,6 +446,16 @@ def _parse_marker(
             type_expr = _normalize_type_expr(type_expr)
         except ProbeError as exc:
             raise ProbeError(f"{fixture_path}:{line_no}: {exc}") from exc
+        type_base = type_expr.split("(", 1)[0].split("<", 1)[0]
+        if type_base in _NUMERIC_FAMILY:
+            raise ProbeError(
+                f"{fixture_path}:{line_no}: PROBE-TYPE-IS with numeric-subtype"
+                f" assertion ({type_base!r}) is not supported in v1.1 —"
+                f" within-family subtype distinguishability is deferred to"
+                f" v1.2 (requires pykrete-core D-codes for"
+                f" numeric-subtype-mismatch). Drop the probe or use a"
+                f" cross-family assertion (e.g., int vs string)."
+            )
         partial["type_expr"] = type_expr
 
     elif kind_raw == "FILE-CLEAN-OF":
@@ -484,6 +508,15 @@ def _parse_marker(
 _ATOMIC_ALIASES = {
     "int", "long", "double", "float", "string", "boolean", "bool",
     "date", "timestamp", "binary", "byte", "short", "decimal",
+}
+
+# v1.1 carve-out (TM directive, round 3): the synthesizer fires
+# family-level D0080-D0082, which cannot tell int from long or double from
+# float. A green for a within-family TYPE-IS probe would be vacuous — and
+# vacuous greens violate the v1.1 trust claim. Reject these at parse time
+# with a named error so fixture authors learn at write time, not at run.
+_NUMERIC_FAMILY = {
+    "int", "long", "short", "byte", "double", "float", "decimal",
 }
 
 
@@ -678,27 +711,14 @@ def _normalize_path(p: Path, repo_root: Optional[Path]) -> str:
 # Synthesizer (PROBE-TYPE-IS rewrite — spec "Golden format" option (a)).
 # ---------------------------------------------------------------------------
 
-# Type families for distinguishing-expression synthesis. Each entry maps an
-# atomic type to a synthesizer recipe that fires the chosen D-code if-and-
-# only-if the column's tracked type is NOT in that family. Subtype-level
-# distinguishability inside the numeric family is achieved by using different
-# operations per subtype where pykrete is able to distinguish them; for the
-# subtypes pykrete treats as a single family today, the test still narrows to
-# "numeric vs non-numeric" but the spec acknowledges this limit in the
-# Deferred-to-v1.2 section. The synthesizer never silently passes — every
-# probe maps to exactly one D-code target or `<unsynthesizable>`.
+# Non-numeric atomic types map to D0081 (nonNumericArithmetic) by adding an
+# int literal — if the tracked type IS numeric, D0081 will not fire and the
+# probe correctly fails. Numeric subtypes are rejected at parse time (B1,
+# round-3 directive); their entries were removed because the synthesizer
+# could not distinguish int from long today, which would make a within-
+# family green vacuous. v1.2 will re-enable numeric subtypes once
+# pykrete-core ships numeric-subtype-mismatch D-codes.
 _TYPE_TARGET: dict[str, str] = {
-    # Numeric family — use D0082 (crossTypeComparison) by comparing against a
-    # string literal. If tracked type is not numeric, D0082 fires.
-    "int": "D0082",
-    "long": "D0082",
-    "short": "D0082",
-    "byte": "D0082",
-    "double": "D0082",
-    "float": "D0082",
-    "decimal": "D0082",
-    # Non-numeric — use D0081 (nonNumericArithmetic) by adding an int literal.
-    # If tracked type IS numeric, D0081 will not fire (assertion fails).
     "string": "D0081",
     "binary": "D0081",
     "date": "D0081",
@@ -777,10 +797,7 @@ def _synthesize_type_probes(
             continue
         ident = _safe_ident(probe.id, idx)
         accessor = _column_accessor(probe.span_text)
-        if target_code == "D0082":
-            expr = f'{ident} = ({accessor} > lit("x"))'
-        else:
-            expr = f'{ident} = ({accessor} + lit(1))'
+        expr = f'{ident} = ({accessor} + lit(1))'
         enclosing = _enclosing_function(source, probe.target_line)
         if enclosing is None:
             insert_after = len(lines)
@@ -900,11 +917,17 @@ def _stage_and_check(
     fixture_path: Path,
     *,
     strict: bool,
+    fixture_relpath: Optional[str] = None,
 ) -> dict:
     """Stage the entire directory of `fixture_path` to a tempdir then run check.
 
     Resolves B3: probes inside a fixture that `from schema import Sales`
     require the sibling files to be present for import resolution.
+
+    When `fixture_relpath` is provided, rewrite each diagnostic's `file`
+    field that points at the staged copy to the supplied relpath. This
+    makes the verifier's strict repo-relative match (B5) actually fire
+    in production, not just in unit tests.
     """
     src_dir = fixture_path.parent
     with tempfile.TemporaryDirectory() as tmp:
@@ -912,7 +935,14 @@ def _stage_and_check(
         shutil.copytree(src_dir, dst_dir)
         dst_path = dst_dir / fixture_path.name
         dst_path.write_text(source, encoding="utf-8")
-        return _run_checker(dst_path, strict=strict)
+        result = _run_checker(dst_path, strict=strict)
+        if fixture_relpath is not None:
+            staged_basename = fixture_path.name
+            for d in result.get("diagnostics") or []:
+                diag_file = d.get("file", "")
+                if Path(diag_file).name == staged_basename:
+                    d["file"] = fixture_relpath
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -925,6 +955,7 @@ def verify(
     *,
     catalog: Optional[Catalog] = None,
     repo_root: Optional[Path] = None,
+    fixture_relpath: Optional[str] = None,
 ) -> tuple[list[Probe], list[ProbeFailure]]:
     if catalog is None:
         catalog = load_catalog()
@@ -934,26 +965,35 @@ def verify(
     if not probes:
         return probes, []
 
+    if fixture_relpath is None:
+        fixture_relpath = _normalize_path(fixture_path, repo_root)
+
     non_type_probes = [p for p in probes if p.kind != "TYPE-IS"]
     type_probes = [p for p in probes if p.kind == "TYPE-IS"]
 
     failures: list[ProbeFailure] = []
     if non_type_probes:
-        actual = _stage_and_check(source, fixture_path, strict=False)
+        actual = _stage_and_check(
+            source, fixture_path, strict=False, fixture_relpath=fixture_relpath,
+        )
         failures.extend(
             verify_against_json(
                 non_type_probes,
                 actual,
                 fixture_path.name,
                 fixture_source=source,
+                fixture_relpath=fixture_relpath,
             )
         )
     if type_probes:
         plan = _synthesize_type_probes(source, type_probes)
         synth_count = sum(1 for _, code, _ in plan.expectations if code != "<unsynthesizable>")
         if synth_count > 0:
-            actual = _stage_and_check(plan.appended_source, fixture_path, strict=True)
-            failures.extend(_verify_type_probes(plan, actual, fixture_path.name))
+            actual = _stage_and_check(
+                plan.appended_source, fixture_path, strict=True,
+                fixture_relpath=fixture_relpath,
+            )
+            failures.extend(_verify_type_probes(plan, actual, fixture_relpath))
         else:
             for probe in type_probes:
                 failures.append(
@@ -1152,12 +1192,9 @@ def _bipartite_match(probes_list: list[Probe], diags: list[dict]) -> dict[int, d
     for probe in probes_list:
         try_augment(id(probe), set())
 
-    by_id = {id(p): p for p in probes_list}
     out: dict[int, dict] = {}
     for di, p_id in diag_owner.items():
         out[p_id] = diags[di]
-    # Probes without a match are simply absent.
-    _ = by_id
     return out
 
 
@@ -1212,10 +1249,15 @@ def _diag_summary(diags: list[dict]) -> str:
 def _verify_type_probes(
     plan: _SynthPlan,
     actual: dict,
-    fixture_name: str,
+    fixture_relpath: str,
 ) -> list[ProbeFailure]:
     diagnostics = actual.get("diagnostics") or []
     failures: list[ProbeFailure] = []
+
+    def _matches(d: dict) -> bool:
+        diag_file = d.get("file", "")
+        return diag_file == fixture_relpath or diag_file.endswith("/" + fixture_relpath)
+
     for probe, target_code, synth_line in plan.expectations:
         if target_code == "<unsynthesizable>":
             failures.append(
@@ -1228,12 +1270,10 @@ def _verify_type_probes(
             continue
         hits = [
             d for d in diagnostics
-            if d.get("code") == target_code and d.get("line") == synth_line
-            and Path(d.get("file", "")).name == fixture_name
+            if d.get("code") == target_code and d.get("line") == synth_line and _matches(d)
         ]
         if not hits:
-            other = [d for d in diagnostics if d.get("line") == synth_line
-                     and Path(d.get("file", "")).name == fixture_name]
+            other = [d for d in diagnostics if d.get("line") == synth_line and _matches(d)]
             failures.append(
                 ProbeFailure(
                     probe=probe,
@@ -1319,6 +1359,25 @@ def _donor_root(fixture: Path) -> str:
     return fixture.parent.name
 
 
+def _fixture_relpath(fixture: Path) -> str:
+    """Path of `fixture` relative to the cross-codebase root (B5).
+
+    The repo-relative form lets the verifier reject diagnostics that
+    come from a different donor with the same basename. For fixtures
+    under `cross-codebase/<donor>/...`, anchor at `<donor>/...`. For
+    fixtures elsewhere, fall back to a CWD-relative or absolute POSIX
+    path; callers can override by passing a custom relpath.
+    """
+    parts = fixture.parts
+    if "cross-codebase" in parts:
+        i = parts.index("cross-codebase")
+        return Path(*parts[i + 1:]).as_posix()
+    try:
+        return fixture.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return fixture.resolve().as_posix()
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
     paths = args.paths or ["."]
     catalog = load_catalog()
@@ -1329,8 +1388,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     summary: list[dict] = []
     ids_per_donor: dict[str, dict[str, str]] = {}
     for fixture in _iter_fixtures(paths):
+        relpath = _fixture_relpath(fixture)
         try:
-            probes_list, failures = verify(fixture, catalog=catalog)
+            probes_list, failures = verify(
+                fixture, catalog=catalog, fixture_relpath=relpath,
+            )
         except ProbeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
@@ -1375,13 +1437,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 1 if total_failures else 0
 
 
-def _cmd_verify(args: argparse.Namespace) -> int:
-    if not args.paths:
-        print("usage: probes.py verify <fixture.pyk>...", file=sys.stderr)
-        return 2
-    return _cmd_run(args)
-
-
 def _build_parser() -> argparse.ArgumentParser:
     catalog_commit = ""
     try:
@@ -1406,12 +1461,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_extract.add_argument("paths", nargs="+", help="One or more .pyk files or directories.")
     p_extract.set_defaults(func=_cmd_extract)
-
-    p_verify = sub.add_parser(
-        "verify", help="Run probes against the named fixtures."
-    )
-    p_verify.add_argument("paths", nargs="+", help="One or more .pyk files or directories.")
-    p_verify.set_defaults(func=_cmd_verify)
 
     p_run = sub.add_parser(
         "run", help="Verify every .pyk under the given paths (defaults to CWD)."
