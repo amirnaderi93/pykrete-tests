@@ -1,0 +1,60 @@
+"""``AbstractVersionedDataset`` implementation to access Spark dataframes using
+``pyspark``."""
+#
+# Apache License 2.0. Copyright kedro-org / QuantumBlack.
+#
+# Annotated for pykrete from
+# kedro-datasets/kedro_datasets/spark/spark_dataset.py at
+# kedro-org/kedro-plugins, pinned-commit c4c367eb.
+#
+# Strategy: kedro's load/save fronts spark.read.load / data.write.save
+# with **kwargs forwarding. pykrete sees the return type as DataFrame
+# (no schema), so callers re-anchor when they need column checks.
+# Typed helpers below replay the same shape on a typed DataFrame[X].
+#
+# Features covered:
+#   - SparkSession.builder.getOrCreate() chain
+#   - spark.read.schema(opaque-StructType).load(path, format, **opts)
+#   - data.write.save(path, format, **opts)
+#   - data.write.format(...).mode(...).save(...) chain (alternate path)
+#   - .cast(DataFrame[X]) re-anchor after opaque IO
+#   - except branch with AnalysisException
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+class Weather(Schema):
+    station_id: int
+    timestamp: timestamp
+    temperature_c: double
+
+
+def load_demo(spark: SparkSession, file_format: str, load_path: str) -> DataFrame[Weather]:
+    """Mirrors SparkDataset.load — the .load(path, format, **kwargs)
+    call is opaque; cast to anchor."""
+    read_obj = spark.read
+    return read_obj.load(load_path, file_format).cast(DataFrame[Weather])
+
+
+def save_demo(data: DataFrame[Weather], save_path: str, file_format: str) -> None:
+    """Mirrors SparkDataset.save — write.save(path, format, **kwargs)
+    is a terminal pass-through."""
+    data.write.save(save_path, file_format)
+
+
+def exists_demo(spark: SparkSession, load_path: str, file_format: str) -> bool:
+    """Mirrors SparkDataset._exists — try/except probing whether the
+    path exists by attempting a .load."""
+    try:
+        spark.read.load(load_path, file_format)
+    except Exception as exception:
+        message = str(exception)
+        if "Path does not exist:" in message or "is not a Delta table" in message:
+            return False
+        raise
+    return True
+
+
+def alternate_save_path(data: DataFrame[Weather], path: str) -> None:
+    """Mirrors the common alternate write path with .format().mode()."""
+    data.write.format("parquet").mode("overwrite").save(path)

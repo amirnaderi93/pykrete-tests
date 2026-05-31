@@ -1,0 +1,48 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Annotated for pykrete from
+# sdk/python/feast/infra/contrib/spark_kafka_processor.py at
+# feast-dev/feast, pinned-commit 4203eb74.
+#
+# Strategy: readStream is opaque to pykrete. The downstream
+# selectExpr + .select(from_json(...).alias("table")).select("table.*")
+# is the canonical "parse Kafka payload" pattern; from_json /
+# from_avro are F.* functions whose first arg is a Column.
+#
+# Features covered:
+#   - spark.readStream.format("kafka").options(**kwargs).load() opaque
+#   - .selectExpr("CAST(value AS STRING)") string-form selectExpr
+#   - F.from_json(col, schema_json) → struct-typed Column
+#   - F.from_avro(col, schema_json) → struct-typed Column
+#   - .alias("table") on a from_json result
+#   - .select("table.*") star-projection of a struct column
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, from_json
+from pyspark.sql.avro.functions import from_avro
+
+
+def ingest_json_stream(spark: SparkSession, kafka_options: dict, schema_json: str) -> None:
+    """Mirrors _ingest_stream_data (json branch)."""
+    stream_df = (
+        spark.readStream.format("kafka")
+        .options(**kafka_options)
+        .load()
+        .selectExpr("CAST(value AS STRING)")
+        .select(from_json(col("value"), schema_json).alias("table"))
+        .select("table.*")
+    )
+    _ = stream_df
+
+
+def ingest_avro_stream(spark: SparkSession, kafka_options: dict, schema_json: str) -> None:
+    """Mirrors _ingest_stream_data (avro branch)."""
+    stream_df = (
+        spark.readStream.format("kafka")
+        .options(**kafka_options)
+        .load()
+        .selectExpr("CAST(value AS STRING)")
+        .select(from_avro(col("value"), schema_json).alias("table"))
+        .select("table.*")
+    )
+    _ = stream_df

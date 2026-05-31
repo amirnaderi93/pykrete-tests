@@ -1,0 +1,209 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from quinn/functions.py at MrPowers/quinn,
+# pinned-commit 20156582.
+#
+# Strategy: the upstream functions take a bare `Column` and return a
+# `Column` (pykrete doesn't enter their bodies — Column-only signatures
+# carry no schema context). To exercise the F.* surface they call into,
+# we add module-level demo helpers that take a typed DataFrame[X] and
+# replay the same expressions through .withColumn / .select, which is
+# how these helpers are used in practice.
+#
+# Features covered:
+#   - F.trim, F.regexp_replace, F.date_add, F.next_day, F.dayofweek
+#   - F.lit, F.when().otherwise(), F.size, F.rand, F.cast
+#   - F.abs, F.expr (string-bodied SQL inside transform/filter/sequence)
+#   - Column ops: .eqNullSafe, .isNull, .isNotNull, .isin, .between, []
+#   - Bitwise &, |, ~ for Column composition
+
+from __future__ import annotations
+
+import pyspark.sql.functions as F
+from pyspark.sql import Column, DataFrame
+from pyspark.sql.functions import lit, trim, when
+
+
+# ----------------------------------------------------------------------
+# pykrete schemas — match the kinds of columns quinn helpers operate on.
+# ----------------------------------------------------------------------
+
+
+class StringRow(Schema):
+    s: string
+
+
+class DatePair(Schema):
+    start_date: date
+    end_date: date
+
+
+class NumericPair(Schema):
+    a: double
+    b: double
+
+
+class ArrayBag(Schema):
+    items: Array[int]
+
+
+class FlagRow(Schema):
+    flag: bool
+
+
+# ----------------------------------------------------------------------
+# pykrete-typed helpers replaying quinn's Column-builders against a
+# real DataFrame schema so pykrete can check the F.*/Column surface.
+# ----------------------------------------------------------------------
+
+
+def single_space_demo(df: DataFrame[StringRow]) -> None:
+    """Mirrors quinn.functions.single_space — trim + regexp_replace
+    on a string column."""
+    df.withColumn("s_clean", F.trim(F.regexp_replace(df.s, " +", " ")))
+
+
+def remove_all_whitespace_demo(df: DataFrame[StringRow]) -> None:
+    """Mirrors quinn.functions.remove_all_whitespace."""
+    df.withColumn("s_nows", F.regexp_replace(df.s, "\\s+", ""))
+
+
+def remove_non_word_demo(df: DataFrame[StringRow]) -> None:
+    """Mirrors quinn.functions.remove_non_word_characters."""
+    df.withColumn("s_word", F.regexp_replace(df.s, "[^\\w\\s]+", ""))
+
+
+def week_end_date_demo(df: DataFrame[DatePair]) -> None:
+    """Mirrors quinn.functions.week_end_date — exercises dayofweek,
+    eqNullSafe, when/otherwise, next_day, lit."""
+    df.withColumn(
+        "week_end",
+        F.when(
+            F.dayofweek(df.start_date).eqNullSafe(F.lit(7)),
+            df.start_date,
+        ).otherwise(F.next_day(df.start_date, "Sat")),
+    )
+
+
+def week_start_date_demo(df: DataFrame[DatePair]) -> None:
+    """Mirrors quinn.functions.week_start_date — date_add with a
+    negative offset to walk back from the computed week-end."""
+    end = F.when(
+        F.dayofweek(df.start_date).eqNullSafe(F.lit(7)),
+        df.start_date,
+    ).otherwise(F.next_day(df.start_date, "Sat"))
+    df.withColumn("week_start", F.date_add(end, -6))
+
+
+def approx_equal_demo(df: DataFrame[NumericPair]) -> None:
+    """Mirrors quinn.functions.approx_equal."""
+    df.withColumn("close", F.abs(df.a - df.b) < 0.001)
+
+
+def array_choice_demo(df: DataFrame[ArrayBag]) -> None:
+    """Mirrors quinn.functions.array_choice — F.rand, F.size, .cast,
+    then item access via Column.__getitem__."""
+    index = (F.rand(0) * F.size(df.items)).cast("int")
+    df.withColumn("pick", df.items[index])
+
+
+def business_days_between_demo(df: DataFrame[DatePair]) -> None:
+    """Mirrors quinn.functions.business_days_between — F.expr with
+    transform/filter/sequence SQL, then F.size and F.when/.otherwise."""
+    all_days = "sequence(start_date, end_date)"
+    days_of_week = f"transform({all_days}, x -> date_format(x, 'E'))"
+    filter_weekends = F.expr(
+        f"filter({days_of_week}, x -> x NOT IN ('Sat', 'Sun'))"
+    )
+    num_business_days = F.size(filter_weekends) - 1
+    df.withColumn(
+        "biz_days",
+        F.when(num_business_days < 0, None).otherwise(num_business_days),
+    )
+
+
+def is_falsy_demo(df: DataFrame[FlagRow]) -> None:
+    """Mirrors quinn.functions.is_falsy / is_truthy."""
+    falsy = when(df.flag.isNull() | (df.flag == lit(False)), True).otherwise(False)
+    df.withColumn("is_falsy", falsy).withColumn("is_truthy", ~falsy)
+
+
+def is_null_or_blank_demo(df: DataFrame[StringRow]) -> None:
+    """Mirrors quinn.functions.is_null_or_blank."""
+    df.withColumn("nob", (df.s.isNull()) | (trim(df.s) == ""))
+
+
+def is_not_in_demo(df: DataFrame[StringRow]) -> None:
+    """Mirrors quinn.functions.is_not_in — ~ over .isin."""
+    df.withColumn("nin", ~(df.s.isin(["a", "b", "c"])))
+
+
+def null_between_demo(df: DataFrame[NumericPair]) -> None:
+    """Mirrors quinn.functions.null_between — nested when/otherwise,
+    isNull/isNotNull, .between."""
+    lower = df.a
+    upper = df.b
+    col = (df.a + df.b) / lit(2.0)
+    df.withColumn(
+        "nb",
+        when(lower.isNull() & upper.isNull(), False).otherwise(
+            when(col.isNull(), False).otherwise(
+                when(
+                    lower.isNull() & upper.isNotNull() & (col <= upper), True
+                ).otherwise(
+                    when(
+                        lower.isNotNull() & upper.isNull() & (col >= lower),
+                        True,
+                    ).otherwise(col.between(lower, upper)),
+                ),
+            ),
+        ),
+    )
+
+
+# ----------------------------------------------------------------------
+# Original upstream helpers (unchanged from MrPowers/quinn@20156582).
+# ----------------------------------------------------------------------
+
+
+def single_space(col: Column) -> Column:
+    return F.trim(F.regexp_replace(col, " +", " "))
+
+
+def remove_all_whitespace(col: Column) -> Column:
+    return F.regexp_replace(col, "\\s+", "")
+
+
+def anti_trim(col: Column) -> Column:
+    return F.regexp_replace(col, "\\b\\s+\\b", "")
+
+
+def remove_non_word_characters(col: Column) -> Column:
+    return F.regexp_replace(col, "[^\\w\\s]+", "")
+
+
+def approx_equal(col1: Column, col2: Column, threshold) -> Column:
+    return F.abs(col1 - col2) < threshold
+
+
+def is_falsy(col: Column) -> Column:
+    return when(col.isNull() | (col == lit(False)), True).otherwise(False)
+
+
+def is_truthy(col: Column) -> Column:
+    return ~(is_falsy(col))
+
+
+def is_null_or_blank(col: Column) -> Column:
+    return (col.isNull()) | (trim(col) == "")

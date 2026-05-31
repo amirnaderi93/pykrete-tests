@@ -1,0 +1,16 @@
+# Apache License 2.0
+# Copyright dbt Labs.
+#
+# Verbatim Python-model body extracted from
+# tests/functional/adapter/test_python_model.py at dbt-labs/dbt-spark,
+# pinned-commit 42700b5d.
+#
+# In dbt-spark "python models", users author a top-level `model(dbt,
+# spark)` function that returns a Spark DataFrame.
+
+def model(dbt, spark):
+    dbt.config(
+        materialized='table',
+    )
+    data = [[1, 2]] * 10
+    return spark.createDataFrame(data, schema=['test1', 'test3'])

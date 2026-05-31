@@ -1,0 +1,43 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Annotated for pykrete from
+# sdk/python/feast/transformation/spark_transformation.py at
+# feast-dev/feast, pinned-commit 4203eb74.
+#
+# Strategy: the static helper creates a temp view from any pyspark
+# DataFrame input. The spark_sql transform passes either a DataFrame
+# (registered as a temp view) or a literal string to a user-supplied
+# UDF whose return is a SQL string fed to spark.sql.
+#
+# Features covered:
+#   - DataFrame.createOrReplaceTempView(name) side-effecting
+#   - spark.sql(string) opaque IO
+#   - isinstance(df, pyspark.sql.DataFrame) runtime type-check (which
+#     pykrete treats as a soft branch — it doesn't refine the type
+#     statically inside the branch arm)
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+class FeatureRow(Schema):
+    entity_id: long
+    value: double
+
+
+def create_temp_view_demo(df: DataFrame[FeatureRow], name: str) -> str:
+    """Mirrors _create_temp_view_for_dataframe."""
+    df_temp_view = f"feast_transformation_temp_view_{name}"
+    df.createOrReplaceTempView(df_temp_view)
+    return df_temp_view
+
+
+def transform_spark_sql_demo(
+    spark: SparkSession,
+    df: DataFrame[FeatureRow],
+    sql_template: str,
+) -> None:
+    """Mirrors _transform_spark_sql, simplified to one input. The
+    spark.sql result is opaque; the caller .cast(...) if they want
+    column checks."""
+    view_name = create_temp_view_demo(df, "0")
+    spark.sql(sql_template.format(view=view_name))

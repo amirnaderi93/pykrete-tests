@@ -1,78 +1,132 @@
 # pykrete-tests
 
-[![pykrete check](https://github.com/amirnaderi93/pykrete-tests/actions/workflows/check.yml/badge.svg)](https://github.com/amirnaderi93/pykrete-tests/actions/workflows/check.yml)
+[![cross-codebase](https://github.com/amirnaderi93/pykrete-tests/actions/workflows/cross-codebase.yml/badge.svg)](https://github.com/amirnaderi93/pykrete-tests/actions/workflows/cross-codebase.yml)
 
-Real-world PySpark codebases used as [pykrete](https://github.com/amirnaderi93/pykrete)'s
-integration test suite. pykrete-tests vendors snapshots of well-known PySpark
-projects, adds pykrete annotations (Schema classes, typed signatures), and runs
-pykrete on every push and nightly. Its purpose is twofold:
+## Why cross-codebase testing
 
-- **Regression coverage** — catch behavior changes in pykrete's checker as new
-  operations are modeled and existing ones evolve.
-- **Trust signal** — demonstrate that pykrete keeps real PySpark code
-  diagnostic-free under realistic annotation, not just toy examples.
+pykrete is a strict-superset type checker for PySpark. To trust it,
+you need confidence it doesn't choke on the patterns real Spark code
+actually uses — not just the ones we thought to write tests for.
 
-## Status
+So we test pykrete against real upstream code from 10 codebases that
+together represent the dominant PySpark stack. Every release runs
+pykrete over the fixtures in `cross-codebase/` and the diagnostic
+output is JSON-compared against a golden snapshot. A regression in
+any donor blocks the release.
 
-Three pilots landed, three pykrete gaps surfaced and fixed upstream:
+## The donors
 
-- **Apache Spark** — `examples/src/main/python/sql/basic.py` (pilot 1),
-  `python/pyspark/sql/tests/test_group.py` (pilot 2). See
-  [spark/RESULTS.md](spark/RESULTS.md).
-- **MLflow** — `tests/spark/autologging/datasource/test_spark_datasource_autologging.py`
-  (pilot 3). See [mlflow/RESULTS.md](mlflow/RESULTS.md).
+Each donor lives under `cross-codebase/<donor>/` with:
 
-Source pools (for future pilots):
+- `upstream/<original-path>/<file>.pyk` — verbatim upstream Python
+  source with the `.py` → `.pyk` extension rename. `.pyk` is a
+  strict superset of Python, so the rename is zero-behavior-change.
+  License header preserved at the top.
+- `annotated/<original-path>/<file>.pyk` — same code with pykrete
+  `class X(Schema)` declarations and typed-helper wrappers added.
+  All bodies of upstream helpers retained for traceability.
+- `annotated/<original-path>/<file>.golden.json` — JSON-formatted
+  `pykrete check --format json` output, normalized for portability
+  (see `scripts/golden.sh`). CI diffs the live output against this
+  on every push.
+- `LICENSE-UPSTREAM` — donor's license file.
+- `pinned-commit` — the upstream commit each `upstream/` and
+  `annotated/` file is faithful to.
 
-- **Apache Spark** — `python/pyspark/sql/tests/` and `python/pyspark/tests/`
-  (149 + 33 PySpark files at the time of selection).
-- **MLflow** — files importing `pyspark.sql` (65 across the repo at the time
-  of selection).
+| donor | repo | commit | why it's a donor |
+|-------|------|--------|------------------|
+| **spark** | [apache/spark](https://github.com/apache/spark) | `d004e0d8` | If pykrete works on Spark's own test suite + examples, it works on real Spark code by definition. The standard. |
+| **delta** | [delta-io/delta](https://github.com/delta-io/delta) | `3f10aaec` | Delta Lake — the dominant lakehouse storage layer used in production by most teams running Spark today. DataFrameWriter chains, time-travel reads, merge expressions. |
+| **kedro-plugins** | [kedro-org/kedro-plugins](https://github.com/kedro-org/kedro-plugins) | `c4c367eb` | Kedro is the most-used Python pipeline framework that wraps Spark. The `kedro-datasets` Spark adapters cover load/save plumbing and Hive upserts (Window + row_number + unionByName). |
+| **iceberg-python** | [apache/iceberg-python](https://github.com/apache/iceberg-python) | `5da8186d` | The Apache lakehouse alternative to Delta. Catalog reads, DataFrameWriterV2 (writeTo), Iceberg metadata-view introspection. |
+| **hudi** | [apache/hudi](https://github.com/apache/hudi) | `fc85e3ea` | Uber's lakehouse engine. The PySpark quickstart's soft-delete logic uses `reduce(lambda df, col: df.withColumn(...), ...)` — a hard "closure-over-DataFrame" case real users hit. |
+| **mlflow** | [mlflow/mlflow](https://github.com/mlflow/mlflow) | `8f942548` | ML lifecycle infrastructure. `mlflow.pyfunc.spark_udf` is how thousands of teams ship models to Spark batches. Nested struct/array schemas, UDF invocation patterns. |
+| **feast** | [feast-dev/feast](https://github.com/feast-dev/feast) | `4203eb74` | Feature-store reference implementation. Multi-statement `spark.sql` chains, Kafka stream parsing with `F.from_json` / `F.from_avro`, temp-view-based SparkTransformation. |
+| **quinn** | [MrPowers/quinn](https://github.com/MrPowers/quinn) | `20156582` | The most popular community PySpark helper library. Pure `F.*` + Column-builder functions — heavy on `F.regexp_replace`, `F.when().otherwise()`, `F.expr` with SQL strings, `Column.eqNullSafe`. |
+| **dbt-spark** | [dbt-labs/dbt-spark](https://github.com/dbt-labs/dbt-spark) | `42700b5d` | dbt's Spark adapter. The Python-model convention (`def model(dbt, spark) -> DataFrame[X]`) is how dbt users write transformations in Python. |
+| **python-deequ** | [awslabs/python-deequ](https://github.com/awslabs/python-deequ) | `20693b81` | AWS-built data-quality framework. The `sc.parallelize([Row(...)]).toDF()` pattern + `spark.read.json(sc.parallelize([json_str]))` round-trip is unusual but common across DQ tools. |
 
-CI builds pykrete from its `main` branch on every push and nightly, then
-runs `pykrete check` on every `**/annotated/**/*.pyk` file in this repo.
-See [.github/workflows/check.yml](.github/workflows/check.yml).
+32 annotated fixtures total across the 10 donors. Spark contributes
+eight (basic, datasource, streaming wordcount, the four `tests/`
+files, and `examples/.../arrow.py` covering `pandas_udf` /
+`applyInPandas` / `mapInPandas`); mlflow contributes four (the three
+`mlflow.pyfunc.spark_udf` examples plus
+`tests/spark/autologging/datasource/test_spark_datasource_autologging.py`);
+the remaining eight donors contribute the rest.
 
-See [pykrete's roadmap](https://github.com/amirnaderi93/pykrete/blob/main/docs/roadmap.md)
-for context.
+## What the goldens capture
 
-## Layout (planned)
+The golden snapshot for each annotated fixture is the JSON-formatted
+diagnostic output pykrete emits today. "Clean" goldens (`diagnostics:
+[]`) mean pykrete checks the file without complaint. Non-empty
+goldens fall into two buckets:
 
-Each tested codebase gets a top-level directory:
+1. **Known false positives or vocabulary gaps in pykrete.** A handful
+   of the fixtures surface real-world patterns pykrete doesn't yet
+   handle perfectly — `df.drop(missing)` silently tolerated upstream
+   but flagged by pykrete, backtick-wrapped column refs
+   (`` F.col("`info`") ``) not normalized, the `Struct` placeholder
+   used in some donor annotations where a nested `Schema` would be
+   the pykrete-idiomatic answer, `Array[float]` not aliased to
+   `Array[double]`. These are tracked v1.0 backlog items; freezing
+   them in goldens means we'll see when they're fixed.
+2. **Edge cases pykrete handles correctly.** Most non-empty goldens
+   are clean.
 
+The contract is "no diff against v0.1.37's behavior", not "all
+green". When pykrete improves and a fixture stops reporting a known
+false positive, the contributor regenerates that fixture's golden
+in the same PR — the diff makes the improvement visible.
+
+## What this suite does NOT cover
+
+Real-world donor code doesn't exercise pykrete's full surface area.
+~30 individual `F.*` functions, `melt` / `cube` / `rollup`,
+Schema arithmetic operators, and the v0.1.28+ atomic-type aliases
+(`byte`, `short`, `decimal(p, s)`, `binary`) are not yet represented
+by any donor fixture. Those features are covered by synthetic unit
+tests in the main repo at
+[`pykrete/crates/pykrete/tests/`](https://github.com/amirnaderi93/pykrete/tree/main/crates/pykrete/tests).
+
+The two tiers complement each other: real-world donors prove pykrete
+keeps working on production patterns; synthetic unit tests prove
+each individual feature surface behaves to spec.
+
+## Updating donors
+
+Each donor's `pinned-commit` is part of the cross-codebase contract.
+Don't bump it casually — when pykrete diagnostics change, the pinned
+commit, the annotated companion, and the golden all move together.
+Bumping just the upstream means the annotated file might no longer
+reflect the real upstream code.
+
+Procedure for a donor bump:
+
+```bash
+# 1. Fetch the new upstream pinned-commit and replace upstream/.
+#    Re-derive the annotated companion against the new upstream code.
+# 2. Regenerate the golden:
+scripts/golden.sh generate /path/to/pykrete
+# 3. git diff cross-codebase/<donor>/  # review every change
+# 4. Update cross-codebase/<donor>/pinned-commit to the new SHA.
+# 5. Commit upstream + annotated + golden + pinned-commit together.
 ```
-spark/
-├── upstream/        # vendored .pyk files (renamed verbatim from upstream .py)
-├── annotations/     # pykrete Schema classes + typed signatures added alongside
-├── pinned-commit    # the exact upstream SHA we vendored from
-└── LICENSE-UPSTREAM # the upstream's license, preserved verbatim
 
-mlflow/
-├── ...
-```
+See `scripts/update-pinned-commit.sh` for a starting harness.
 
-`.py` files become `.pyk` by simple rename — `.pyk` is a strict superset of
-Python, so the upstream code is unchanged. Annotations live in companion files
-that pykrete reads cross-file (`Schema` declarations) or as small patches that
-add typed signatures to representative functions.
+## CI
 
-## Methodology
+`cross-codebase.yml` runs on every push, PR, and nightly. It builds
+pykrete from `main` and diffs each fixture's live JSON diagnostic
+output against its committed `.golden.json`. Any drift fails the
+build — that's the release-blocking contract.
 
-For each codebase:
+## License attribution
 
-1. Vendor the upstream Python source at a pinned commit, preserving the upstream
-   license verbatim.
-2. Rename `.py` → `.pyk` (zero behavior change).
-3. Add Schema declarations and typed signatures alongside, the way a real user
-   adopting pykrete in their codebase would.
-4. Run `pykrete check` on every push and nightly. Results published in
-   `RESULTS.md`, regenerated on each run.
+All 10 donors are Apache 2.0. License files are reproduced verbatim
+under each donor's `LICENSE-UPSTREAM`. Each fixture file preserves
+the upstream license header at the top.
 
-## License
-
-Annotations and tooling in this repo are MIT-licensed — see [LICENSE](LICENSE).
-
-Each vendored codebase retains its upstream license verbatim in
-`<project>/LICENSE-UPSTREAM`. Vendoring is for testing purposes; canonical
-sources stay upstream. Each `<project>/pinned-commit` file records the exact
-commit hash.
+Annotations and tooling in this repo are MIT-licensed — see
+[LICENSE](LICENSE). Vendoring is for testing purposes; canonical
+sources stay upstream.

@@ -1,0 +1,126 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Verbatim copy of quinn/functions.py at MrPowers/quinn,
+# pinned-commit 20156582.
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from numbers import Number
+
+    from pyspark.sql import Column
+    from pyspark.sql.functions import udf
+
+
+import uuid
+from typing import Any
+
+import pyspark.sql.functions as F  # noqa: N812
+from pyspark.sql.functions import lit, trim, when
+from pyspark.sql.types import (
+    BooleanType,
+)
+
+
+def single_space(col: Column) -> Column:
+    return F.trim(F.regexp_replace(col, " +", " "))
+
+
+def remove_all_whitespace(col: Column) -> Column:
+    return F.regexp_replace(col, "\\s+", "")
+
+
+def anti_trim(col: Column) -> Column:
+    return F.regexp_replace(col, "\\b\\s+\\b", "")
+
+
+def remove_non_word_characters(col: Column) -> Column:
+    return F.regexp_replace(col, "[^\\w\\s]+", "")
+
+
+def week_start_date(col: Column, week_start_day: str = "Sun") -> Column:
+    mapping = {
+        "Sun": "Sat", "Mon": "Sun", "Tue": "Mon", "Wed": "Tue",
+        "Thu": "Wed", "Fri": "Thu", "Sat": "Fri",
+    }
+    end = week_end_date(col, mapping[week_start_day])
+    return F.date_add(end, -6)
+
+
+def week_end_date(col: Column, week_end_day: str = "Sat") -> Column:
+    day_of_week_mapping = {
+        "Sun": 1, "Mon": 2, "Tue": 3, "Wed": 4,
+        "Thu": 5, "Fri": 6, "Sat": 7,
+    }
+    return F.when(
+        F.dayofweek(col).eqNullSafe(F.lit(day_of_week_mapping[week_end_day])),
+        col,
+    ).otherwise(F.next_day(col, week_end_day))
+
+
+def approx_equal(col1: Column, col2: Column, threshold: Number) -> Column:
+    return F.abs(col1 - col2) < threshold
+
+
+def array_choice(col: Column, seed: int | None = None) -> Column:
+    index = (F.rand(seed) * F.size(col)).cast("int")
+    return col[index]
+
+
+def business_days_between(start_date: Column, end_date: Column) -> Column:
+    all_days = "sequence(start_date, end_date)"
+    days_of_week = f"transform({all_days}, x -> date_format(x, 'E'))"
+    filter_weekends = F.expr(f"filter({days_of_week}, x -> x NOT IN ('Sat', 'Sun'))")
+    num_business_days = F.size(filter_weekends) - 1
+    return F.when(num_business_days < 0, None).otherwise(num_business_days)
+
+
+def is_falsy(col: Column) -> Column:
+    return when(col.isNull() | (col == lit(False)), True).otherwise(False)
+
+
+def is_truthy(col: Column) -> Column:
+    return ~(is_falsy(col))
+
+
+def is_false(col: Column) -> Column:
+    return col == lit(False)
+
+
+def is_true(col: Column) -> Column:
+    return col == lit(True)
+
+
+def is_null_or_blank(col: Column) -> Column:
+    return (col.isNull()) | (trim(col) == "")
+
+
+def is_not_in(col: Column, _list: list[Any]) -> Column:
+    return ~(col.isin(_list))
+
+
+def null_between(col: Column, lower: Column, upper: Column) -> Column:
+    return when(lower.isNull() & upper.isNull(), False).otherwise(
+        when(col.isNull(), False).otherwise(
+            when(lower.isNull() & upper.isNotNull() & (col <= upper), True).otherwise(
+                when(
+                    lower.isNotNull() & upper.isNull() & (col >= lower),
+                    True,
+                ).otherwise(col.between(lower, upper)),
+            ),
+        ),
+    )

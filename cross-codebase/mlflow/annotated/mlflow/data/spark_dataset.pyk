@@ -1,0 +1,48 @@
+# Apache License 2.0. Copyright Databricks / MLflow.
+#
+# Annotated for pykrete from mlflow/data/spark_dataset.py at
+# mlflow/mlflow, pinned-commit 8f942548.
+#
+# Strategy: the SparkDataset constructor accepts a bare `df`
+# (pyspark.sql.DataFrame) and probes `df.columns` for membership. To
+# exercise these against pykrete's typed DataFrame we add a typed
+# helper that drives the same `targets in df.columns` membership
+# check and the .limit(10000).toPandas() conversion path.
+#
+# Features covered:
+#   - df.columns introspection (list[str])
+#   - "name" in df.columns membership check
+#   - df.limit(n).toPandas() chain
+#   - returning a typed DataFrame[X] from a converter function
+
+from pyspark.sql import DataFrame
+
+
+class TrainRow(Schema):
+    feature_a: double
+    feature_b: double
+    target: int
+
+
+def validate_columns_demo(df: DataFrame[TrainRow]) -> None:
+    """Mirrors the constructor validation. The `in df.columns` check
+    is a pykrete soft point — df.columns yields a runtime list of
+    strings; pykrete trusts the assertion but doesn't statically
+    resolve it."""
+    targets = "target"
+    if targets not in df.columns:
+        raise ValueError(f"missing targets column '{targets}'")
+
+
+def to_pyfunc_demo(df: DataFrame[TrainRow]) -> None:
+    """Mirrors SparkDataset.to_pyfunc — limit-then-toPandas, then a
+    pandas drop+series-select."""
+    pandas_df = df.limit(10000).toPandas()
+    inputs = pandas_df.drop(columns="target")
+    outputs = pandas_df["target"]
+    _ = (inputs, outputs)
+
+
+def to_eval_dataset_demo(df: DataFrame[TrainRow]) -> None:
+    """Mirrors to_evaluation_dataset."""
+    _ = df.limit(10000).toPandas()

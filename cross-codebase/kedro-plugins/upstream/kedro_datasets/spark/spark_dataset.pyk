@@ -1,0 +1,52 @@
+"""``AbstractVersionedDataset`` implementation to access Spark dataframes using
+``pyspark``."""
+#
+# Apache License 2.0. Copyright kedro-org / QuantumBlack.
+#
+# Excerpt from kedro-datasets/kedro_datasets/spark/spark_dataset.py at
+# kedro-org/kedro-plugins, pinned-commit c4c367eb. Pure PySpark surface
+# preserved: load / save / _exists methods plus the schema-loading
+# helper.
+
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from pyspark.sql import DataFrame
+from pyspark.sql.types import StructType
+from pyspark.sql.utils import AnalysisException
+
+
+def get_spark():
+    from pyspark.sql import SparkSession
+    return SparkSession.builder.getOrCreate()
+
+
+class SparkDataset:
+    _file_format: str
+    _schema: StructType | None
+    _load_args: dict[str, Any]
+    _save_args: dict[str, Any]
+
+    def load(self) -> DataFrame:
+        load_path = "/tmp/data"
+        read_obj = get_spark().read
+        if self._schema:
+            read_obj = read_obj.schema(self._schema)
+        return read_obj.load(load_path, self._file_format, **self._load_args)
+
+    def save(self, data: DataFrame) -> None:
+        save_path = "/tmp/data"
+        data.write.save(save_path, self._file_format, **self._save_args)
+
+    def _exists(self) -> bool:
+        load_path = "/tmp/data"
+        try:
+            get_spark().read.load(load_path, self._file_format)
+        except AnalysisException as exception:
+            message = exception.desc if hasattr(exception, "desc") else str(exception)
+            if "Path does not exist:" in message or "is not a Delta table" in message:
+                return False
+            raise
+        return True

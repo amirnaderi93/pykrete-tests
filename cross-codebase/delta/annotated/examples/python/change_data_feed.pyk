@@ -1,0 +1,90 @@
+#
+# Copyright (2021) The Delta Lake Project Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from examples/python/change_data_feed.py at
+# delta-io/delta, pinned-commit 3f10aaec.
+#
+# Strategy: the chained read.format("delta").option(...).table("...")
+# pattern produces an opaque DataFrame in pykrete — Delta-specific
+# options aren't modelled. After the table-cast it can flow into typed
+# operations.
+#
+# Features covered:
+#   - .selectExpr with multiple CAST expressions
+#   - .write.format("delta").mode("append").save(...) opaque chain
+#   - .write.format("delta").mode("append").saveAsTable("...")
+#   - spark.read.format("delta").option(...).table("name").orderBy(...)
+#   - spark.sql("SELECT * FROM tempview") (opaque -> re-anchor)
+#   - .orderBy with multiple bare-string keys
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, expr
+
+
+class Student(Schema):
+    id: int
+    name: string
+    age: int
+
+
+def write_with_select_expr(spark: SparkSession, path: str) -> None:
+    """Mirrors the v1 write step: spark.range -> selectExpr with three
+    CAST expressions -> write.format("delta")."""
+    spark.range(0, 10).selectExpr(
+        "CAST(id as INT) as id",
+        "CAST(id as STRING) as name",
+        "CAST(id % 4 + 18 as INT) as age",
+    ).cast(DataFrame[Student]).write.format("delta").mode("append").save(path)
+
+
+def write_as_table(spark: SparkSession) -> None:
+    """Mirrors the saveAsTable variant — uses saveAsTable instead of
+    save(path)."""
+    spark.range(0, 3).selectExpr(
+        "CAST(id as INT) as id",
+        "CAST(id as STRING) as name",
+        "CAST(id % 4 + 18 as INT) as age",
+    ).cast(DataFrame[Student]).write.format("delta").mode("append").saveAsTable(
+        "student_source"
+    )
+
+
+def read_cdc_by_table_name(spark: SparkSession, starting_version: int):
+    """Mirrors the helper. The .table("student") read is opaque (CDC
+    output schema includes synthetic _change_type / _commit_version /
+    _commit_timestamp columns that aren't in the Student schema), so
+    the result stays as a bare DataFrame; the .orderBy uses bare
+    strings against the CDC view."""
+    return (
+        spark.read.format("delta")
+        .option("readChangeFeed", "true")
+        .option("startingVersion", str(starting_version))
+        .table("student")
+        .orderBy("_change_type", "id")
+    )
+
+
+def read_back_and_anchor(spark: SparkSession, path: str) -> None:
+    """Mirrors the "Initial Table" show step. Re-anchor with .cast,
+    then orderBy on the typed name."""
+    df = spark.read.format("delta").load(path).cast(DataFrame[Student])
+    df.orderBy("id").show()
+
+
+def merge_source_query(spark: SparkSession) -> None:
+    """Mirrors the source-read for the MERGE step — spark.sql then
+    re-anchor."""
+    source = spark.sql("SELECT * FROM student_source").cast(DataFrame[Student])
+    source.show()

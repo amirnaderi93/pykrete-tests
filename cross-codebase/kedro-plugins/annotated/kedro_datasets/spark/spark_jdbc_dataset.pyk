@@ -1,0 +1,34 @@
+"""``AbstractDataset`` implementation to access JDBC-readable data via Spark."""
+#
+# Apache License 2.0. Copyright kedro-org / QuantumBlack.
+#
+# Annotated for pykrete from
+# kedro-datasets/kedro_datasets/spark/spark_jdbc_dataset.py at
+# kedro-org/kedro-plugins, pinned-commit c4c367eb.
+#
+# Strategy: spark.read.jdbc and data.write.jdbc are opaque IO with
+# kwargs forwarding; typed callers re-anchor after the load.
+#
+# Features covered:
+#   - spark.read.jdbc(url, table, **opts) opaque -> .cast(DataFrame[X])
+#   - data.write.jdbc(url, table, **opts) terminal
+#   - SparkSession.builder.getOrCreate() factory
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+class Orders(Schema):
+    order_id: long
+    customer_id: long
+    amount: decimal(18, 2)
+    created_at: timestamp
+
+
+def jdbc_load_demo(spark: SparkSession, url: str, table: str) -> DataFrame[Orders]:
+    """Mirrors SparkJDBCDataset.load."""
+    return spark.read.jdbc(url, table).cast(DataFrame[Orders])
+
+
+def jdbc_save_demo(data: DataFrame[Orders], url: str, table: str) -> None:
+    """Mirrors SparkJDBCDataset.save."""
+    data.write.jdbc(url, table, mode="overwrite")

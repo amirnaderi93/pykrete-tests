@@ -1,0 +1,48 @@
+#
+# Copyright (2021) The Delta Lake Project Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Excerpt from examples/python/change_data_feed.py at delta-io/delta,
+# pinned-commit 3f10aaec.
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, expr
+from delta.tables import DeltaTable
+import shutil
+
+path = "/tmp/delta-change-data-feed/student"
+otherPath = "/tmp/delta-change-data-feed/student_source"
+
+spark = SparkSession.builder \
+    .appName("Change Data Feed") \
+    .master("local[*]") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
+
+
+def read_cdc_by_table_name(starting_version):
+    return spark.read.format("delta") \
+        .option("readChangeFeed", "true") \
+        .option("startingVersion", str(starting_version)) \
+        .table("student") \
+        .orderBy("_change_type", "id")
+
+
+spark.range(0, 10) \
+    .selectExpr(
+        "CAST(id as INT) as id",
+        "CAST(id as STRING) as name",
+        "CAST(id % 4 + 18 as INT) as age") \
+    .write.format("delta").mode("append").save(path)

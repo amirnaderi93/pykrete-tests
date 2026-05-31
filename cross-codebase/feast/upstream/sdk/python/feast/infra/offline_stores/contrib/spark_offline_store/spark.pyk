@@ -1,0 +1,38 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Excerpt from sdk/python/feast/infra/offline_stores/contrib/
+# spark_offline_store/spark.py at feast-dev/feast, pinned-commit
+# 4203eb74. SparkRetrievalJob's pure-PySpark surface preserved.
+
+from typing import Optional
+
+import pandas as pd
+import pyspark
+
+
+class SparkRetrievalJob:
+    def __init__(self, spark_session, query: str, full_feature_names: bool,
+                 on_demand_feature_views=None, metadata=None, config=None):
+        self.spark_session = spark_session
+        self.query = query
+        self._full_feature_names = full_feature_names
+        self._on_demand_feature_views = on_demand_feature_views or []
+        self._metadata = metadata
+        self._config = config
+
+    def to_spark_df(self) -> pyspark.sql.DataFrame:
+        statements = self.query.split("---EOS---")
+        *_, last = map(self.spark_session.sql, statements)
+        return last
+
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
+        return self.to_spark_df().toPandas()
+
+    def persist_to_table(self, table_name: str, file_format: Optional[str] = None) -> None:
+        if file_format is None:
+            self.to_spark_df().write.saveAsTable(table_name)
+        else:
+            self.to_spark_df().write.format(file_format).saveAsTable(table_name)
+
+    def persist_to_temp_view(self, table_name: str) -> None:
+        self.to_spark_df().createOrReplaceTempView(table_name)

@@ -1,0 +1,77 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from python/pyspark/sql/tests/test_group.py
+# at apache/spark, pinned-commit d004e0d8.
+#
+# Strategy: per the apache/spark fixture convention, lift the typed
+# cores into helpers, keep the upstream class verbatim. The agg /
+# pivot surface this exercises is broad — F.first, F.last,
+# F.approx_count_distinct, F.countDistinct, dict-form agg, pivot
+# with and without values list, GroupedData.{max/min/sum/count/mean}.
+#
+# Features covered:
+#   - df.groupBy("key").max("value") / .min / .sum / .count / .mean
+#   - df.groupBy() (no key) -> agg dict {"key": "max", "value": "count"}
+#   - GroupedData.agg(functions.first(col), functions.last(col)).first()
+#   - F.approx_count_distinct, F.countDistinct
+#   - df.groupBy("year").pivot("electronic", ["a", "b"]).sum("sales")
+#   - df.groupBy("year").pivot("electronic").sum("sales") (no values)
+
+from pyspark.sql import Row
+from pyspark.sql import functions as sf
+
+
+class KV(Schema):
+    key: int
+    value: int
+
+
+class Sales(Schema):
+    electronic: string
+    year: int
+    sales: long
+
+
+def agg_func_demo(df: DataFrame[KV], df_pivot: DataFrame[Sales]) -> None:
+    """Mirrors test_agg_func."""
+    g = df.groupBy("key")
+    g.max("value")
+    g.min("value")
+    g.sum("value")
+    g.count()
+    g.mean("value")
+
+    df_pivot.groupBy("year").pivot("electronic", ["Smartphone", "Tablet"]).sum("sales")
+    df_pivot.groupBy("year").pivot("electronic").sum("sales")
+
+
+def aggregator_demo(df: DataFrame[KV]) -> None:
+    """Mirrors test_aggregator. .groupBy() with no key returns a
+    GroupedData that aggregates across all rows."""
+    g = df.groupBy()
+    from pyspark.sql import functions
+    g.agg({"key": "max", "value": "count"}).collect()
+    g.mean().collect()
+    g.agg(functions.first(df.key), functions.last(df.value)).first()
+    g.agg(functions.approx_count_distinct(df.key)).first()
+    g.agg(functions.countDistinct(df.value)).first()
+
+
+# Original upstream class preserved for traceability (see test_group.py
+# in upstream/ for the verbatim version).
+class GroupTestsMixin:
+    pass

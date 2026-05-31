@@ -1,0 +1,33 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Excerpt from sdk/python/feast/infra/contrib/spark_kafka_processor.py
+# at feast-dev/feast, pinned-commit 4203eb74. The PySpark surface
+# (readStream chain + selectExpr + select with from_json/from_avro) is
+# preserved.
+
+from pyspark.sql.functions import col, from_json
+from pyspark.sql.avro.functions import from_avro
+
+
+def ingest_json_stream(spark, kafka_options: dict, schema_json: str):
+    stream_df = (
+        spark.readStream.format("kafka")
+        .options(**kafka_options)
+        .load()
+        .selectExpr("CAST(value AS STRING)")
+        .select(from_json(col("value"), schema_json).alias("table"))
+        .select("table.*")
+    )
+    return stream_df
+
+
+def ingest_avro_stream(spark, kafka_options: dict, schema_json: str):
+    stream_df = (
+        spark.readStream.format("kafka")
+        .options(**kafka_options)
+        .load()
+        .selectExpr("CAST(value AS STRING)")
+        .select(from_avro(col("value"), schema_json).alias("table"))
+        .select("table.*")
+    )
+    return stream_df

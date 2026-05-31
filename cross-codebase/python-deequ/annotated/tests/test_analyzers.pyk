@@ -1,0 +1,57 @@
+# -*- coding: utf-8 -*-
+# Apache License 2.0. Copyright Amazon Web Services.
+#
+# Annotated for pykrete from tests/test_analyzers.py at
+# awslabs/python-deequ, pinned-commit 20693b81.
+#
+# Strategy: deequ wraps the Scala API, but the test pipeline still
+# flows through PySpark: sc.parallelize([Row...]).toDF(),
+# spark.read.json(sc.parallelize([json])), and df.select("col").
+# collect(). All of those are in pykrete's surface; deequ's
+# AnalysisRunner / AnalyzerContext are opaque, and the per-metric
+# DataFrame they return has a Schema we can model.
+#
+# Features covered:
+#   - sc.parallelize([Row(a=..., b=...)]).toDF() → opaque DataFrame
+#   - spark.read.json(sc.parallelize([json_string])) → opaque
+#   - .cast(DataFrame[X]) re-anchor after deequ pipeline
+#   - df.select("name").collect() with chained .select on a Row-list
+#   - assertEqual over two .collect() results
+
+from pyspark.sql import Row, SparkSession
+
+
+class MetricRow(Schema):
+    entity: string
+    instance: string
+    name: string
+    value: double
+
+
+class InputRow(Schema):
+    a: string
+    b: int
+    c: int
+    d: int
+
+
+def build_df_demo(spark: SparkSession) -> None:
+    """Mirrors setUpClass — sc.parallelize(rows).toDF() is opaque so
+    .cast pins the InputRow schema."""
+    sc = spark.sparkContext
+    df = sc.parallelize([
+        Row(a="foo", b=1, c=5, d=1),
+        Row(a="bar", b=2, c=6, d=3),
+        Row(a="baz", b=3, c=None, d=1),
+    ]).toDF().cast(DataFrame[InputRow])
+    _ = df
+
+
+def metric_round_trip_demo(spark: SparkSession, result_json: str) -> None:
+    """Mirrors the post-analyser pattern: read.json over a
+    parallelized list of json strings, then re-anchor to MetricRow."""
+    sc = spark.sparkContext
+    df_from_json = spark.read.json(sc.parallelize([result_json])).cast(
+        DataFrame[MetricRow]
+    )
+    df_from_json.select("value").collect()

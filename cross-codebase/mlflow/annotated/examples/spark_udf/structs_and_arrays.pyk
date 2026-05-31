@@ -1,0 +1,51 @@
+# Apache License 2.0. Copyright Databricks / MLflow.
+#
+# Annotated for pykrete from examples/spark_udf/structs_and_arrays.py
+# at mlflow/mlflow, pinned-commit 8f942548.
+#
+# Strategy: the upstream example builds a DataFrame with a hand-rolled
+# T.StructType schema covering strings, arrays, nested structs, and
+# arrays of structs. pykrete cannot infer that schema from the
+# StructType() call, so we restate it via a Schema class with the
+# matching nested types and re-anchor.
+#
+# Features covered:
+#   - Schema with array<int>, struct (nested), array<struct>
+#   - df.printSchema, df.show (pass-throughs)
+#   - df.withColumn with a UDF call over multiple bare-string col names
+#   - createDataFrame(rows, schema=T.StructType(...)) opaque IO
+
+from pyspark.sql import SparkSession
+
+
+class Inner(Schema):
+    bool: bool
+
+
+class InnerDouble(Schema):
+    double: double
+
+
+class StructsAndArrays(Schema):
+    str: string
+    arr: Array[int]
+    obj: Struct  # opaque struct; only `bool` field accessed via UDF
+    obj_arr: Array[Struct]
+
+
+def show_and_predict(spark: SparkSession, model_uri: str) -> None:
+    """Mirrors the body of main(). The StructType schema is opaque,
+    so we re-anchor onto the StructsAndArrays type. The udf call over
+    four bare-string column names is the upstream's actual line."""
+    import mlflow
+
+    df = spark.createDataFrame([], schema=None).cast(DataFrame[StructsAndArrays])
+    df.printSchema()
+    df.show()
+
+    udf = mlflow.pyfunc.spark_udf(
+        spark=spark,
+        model_uri=model_uri,
+        result_type="string",
+    )
+    df.withColumn("output", udf("str", "arr", "obj", "obj_arr")).show()

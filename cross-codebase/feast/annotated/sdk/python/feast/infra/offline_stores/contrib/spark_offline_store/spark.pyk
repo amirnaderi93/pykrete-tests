@@ -1,0 +1,62 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Annotated for pykrete from sdk/python/feast/infra/offline_stores/
+# contrib/spark_offline_store/spark.py at feast-dev/feast,
+# pinned-commit 4203eb74.
+#
+# Strategy: SparkRetrievalJob.to_spark_df builds a chain of
+# spark.sql() calls (one per statement in a `---EOS---`-split query
+# string). pykrete treats spark.sql as opaque; the .toPandas() and
+# .write.saveAsTable / .createOrReplaceTempView terminals are
+# recognised pass-throughs.
+#
+# Features covered:
+#   - spark.sql(query_string) opaque IO
+#   - sequence of spark.sql calls via map(...)
+#   - df.toPandas() pass-through
+#   - df.write.saveAsTable("name")
+#   - df.write.format(fmt).saveAsTable("name") chain
+#   - df.createOrReplaceTempView("name")
+
+from typing import Optional
+
+import pyspark
+from pyspark.sql import SparkSession
+
+
+class FeatureRow(Schema):
+    entity_id: long
+    event_timestamp: timestamp
+    feature_a: double
+    feature_b: double
+
+
+def to_spark_df_demo(spark: SparkSession, query: str) -> DataFrame[FeatureRow]:
+    """Mirrors SparkRetrievalJob.to_spark_df — split-and-map sql call
+    chain, then re-anchor the last result."""
+    statements = query.split("---EOS---")
+    *_, last = map(spark.sql, statements)
+    return last.cast(DataFrame[FeatureRow])
+
+
+def to_df_internal_demo(df: DataFrame[FeatureRow]) -> None:
+    """Mirrors _to_df_internal."""
+    _ = df.toPandas()
+
+
+def persist_to_table_demo(
+    df: DataFrame[FeatureRow],
+    table_name: str,
+    file_format: Optional[str],
+) -> None:
+    """Mirrors persist_to_table — branches between write.saveAsTable
+    and write.format().saveAsTable."""
+    if file_format is None:
+        df.write.saveAsTable(table_name)
+    else:
+        df.write.format(file_format).saveAsTable(table_name)
+
+
+def persist_to_temp_view_demo(df: DataFrame[FeatureRow], table_name: str) -> None:
+    """Mirrors persist_to_temp_view."""
+    df.createOrReplaceTempView(table_name)

@@ -1,0 +1,78 @@
+name: cross-codebase
+
+# Diffs every annotated fixture's live pykrete diagnostic JSON output
+# against its committed golden snapshot. A drift in any fixture fails
+# the build. Runs on push + PR + nightly.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # 06:30 UTC daily — early enough that the result is fresh by the
+    # time the project owner starts the day on most timezones.
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # Pin the upstream pykrete ref the goldens are valid against.
+  # Bump to a release tag (e.g. v0.1.38) once goldens are
+  # regenerated against that release.
+  PYKRETE_REF: main
+
+jobs:
+  goldens:
+    name: cross-codebase · golden diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Cache pykrete build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            pykrete-src/target
+          key: pykrete-${{ env.PYKRETE_REF }}-${{ runner.os }}
+
+      - name: Build pykrete from ${{ env.PYKRETE_REF }}
+        run: |
+          mkdir -p pykrete-src
+          (
+            cd pykrete-src
+            if [ ! -d .git ]; then
+              git init -q
+              git remote add origin https://github.com/amirnaderi93/pykrete.git
+            fi
+            git fetch --depth=1 origin "$PYKRETE_REF"
+            git checkout -f FETCH_HEAD
+          )
+          (cd pykrete-src && cargo build --release -p pykrete)
+          PYKRETE_SHA=$(git -C pykrete-src rev-parse --short HEAD)
+          echo "PYKRETE_SHA=$PYKRETE_SHA" >> "$GITHUB_ENV"
+          echo "pykrete built from $PYKRETE_REF @ $PYKRETE_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install jq
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
+
+      - name: Diff fixtures against goldens
+        run: |
+          PYKRETE=./pykrete-src/target/release/pykrete
+          if ! bash scripts/golden.sh check "$PYKRETE" | tee /tmp/golden-output; then
+            {
+              echo "::error::cross-codebase golden diff failed"
+              echo "## Golden diff failures"
+              echo ""
+              echo '```'
+              cat /tmp/golden-output
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          tail -1 /tmp/golden-output >> "$GITHUB_STEP_SUMMARY"

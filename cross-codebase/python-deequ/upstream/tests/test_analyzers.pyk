@@ -1,0 +1,47 @@
+# -*- coding: utf-8 -*-
+# Apache License 2.0. Copyright Amazon Web Services.
+#
+# Excerpt from tests/test_analyzers.py at awslabs/python-deequ,
+# pinned-commit 20693b81. setUpClass + a representative analyzer
+# method preserved.
+
+import unittest
+
+from pyspark.sql import Row
+
+from pydeequ import PyDeequSession
+from pydeequ.analyzers import AnalyzerContext, ApproxCountDistinct
+
+
+def setup_pyspark():
+    from pyspark.sql import SparkSession
+    return SparkSession.builder
+
+
+class TestAnalyzers(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.spark = setup_pyspark().appName("test-analyzers-local").getOrCreate()
+        cls.pydeequ_session = PyDeequSession(cls.spark)
+        cls.AnalysisRunner = cls.pydeequ_session.createAnalysisRunner()
+        cls.sc = cls.spark.sparkContext
+        cls.df = cls.sc.parallelize([
+            Row(a="foo", b=1, c=5, d=1),
+            Row(a="bar", b=2, c=6, d=3),
+            Row(a="baz", b=3, c=None, d=1),
+        ]).toDF()
+
+    def ApproxCountDistinct(self, column, where=None):
+        result = (
+            self.AnalysisRunner.onData(self.df)
+            .addAnalyzer(ApproxCountDistinct(column, where))
+            .run()
+        )
+        result_df = AnalyzerContext.successMetricsAsDataFrame(self.spark, result)
+        result_json = AnalyzerContext.successMetricsAsJson(self.spark, result)
+        df_from_json = self.spark.read.json(self.sc.parallelize([result_json]))
+        self.assertEqual(
+            df_from_json.select("value").collect(),
+            result_df.select("value").collect(),
+        )
+        return result_df.select("value").collect()

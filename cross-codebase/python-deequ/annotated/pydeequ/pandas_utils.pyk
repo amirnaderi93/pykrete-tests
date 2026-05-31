@@ -1,0 +1,43 @@
+# -*- coding: utf-8 -*-
+# Apache License 2.0. Copyright Amazon Web Services.
+#
+# Annotated for pykrete from pydeequ/pandas_utils.py at
+# awslabs/python-deequ, pinned-commit 20693b81.
+#
+# Strategy: pandasDF_to_pysparkDF builds a StructType from pandas
+# dtypes then calls spark.createDataFrame(pandas_df, p_schema). The
+# StructType is opaque to pykrete; the caller .cast(...)s the result.
+# The pysparkDF_to_pandasDF path is a one-liner .toPandas().
+#
+# Features covered:
+#   - spark.createDataFrame(pandas_df, StructType(...)) opaque IO
+#   - .cast(DataFrame[X]) re-anchor
+#   - df.toPandas() pass-through
+#   - isinstance(df, sparkDF) runtime check inside a branch (pykrete
+#     treats it as soft)
+
+from typing import Union
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+class CustomerRow(Schema):
+    customer_id: long
+    name: string
+    is_active: bool
+
+
+def pandas_to_pyspark_demo(spark: SparkSession, pandas_df) -> DataFrame[CustomerRow]:
+    """Mirrors PandasConverter.pandasDF_to_pysparkDF. The StructType
+    arg is opaque; cast onto a known shape."""
+    columns = list(pandas_df.columns)
+    types = list(pandas_df.dtypes)
+    _ = (columns, types)
+    # In real code, build_struct_type(columns, types) constructs a
+    # StructType; we treat the resulting createDataFrame as opaque.
+    return spark.createDataFrame(pandas_df, schema=None).cast(DataFrame[CustomerRow])
+
+
+def pyspark_to_pandas_demo(df: DataFrame[CustomerRow]):
+    """Mirrors PandasConverter.pysparkDF_to_pandasDF."""
+    return df.toPandas()
