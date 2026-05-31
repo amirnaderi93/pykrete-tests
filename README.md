@@ -57,26 +57,18 @@ the remaining eight donors contribute the rest.
 ## What the goldens capture
 
 The golden snapshot for each annotated fixture is the JSON-formatted
-diagnostic output pykrete emits today. "Clean" goldens (`diagnostics:
-[]`) mean pykrete checks the file without complaint. Non-empty
-goldens fall into two buckets:
+diagnostic output pykrete emits today. As of v0.1.39 all 32 fixtures
+produce `"diagnostics": []` — pykrete checks every annotated donor
+file without complaint. The v0.1.37 baseline carried six fixtures
+with known false positives (`df.drop(missing)`, backtick-wrapped
+column refs, the `Struct` placeholder, `Array[float]` vs
+`Array[double]`, explode-map `.alias` dual, multi-arg `select` after
+`explode`); v0.1.39 closed all of them.
 
-1. **Known false positives or vocabulary gaps in pykrete.** A handful
-   of the fixtures surface real-world patterns pykrete doesn't yet
-   handle perfectly — `df.drop(missing)` silently tolerated upstream
-   but flagged by pykrete, backtick-wrapped column refs
-   (`` F.col("`info`") ``) not normalized, the `Struct` placeholder
-   used in some donor annotations where a nested `Schema` would be
-   the pykrete-idiomatic answer, `Array[float]` not aliased to
-   `Array[double]`. These are tracked v1.0 backlog items; freezing
-   them in goldens means we'll see when they're fixed.
-2. **Edge cases pykrete handles correctly.** Most non-empty goldens
-   are clean.
-
-The contract is "no diff against v0.1.37's behavior", not "all
-green". When pykrete improves and a fixture stops reporting a known
-false positive, the contributor regenerates that fixture's golden
-in the same PR — the diff makes the improvement visible.
+The contract is "no diff against the committed golden". When pykrete
+behavior changes the contributor regenerates the affected goldens in
+the same PR — the diff makes the change visible, whether it's an
+improvement or a regression.
 
 ## What this suite does NOT cover
 

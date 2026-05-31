@@ -1,51 +1,8 @@
 {
-  "diagnostics": [
-    {
-      "code": "D0010",
-      "column": 11,
-      "endColumn": 17,
-      "endLine": 53,
-      "file": "cross-codebase/quinn/annotated/quinn/transformations.pyk",
-      "line": 53,
-      "message": "Unknown column type 'Struct'. Expected one of: int, long, double, byte, short, decimal, decimal(p, s), string, binary, bool, date, timestamp, Array, Map.",
-      "relatedInformation": [],
-      "ruleName": "unknownColumnType",
-      "severity": "error",
-      "source": "pykrete",
-      "suggestion": null
-    },
-    {
-      "code": "D0030",
-      "column": 42,
-      "endColumn": 50,
-      "endLine": 92,
-      "file": "cross-codebase/quinn/annotated/quinn/transformations.pyk",
-      "line": 92,
-      "message": "Column '`info`' does not exist on inferred schema [id, info]. Did you mean 'info'?",
-      "relatedInformation": [],
-      "ruleName": "unknownColumn",
-      "severity": "error",
-      "source": "pykrete",
-      "suggestion": "info"
-    },
-    {
-      "code": "D0030",
-      "column": 58,
-      "endColumn": 66,
-      "endLine": 98,
-      "file": "cross-codebase/quinn/annotated/quinn/transformations.pyk",
-      "line": 98,
-      "message": "Column '`tags`' does not exist on schema 'WithMap'. Did you mean 'tags'?",
-      "relatedInformation": [],
-      "ruleName": "unknownColumn",
-      "severity": "error",
-      "source": "pykrete",
-      "suggestion": "tags"
-    }
-  ],
+  "diagnostics": [],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 3,
+    "errorCount": 0,
     "filesChecked": 1,
     "warningCount": 0
   }
