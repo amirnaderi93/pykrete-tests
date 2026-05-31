@@ -49,6 +49,11 @@ while IFS= read -r d; do negative_paths+=("$d"); done < <(
   find cross-codebase -mindepth 2 -maxdepth 2 -type d -name probes_negative | sort
 )
 
+pos_report="/tmp/probes-positive.$$.json"
+neg_report="/tmp/probes-negative.$$.json"
+probes_stderr="/tmp/probes-stderr.$$"
+trap 'rm -f "$pos_report" "$neg_report" "$probes_stderr"' EXIT
+
 run_tree() {
   local label="$1"; shift
   local out_path="$1"; shift
@@ -58,11 +63,11 @@ run_tree() {
     return 0
   fi
   local rc=0
-  python3 scripts/probes.py run "$@" > "$out_path" 2>/tmp/probes-stderr.$$ || rc=$?
-  if [ -s /tmp/probes-stderr.$$ ]; then
-    cat /tmp/probes-stderr.$$ >&2
+  python3 scripts/probes.py run "$@" > "$out_path" 2>"$probes_stderr" || rc=$?
+  if [ -s "$probes_stderr" ]; then
+    cat "$probes_stderr" >&2
   fi
-  rm -f /tmp/probes-stderr.$$
+  : > "$probes_stderr"
   if [ "$rc" -eq 2 ]; then
     echo "error: probes.py setup error on $label tree (exit 2)" >&2
     exit 2
@@ -70,16 +75,17 @@ run_tree() {
   return 0
 }
 
-pos_report="/tmp/probes-positive.$$.json"
-neg_report="/tmp/probes-negative.$$.json"
-trap 'rm -f "$pos_report" "$neg_report"' EXIT
-
-run_tree "positive (annotated/)" "$pos_report" "${positive_paths[@]}"
+# bash 3.2 (default /bin/bash on macOS) errors on `"${arr[@]}"` under
+# `set -u` when the array is empty; explicit length-guard sidesteps it.
+if [ "${#positive_paths[@]}" -gt 0 ]; then
+  run_tree "positive (annotated/)" "$pos_report" "${positive_paths[@]}"
+else
+  run_tree "positive (annotated/)" "$pos_report"
+fi
 if [ "${#negative_paths[@]}" -gt 0 ]; then
   run_tree "negative (probes_negative/)" "$neg_report" "${negative_paths[@]}"
 else
-  echo "{\"probesSchemaVersion\":\"1\",\"fixturesWithProbes\":0,\"probesTotal\":0,\"failuresTotal\":0,\"failedProbeIds\":[],\"perFixture\":[]}" > "$neg_report"
-  echo "negative (probes_negative/): no fixture tree present (skipped)."
+  run_tree "negative (probes_negative/)" "$neg_report"
 fi
 
 python3 - "$pos_report" "$neg_report" "$REPORT_PATH" <<'PY'

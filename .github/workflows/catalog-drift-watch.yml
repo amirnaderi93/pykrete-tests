@@ -70,8 +70,13 @@ jobs:
             --previous scripts/diagnostic_catalog.json \
             --out /tmp/new_catalog.json \
             --summary /tmp/catalog_summary.txt
-          if diff -q scripts/diagnostic_catalog.json /tmp/new_catalog.json > /dev/null; then
-            echo "no drift detected at $HEAD_SHA"
+          # Compare diagnostics-payload only. A SHA-only rewrite of
+          # pykreteSourceCommit / _pykreteSourceCommit is not drift —
+          # opening a PR for it produces ~52 zero-substance PRs/year.
+          jq -S '.diagnostics' scripts/diagnostic_catalog.json > /tmp/prev_diag.json
+          jq -S '.diagnostics' /tmp/new_catalog.json > /tmp/new_diag.json
+          if diff -q /tmp/prev_diag.json /tmp/new_diag.json > /dev/null; then
+            echo "no diagnostics-payload drift at $HEAD_SHA (SHA-only delta ignored)"
             echo "drift=false" >> "$GITHUB_OUTPUT"
           else
             echo "drift detected at $HEAD_SHA"
@@ -113,7 +118,9 @@ jobs:
         with:
           commit-message: "chore(catalog): refresh from pykrete ${{ steps.upstream.outputs.head_sha }}"
           title: "chore(catalog): refresh from pykrete ${{ steps.upstream.outputs.head_sha }}"
-          branch: "catalog-drift/${{ steps.upstream.outputs.head_sha }}"
+          # Stable branch name so successive weekly runs force-update the
+          # same PR instead of accumulating one open PR per weekly cron.
+          branch: "catalog-drift/auto"
           delete-branch: true
           body-path: /tmp/pr_body.md
           add-paths: |

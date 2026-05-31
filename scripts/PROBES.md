@@ -223,11 +223,20 @@ manually from the GitHub Actions tab via `workflow_dispatch`. It:
 3. Otherwise fetches `crates/pykrete/src/diagnostics.rs` at that
    commit, regenerates `scripts/diagnostic_catalog.json` via
    `scripts/build_catalog_from_source.py`, and opens a
-   `chore(catalog): refresh from pykrete <sha>` PR if the file
-   changed. The PR body cites the source commit and lists the
-   added / renamed / removed D-codes.
+   `chore(catalog): refresh from pykrete <sha>` PR **only when the
+   diagnostics payload changes** — a pin-only SHA bump does not open
+   a PR. The PR body cites the source commit and lists the
+   added / renamed / removed D-codes. Successive weekly runs
+   force-update the same `catalog-drift/auto` branch, so at most one
+   refresh PR is ever open.
 4. Network failure fails the workflow with a clear message; the
    next weekly cron retries.
+
+The auto-opened refresh PR is created by `GITHUB_TOKEN`, which by
+GitHub policy does not trigger downstream workflow runs — so its own
+`probes` check will sit pending until a maintainer pushes an empty
+commit or closes/reopens the PR. This is GHA-platform behavior, not
+a bug in the workflow.
 
 Run the builder by hand to preview drift without opening a PR:
 

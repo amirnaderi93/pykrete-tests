@@ -11,8 +11,21 @@ name: probes
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: probes-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,6 +36,9 @@ jobs:
     name: probes · informational coverage
     runs-on: ubuntu-latest
     continue-on-error: true
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +60,9 @@ jobs:
             ~/.cargo/git
             pykrete-src/target
           key: pykrete-${{ steps.catalog.outputs.ref }}-${{ runner.os }}
+          restore-keys: |
+            pykrete-${{ steps.catalog.outputs.ref }}-
+            pykrete-
 
       # Build from source. A future iteration may try to download a
       # release-asset pykrete binary when the pinned commit happens to
@@ -69,9 +88,10 @@ jobs:
           PYKRETE_BIN: ${{ github.workspace }}/pykrete-src/target/release/pykrete
           PROBES_REPORT: ${{ github.workspace }}/probes-report.json
         run: |
+          set -o pipefail
           set +e
           bash scripts/probes_ci.sh | tee /tmp/probes-out.txt
-          rc=$?
+          rc=${PIPESTATUS[0]}
           {
             echo "## Schema-tracking probes (informational)"
             echo ""
