@@ -46,7 +46,13 @@ Each donor lives under `cross-codebase/<donor>/` with:
 | **dbt-spark** | [dbt-labs/dbt-spark](https://github.com/dbt-labs/dbt-spark) | `42700b5d` | dbt's Spark adapter. The Python-model convention (`def model(dbt, spark) -> DataFrame[X]`) is how dbt users write transformations in Python. |
 | **python-deequ** | [awslabs/python-deequ](https://github.com/awslabs/python-deequ) | `20693b81` | AWS-built data-quality framework. The `sc.parallelize([Row(...)]).toDF()` pattern + `spark.read.json(sc.parallelize([json_str]))` round-trip is unusual but common across DQ tools. |
 
-30 annotated fixtures total across the 10 donors.
+32 annotated fixtures total across the 10 donors. Spark contributes
+eight (basic, datasource, streaming wordcount, the four `tests/`
+files, and `examples/.../arrow.py` covering `pandas_udf` /
+`applyInPandas` / `mapInPandas`); mlflow contributes four (the three
+`mlflow.pyfunc.spark_udf` examples plus
+`tests/spark/autologging/datasource/test_spark_datasource_autologging.py`);
+the remaining eight donors contribute the rest.
 
 ## What the goldens capture
 
