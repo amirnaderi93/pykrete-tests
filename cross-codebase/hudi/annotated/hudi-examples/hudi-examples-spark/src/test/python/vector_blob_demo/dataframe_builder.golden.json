@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0011",
+      "column": 16,
+      "endColumn": 28,
+      "endLine": 47,
+      "file": "cross-codebase/hudi/annotated/hudi-examples/hudi-examples-spark/src/test/python/vector_blob_demo/dataframe_builder.pyk",
+      "line": 47,
+      "message": "Column type 'Array[float]' is not a recognized pykrete type. Use a bare atomic (int, long, double, byte, short, decimal, decimal(p, s), string, binary, bool, date, timestamp, Array, Map), a declared Schema, or an `Array[…]` / `Map[…, …]` collection.",
+      "relatedInformation": [],
+      "ruleName": "invalidColumnType",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

@@ -1,0 +1,35 @@
+# Apache License 2.0
+# Copyright dbt Labs.
+#
+# Annotated for pykrete from the Python-model body of
+# tests/functional/adapter/test_python_model.py at dbt-labs/dbt-spark,
+# pinned-commit 42700b5d.
+#
+# Strategy: dbt's "python model" convention is a function `model(dbt,
+# spark)` that returns a DataFrame. pykrete needs the return type to
+# be annotated for the upstream call site to flow through. The
+# annotated version anchors the spark.createDataFrame call via .cast.
+#
+# Features covered:
+#   - spark.createDataFrame(rows, schema=[...]) opaque IO
+#   - .cast(DataFrame[X]) re-anchor
+#   - returning a DataFrame[X] from a function
+#   - simple "config dict" call with no return value
+
+from pyspark.sql import SparkSession
+
+
+class TwoIntCols(Schema):
+    test1: int
+    test3: int
+
+
+def model(dbt, spark: SparkSession) -> DataFrame[TwoIntCols]:
+    """Mirrors the simple Python-model body. dbt.config returns
+    nothing (it's a side-effecting call). The spark.createDataFrame
+    is opaque; the .cast pins the return shape."""
+    dbt.config(materialized='table')
+    data = [[1, 2]] * 10
+    return spark.createDataFrame(data, schema=['test1', 'test3']).cast(
+        DataFrame[TwoIntCols]
+    )

@@ -1,0 +1,74 @@
+"""``AbstractDataset`` implementation backed by Hive tables via Spark."""
+#
+# Apache License 2.0. Copyright kedro-org / QuantumBlack.
+#
+# Annotated for pykrete from
+# kedro-datasets/kedro_datasets/spark/spark_hive_dataset.py at
+# kedro-org/kedro-plugins, pinned-commit c4c367eb.
+#
+# Strategy: the upsert path is a classic real-world recipe — union
+# old+new, partition-by primary key, take latest row per key, drop
+# helper cols, checkpoint, write. Every step is in the pykrete-modeled
+# surface. The typed companion replays it on a real Schema.
+#
+# Features covered:
+#   - spark.read.table("name") opaque -> .cast
+#   - data.write.saveAsTable(name, mode=..., format=..., **kwargs)
+#   - Window.partitionBy(*cols).orderBy(col(...).desc())
+#   - F.col(name).desc()
+#   - F.lit + .alias
+#   - df.select("*", new_col) star + literal projection
+#   - df.unionByName(other)
+#   - F.row_number().over(window) window-function ref
+#   - df.filter(col(...) == 1)
+#   - df.drop(col1, col2) multi-arg
+#   - df.checkpoint(eager=...) pass-through
+
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col, lit, row_number
+from pyspark.sql.window import Window
+
+
+class CustomerRow(Schema):
+    customer_id: long
+    name: string
+    email: string
+    updated_at: timestamp
+
+
+def load_table_demo(spark: SparkSession, table_address: str) -> DataFrame[CustomerRow]:
+    """Mirrors load — spark.read.table -> opaque -> cast."""
+    return spark.read.table(table_address).cast(DataFrame[CustomerRow])
+
+
+def upsert_save_demo(
+    data: DataFrame[CustomerRow],
+    old: DataFrame[CustomerRow],
+) -> None:
+    """Mirrors the upsert _upsert_save body — full pipeline."""
+    tmp_colname = "tmp_colname"
+    tmp_row = "tmp_row"
+    table_pk = ["customer_id"]
+
+    w = Window.partitionBy(*table_pk).orderBy(col(tmp_colname).desc())
+    df_old = old.select("*", lit(1).alias(tmp_colname))
+    df_new = data.select("*", lit(2).alias(tmp_colname))
+    df_stacked = df_new.unionByName(df_old).select(
+        "*", row_number().over(w).alias(tmp_row)
+    )
+    df_filtered = (
+        df_stacked.filter(col(tmp_row) == 1)
+        .drop(tmp_colname, tmp_row)
+        .checkpoint(eager=True)
+    )
+    # Final saveAsTable is opaque kwargs-based — pass-through.
+    df_filtered.write.saveAsTable(
+        "db.customers", mode="overwrite", format="parquet"
+    )
+
+
+def create_hive_table_demo(data: DataFrame[CustomerRow], full_table: str) -> None:
+    """Mirrors _create_hive_table."""
+    data.write.saveAsTable(
+        full_table, mode="overwrite", format="parquet"
+    )

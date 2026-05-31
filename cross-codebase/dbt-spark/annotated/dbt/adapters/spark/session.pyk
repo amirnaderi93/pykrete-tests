@@ -1,0 +1,66 @@
+"""Spark session integration."""
+#
+# Apache License 2.0. Copyright dbt Labs.
+#
+# Annotated for pykrete from dbt/adapters/spark/session.py at
+# dbt-labs/dbt-spark, pinned-commit 42700b5d.
+#
+# Strategy: Cursor.execute returns a DataFrame from spark.sql() with
+# an unknown schema at parse time (the SQL string is user-supplied).
+# pykrete treats spark.sql() as opaque. The fetch methods use .collect
+# / .take which are pass-throughs. We add typed wrappers around the
+# common shape that dbt callers use after .execute.
+#
+# Features covered:
+#   - SparkSession.builder.enableHiveSupport().config(...).getOrCreate()
+#   - spark.sql(sql_string).cast(DataFrame[X]) re-anchor
+#   - df.collect() and df.take(n) returning list[Row]
+#   - df.schema.fields iteration + field.name / .dataType / .nullable
+
+from __future__ import annotations
+
+from typing import Any, List, Optional
+
+from pyspark.sql import DataFrame, Row, SparkSession
+
+
+class QueryResult(Schema):
+    id: int
+    msg: string
+
+
+def cursor_execute_anchored(sql: str) -> DataFrame[QueryResult]:
+    """Mirrors Cursor.execute's spark_session.sql(sql) call. In dbt,
+    the SQL is opaque; the caller anchors via .cast when they know
+    the result shape."""
+    builder = SparkSession.builder.enableHiveSupport()
+    builder = builder.config("spark.executor.memory", "4g")
+    spark_session = builder.getOrCreate()
+    return spark_session.sql(sql).cast(DataFrame[QueryResult])
+
+
+def fetchall_demo(df: DataFrame[QueryResult]) -> None:
+    """Mirrors Cursor.fetchall."""
+    rows = df.collect()
+    _ = rows
+
+
+def fetchone_demo(df: DataFrame[QueryResult]) -> None:
+    """Mirrors Cursor.fetchone."""
+    rows = df.take(1)
+    _ = rows[0] if rows else None
+
+
+def description_demo(df: DataFrame[QueryResult]) -> None:
+    """Mirrors Cursor.description. df.schema.fields is opaque
+    introspection — pykrete leaves it alone."""
+    description = [
+        (
+            field.name,
+            field.dataType.simpleString(),
+            None, None, None, None,
+            field.nullable,
+        )
+        for field in df.schema.fields
+    ]
+    _ = description

@@ -1,0 +1,61 @@
+"""Spark session integration."""
+#
+# Apache License 2.0. Copyright dbt Labs.
+#
+# Excerpt from dbt/adapters/spark/session.py at dbt-labs/dbt-spark,
+# pinned-commit 42700b5d. Methods retained: Cursor.execute /
+# Cursor.fetchall / Cursor.fetchone / Cursor.description.
+
+from __future__ import annotations
+
+from typing import Any, List, Optional, Sequence, Tuple
+
+from pyspark.sql import DataFrame, Row, SparkSession
+
+
+class Cursor:
+    def __init__(self, *, server_side_parameters=None) -> None:
+        self._df: Optional[DataFrame] = None
+        self._rows: Optional[List[Row]] = None
+        self.server_side_parameters = server_side_parameters or {}
+
+    @property
+    def description(self):
+        if self._df is None:
+            description = list()
+        else:
+            description = [
+                (
+                    field.name,
+                    field.dataType.simpleString(),
+                    None, None, None, None,
+                    field.nullable,
+                )
+                for field in self._df.schema.fields
+            ]
+        return description
+
+    def execute(self, sql: str, *parameters: Any) -> None:
+        if len(parameters) > 0:
+            sql = sql % parameters
+
+        builder = SparkSession.builder.enableHiveSupport()
+        for parameter, value in self.server_side_parameters.items():
+            builder = builder.config(parameter, value)
+
+        spark_session = builder.getOrCreate()
+        self._df = spark_session.sql(sql)
+
+    def fetchall(self) -> Optional[List[Row]]:
+        if self._rows is None and self._df is not None:
+            self._rows = self._df.collect()
+        return self._rows
+
+    def fetchone(self) -> Optional[Row]:
+        if self._rows is None and self._df is not None:
+            self._rows = self._df.take(1)
+        if self._rows is not None and len(self._rows) > 0:
+            row = self._rows.pop(0)
+        else:
+            row = None
+        return row

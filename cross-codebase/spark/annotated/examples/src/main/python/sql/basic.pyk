@@ -1,0 +1,60 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from examples/src/main/python/sql/basic.py
+# at apache/spark, pinned-commit d004e0d8.
+#
+# Strategy: the upstream is a one-shot script — we lift the body into
+# basic_df_demo() with an explicit DataFrame[People] arg. The
+# spark.read.json/spark.sql calls remain opaque; the typed df drives
+# the column refs and aggregation.
+#
+# Features covered:
+#   - df['name'] bracket-form column ref (string literal)
+#   - df['age'] + 1 arithmetic on a Column
+#   - df.filter(df['age'] > 21) comparison
+#   - df.groupBy("name").count() (then .show())
+#   - df.createOrReplaceTempView / createGlobalTempView
+#   - spark.sql(string).show() pass-through
+#   - df.printSchema, df.show pass-throughs
+#   - df.select(df['name'], <arithmetic_col>) multi-arg select with
+#     a column-reference arg + a computed column arg
+
+from pyspark.sql import SparkSession
+
+
+class People(Schema):
+    age: long
+    name: string
+
+
+def basic_df_demo(spark: SparkSession, df: DataFrame[People]) -> None:
+    """Mirrors basic_df_example body, typed."""
+    df.show()
+    df.printSchema()
+
+    df.select("name").show()
+    df.select(df['name'], df['age'] + 1).show()
+    df.filter(df['age'] > 21).show()
+    df.groupBy("age").count().show()
+
+    df.createOrReplaceTempView("people")
+    sqlDF = spark.sql("SELECT * FROM people")
+    sqlDF.show()
+
+    df.createGlobalTempView("people")
+    spark.sql("SELECT * FROM global_temp.people").show()
+    spark.newSession().sql("SELECT * FROM global_temp.people").show()

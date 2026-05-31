@@ -1,0 +1,97 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from python/pyspark/sql/tests/test_column.py
+# at apache/spark, pinned-commit d004e0d8.
+#
+# Strategy: extract the Column-operator stress cases into typed
+# helpers. This is the *primary* fixture for the Column-arithmetic
+# and Column-method surface.
+#
+# Features covered:
+#   - df.key / df.value attribute-form col refs
+#   - ==, !=, >, <, >=, <= comparisons -> Column
+#   - +, -, *, /, %, ** arithmetic on Column (and Column-with-scalar
+#     in both orders)
+#   - unary -
+#   - &, |, ~ bitwise composition for boolean Columns
+#   - .contains, .like, .rlike, .ilike, .asc, .desc, .startswith,
+#     .endswith, .eqNullSafe
+#   - .cast(LongType()) (and string-form .cast("long") variant)
+#   - F.col + F.lit + Python literal bool mixed-arg binary ops
+
+from pyspark.sql import Column
+from pyspark.sql import functions as sf
+from pyspark.sql.types import LongType
+
+
+class KV(Schema):
+    key: int
+    value: string
+
+
+def and_or_filter_demo(df: DataFrame[KV]) -> None:
+    """Mirrors test_and_in_expression."""
+    df.filter((df.key <= 10) & (df.value <= "2")).count()
+    df.filter((df.key <= 3) | (df.value < "2")).count()
+    df.filter(~(df.key == 1)).count()
+
+
+def column_operators_demo(df: DataFrame[KV]) -> None:
+    """Mirrors test_column_operators — every supported binary op
+    + every common Column method."""
+    ci = df.key
+    cs = df.value
+
+    # comparisons
+    _ = ci == cs
+    _ = ci == 5
+    _ = ci != 0
+    _ = ci > 3
+    _ = ci < 4
+    _ = ci >= 0
+    _ = ci <= 7
+
+    # arithmetic (column-first, scalar-second AND scalar-first, col-second)
+    _ = (-ci - 1 - 2) % 3 * 2.5 / 3.5
+    _ = (1 + ci, 1 - ci, 1 * ci, 1 / ci, 1 % ci, 1 ** ci, ci ** 1)
+
+    # bool composition
+    _ = (ci & ci, ci | ci, ~ci)
+
+    # string methods
+    cs.contains("a")
+    cs.like("a")
+    cs.rlike("a")
+    cs.ilike("A")
+    cs.startswith("a")
+    cs.endswith("a")
+
+    # sort directives
+    cs.asc()
+    cs.desc()
+
+    # null-safe equality
+    ci.eqNullSafe(cs)
+
+    # cast (typed + string-form)
+    ci.cast(LongType())
+    ci.cast("long")
+
+    # F.col + literal mixed
+    sf.col("b") & sf.lit(True)
+    sf.col("b") & True
+    sf.lit(True) & sf.col("b")

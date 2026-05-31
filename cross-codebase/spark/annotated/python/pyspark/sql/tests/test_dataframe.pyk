@@ -1,0 +1,199 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from
+# python/pyspark/sql/tests/test_dataframe.py at apache/spark,
+# pinned-commit d004e0d8.
+#
+# Strategy: the upstream test methods take `self` (not DataFrame[X]),
+# so pykrete won't descend into them. The most representative
+# dataframe-typed cores of `test_drop`, `test_drop_join`,
+# `test_with_columns`, `test_with_columns_renamed`, `test_generic_hints`,
+# `test_cache_dataframe`, and `test_drop_duplicates` are extracted into
+# module-level helpers. Original class body is kept verbatim for
+# traceability.
+#
+# Features covered:
+#   - .drop("name", ...) with mix of valid/invalid names
+#   - .drop(col("name"), col("name2"))
+#   - .join with column-equality `on=`, how="left"
+#   - .withColumns (Spark 3.3+ dict form)
+#   - .withColumnsRenamed (Spark 3.4+ dict form), partial-key tolerance
+#   - .dropDuplicates with and without subset
+#   - .hint("broadcast"), .hint("REBALANCE", "col")
+#   - .cache / .persist / .unpersist (all pass-through)
+
+from pyspark.sql import Row, functions, DataFrame
+from pyspark.sql.functions import col, lit, count, struct, array, explode
+from pyspark.testing import assertDataFrameEqual
+
+
+# ----------------------------------------------------------------------
+# pykrete schemas
+# ----------------------------------------------------------------------
+
+
+class NameAgeActive(Schema):
+    name: string
+    age: int
+    active: string
+
+
+class JoinKeyValue1(Schema):
+    join_key: int
+    value1: string
+
+
+class JoinKeyValue2(Schema):
+    join_key: int
+    value2: string
+
+
+class KV(Schema):
+    key: int
+    value: string
+
+
+# ----------------------------------------------------------------------
+# pykrete-typed helpers
+# ----------------------------------------------------------------------
+
+
+def drop_demo(df: DataFrame[NameAgeActive]) -> None:
+    """Mirrors test_drop. drop accepts bare strings, multiple
+    arguments, missing names (silently tolerated), and Column objects."""
+    df.drop("active")
+    df.drop("active", "nonexistent_column")
+    df.drop("name", "age", "active")
+    df.drop(col("name"))
+    df.drop(col("name"), col("age"))
+
+
+def drop_join_demo(
+    left_df: DataFrame[JoinKeyValue1], right_df: DataFrame[JoinKeyValue2]
+) -> None:
+    """Mirrors test_drop_join. Joins two DataFrames on the equality of
+    a column from each side, with how='left', then drops the join key
+    from either side."""
+    joined_df = left_df.join(
+        right_df,
+        on=left_df["join_key"] == right_df["join_key"],
+        how="left",
+    )
+    joined_df.drop(left_df["join_key"])
+    joined_df.drop(right_df["join_key"])
+
+
+def with_columns_renamed_demo(df: DataFrame[NameAgeActive]) -> None:
+    """Mirrors test_with_columns_renamed — withColumnsRenamed accepts
+    a dict and silently tolerates non-existent source names."""
+    df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})
+    df.withColumnsRenamed({"name": "naam", "address": "adres"})
+
+
+def drop_duplicates_demo(df: DataFrame[NameAgeActive]) -> None:
+    """Mirrors test_drop_duplicates."""
+    df.dropDuplicates().count()
+    df.dropDuplicates(["name"]).count()
+    df.dropDuplicates(["name", "age"]).count()
+
+
+def with_columns_demo(df: DataFrame[KV]) -> None:
+    """Mirrors test_with_columns — dict form, with and without rename."""
+    df.withColumns({"key": df.key, "value": df.value}).select("key", "value").collect()
+    df.withColumns({"key_alias": df.key, "value_alias": df.value}).select(
+        "key_alias", "value_alias"
+    ).collect()
+
+
+def generic_hints_demo(df1: DataFrame[KV], df2: DataFrame[KV]) -> None:
+    """Mirrors test_generic_hints. .hint is pass-through, but pykrete
+    verifies the chain continues."""
+    df1.hint("broadcast")
+    df1.hint("broadcast", "foo", "bar")
+    df1.join(df2.hint("broadcast"), "key").select("key", "value")
+
+
+def cache_dataframe_demo(df: DataFrame[KV]) -> None:
+    """Mirrors test_cache_dataframe — cache/persist/unpersist are
+    all pass-through; the chain still resolves columns after them."""
+    df.cache().select("key").show()
+    df.persist().select("value").show()
+    df.unpersist().count()
+
+
+# ----------------------------------------------------------------------
+# Original upstream test class (unchanged from apache/spark@d004e0d8).
+# Subset of methods only; see upstream/ for the verbatim full file.
+# ----------------------------------------------------------------------
+
+
+class DataFrameTestsMixin:
+    def test_drop(self):
+        df = self.spark.createDataFrame([("A", 50, "Y"), ("B", 60, "Y")], ["name", "age", "active"])
+        self.assertEqual(df.drop("active").columns, ["name", "age"])
+        self.assertEqual(df.drop("active", "nonexistent_column").columns, ["name", "age"])
+        self.assertEqual(df.drop("name", "age", "active").columns, [])
+        self.assertEqual(df.drop(col("name")).columns, ["age", "active"])
+        self.assertEqual(df.drop(col("name"), col("age")).columns, ["active"])
+
+    def test_drop_join(self):
+        left_df = self.spark.createDataFrame(
+            [(1, "a"), (2, "b"), (3, "c")],
+            ["join_key", "value1"],
+        )
+        right_df = self.spark.createDataFrame(
+            [(1, "aa"), (2, "bb"), (4, "dd")],
+            ["join_key", "value2"],
+        )
+        joined_df = left_df.join(
+            right_df,
+            on=left_df["join_key"] == right_df["join_key"],
+            how="left",
+        )
+        dropped_1 = joined_df.drop(left_df["join_key"])
+        dropped_2 = joined_df.drop(right_df["join_key"])
+
+    def test_with_columns_renamed(self):
+        df = self.spark.createDataFrame([("Alice", 50), ("Alice", 60)], ["name", "age"])
+        renamed_df1 = df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})
+        renamed_df2 = df.withColumnsRenamed({"name": "naam", "address": "adres"})
+
+    def test_drop_duplicates(self):
+        df = self.spark.createDataFrame([("Alice", 50), ("Alice", 60)], ["name", "age"])
+        df.dropDuplicates().count()
+        df.dropDuplicates(["name"]).count()
+        df.dropDuplicates(["name", "age"]).count()
+
+    def test_with_columns(self):
+        kvs = (
+            self.df.withColumns({"key": self.df.key, "value": self.df.value})
+            .select("key", "value")
+            .collect()
+        )
+
+    def test_generic_hints(self):
+        df1 = self.spark.range(10e10).toDF("id")
+        df2 = self.spark.range(10e10).toDF("id")
+        df1.hint("broadcast")
+        df1.hint("broadcast", "foo", "bar")
+
+    def test_cache_dataframe(self):
+        df = self.spark.createDataFrame([(2, 2), (3, 3)])
+        df.cache()
+        df.unpersist()
+        df.persist()
+        df.unpersist(blocking=True)

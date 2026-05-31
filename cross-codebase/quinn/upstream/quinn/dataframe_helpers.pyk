@@ -1,0 +1,51 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Excerpt from quinn/dataframe_helpers.py at MrPowers/quinn,
+# pinned-commit 20156582.
+
+from __future__ import annotations
+
+import sys
+from typing import Any
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+def column_to_list(df: DataFrame, col_name: str) -> list[Any]:
+    return [row[0] for row in df.select(col_name).collect()]
+
+
+def two_columns_to_dictionary(
+    df: DataFrame,
+    key_col_name: str,
+    value_col_name: str,
+) -> dict[str, Any]:
+    k, v = key_col_name, value_col_name
+    return {x[k]: x[v] for x in df.select(k, v).collect()}
+
+
+def to_list_of_dictionaries(df: DataFrame) -> list[dict[str, Any]]:
+    return list(map(lambda r: r.asDict(), df.collect()))
+
+
+def show_output_to_df(show_output: str, spark: SparkSession) -> DataFrame:
+    lines = show_output.split("\n")
+    ugly_column_names = lines[1]
+    pretty_column_names = [i.strip() for i in ugly_column_names[1:-1].split("|")]
+    pretty_data = []
+    ugly_data = lines[3:-1]
+    for row in ugly_data:
+        r = [i.strip() for i in row[1:-1].split("|")]
+        pretty_data.append(tuple(r))
+    return spark.createDataFrame(pretty_data, pretty_column_names)

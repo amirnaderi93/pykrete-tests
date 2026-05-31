@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Annotated for pykrete from tests/integration/test_add_files.py at
+# apache/iceberg-python, pinned-commit 5da8186d.
+#
+# Strategy: the all_manifests metadata view has a system schema that
+# isn't a user-defined table — the spark.sql() return is opaque and
+# row.added_data_files_count is name-resolved at runtime. We cast it.
+# The spark.table(identifier) read is similarly opaque.
+#
+# Features covered:
+#   - spark.sql(string).collect() with f-string interpolation
+#   - row.field_name attribute access on Row in a comprehension
+#   - spark.table("name").cast(DataFrame[X])
+#   - df.count() terminal
+#   - df.columns list iteration
+#   - df[col_name] bracket-form column ref (string variable index)
+#   - df.filter(col.isNotNull()).count() chain
+
+from pyspark.sql import SparkSession
+
+
+class Manifest(Schema):
+    added_data_files_count: int
+    existing_data_files_count: int
+    deleted_data_files_count: int
+
+
+class AddFileRow(Schema):
+    foo: bool
+    bar: string
+    baz: int
+    qux: date
+
+
+def verify_added_data_files(spark: SparkSession, identifier: str) -> None:
+    """Mirrors the upstream assertion block. spark.sql with an
+    f-string interpolated identifier is opaque-IO; the cast pins it
+    to Manifest. The collect() returns list[Row]; row.added... is
+    accepted as Row attribute access."""
+    rows = spark.sql(
+        f"""
+        SELECT added_data_files_count, existing_data_files_count, deleted_data_files_count
+        FROM {identifier}.all_manifests
+    """
+    ).cast(DataFrame[Manifest]).collect()
+
+    assert [row.added_data_files_count for row in rows] == [5]
+    assert [row.existing_data_files_count for row in rows] == [0]
+    assert [row.deleted_data_files_count for row in rows] == [0]
+
+    df = spark.table(identifier).cast(DataFrame[AddFileRow])
+    assert df.count() == 5
+
+    for col_name in df.columns:
+        # df[col_name].isNotNull() — bracket col ref over a string var.
+        assert df.filter(df[col_name].isNotNull()).count() == 5

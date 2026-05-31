@@ -1,0 +1,162 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from
+# examples/src/main/python/sql/datasource.py at apache/spark,
+# pinned-commit d004e0d8.
+#
+# Strategy: the original example uses opaque spark.read.<fmt> chains
+# without typed return slots. pykrete enters body analysis when a
+# function carries a DataFrame[X] slot, so the dataframe-using cores of
+# the typical IO pipelines are extracted into module-level helpers that
+# re-anchor an opaque source with .cast(DataFrame[Schema]) and exercise
+# downstream operations. Original example functions stay verbatim below.
+#
+# Features covered (per docs/design/spark-coverage.md):
+#   - spark.read.parquet / .json / .csv / .load / .orc (opaque IO)
+#   - .cast(DataFrame[X]) re-anchor
+#   - createOrReplaceTempView + spark.sql("SELECT ... FROM view") flow
+#   - select with bare strings + column refs after re-anchor
+
+from pyspark.sql import SparkSession
+from pyspark.sql import Row
+
+
+# ----------------------------------------------------------------------
+# pykrete schemas — derived from people.json / users.parquet shapes
+# documented in the upstream resource files.
+# ----------------------------------------------------------------------
+
+
+class People(Schema):
+    age: long
+    name: string
+
+
+class Users(Schema):
+    name: string
+    favorite_color: string
+    favorite_numbers: int  # element-type modeled as opaque int
+
+
+# ----------------------------------------------------------------------
+# pykrete-typed helpers — cores of the example pipelines.
+# ----------------------------------------------------------------------
+
+
+def parquet_round_trip(spark: SparkSession) -> None:
+    """Mirrors parquet_example. The opaque read.json -> write -> read
+    chain is re-anchored with .cast(DataFrame[People]) so downstream
+    column refs and the spark.sql lookup against the temp view fire
+    against People."""
+    peopleDF = spark.read.json("examples/src/main/resources/people.json").cast(DataFrame[People])
+    peopleDF.write.parquet("people.parquet")
+
+    parquetFile = spark.read.parquet("people.parquet").cast(DataFrame[People])
+    parquetFile.createOrReplaceTempView("parquetFile")
+
+    teenagers = spark.sql("SELECT name FROM parquetFile WHERE age >= 13 AND age <= 19")
+    teenagers.show()
+
+
+def json_tempview_query(spark: SparkSession) -> None:
+    """Mirrors json_dataset_example. Re-anchors then registers the view
+    so spark.sql can resolve `name` / `age` against People."""
+    peopleDF = spark.read.json("examples/src/main/resources/people.json").cast(DataFrame[People])
+    peopleDF.printSchema()
+    peopleDF.createOrReplaceTempView("people")
+
+    teenagerNamesDF = spark.sql("SELECT name FROM people WHERE age BETWEEN 13 AND 19")
+    teenagerNamesDF.show()
+
+
+def csv_options_chain(spark: SparkSession) -> None:
+    """Mirrors csv_dataset_example. spark.read.option(...).csv(path)
+    is recognised as opaque; the user re-anchors when they want column
+    checks."""
+    path = "examples/src/main/resources/people.csv"
+    df3 = spark.read.option("delimiter", ";").option("header", True).csv(path).cast(DataFrame[People])
+    df3.select("name", "age").show()
+
+
+def users_select_then_write(users_df: DataFrame[Users]) -> None:
+    """Mirrors the select+write split from basic_datasource_example."""
+    users_df.select("name", "favorite_color").write.save("namesAndFavColors.parquet")
+
+
+# ----------------------------------------------------------------------
+# Original upstream functions (unchanged from apache/spark@d004e0d8).
+# ----------------------------------------------------------------------
+
+
+def generic_file_source_options_example(spark: SparkSession) -> None:
+    # $example on:ignore_corrupt_files$
+    test_corrupt_df0 = spark.read.option("ignoreCorruptFiles", "true")\
+        .parquet("examples/src/main/resources/dir1/",
+                 "examples/src/main/resources/dir1/dir2/")
+    test_corrupt_df0.show()
+
+
+def basic_datasource_example(spark: SparkSession) -> None:
+    users_df = spark.read.load("examples/src/main/resources/users.parquet")
+    users_df.select("name", "favorite_color").write.save("namesAndFavColors.parquet")
+
+    users_df = spark.read.load("examples/src/main/resources/users.parquet")
+    users_df.write.partitionBy("favorite_color").format("parquet").save("namesPartByColor.parquet")
+
+    people_df = spark.read.load(
+        "examples/src/main/resources/people.csv",
+        format="csv",
+        sep=";",
+        inferSchema="true",
+        header="true"
+    )
+
+
+def parquet_example(spark: SparkSession) -> None:
+    peopleDF = spark.read.json("examples/src/main/resources/people.json")
+    peopleDF.write.parquet("people.parquet")
+    parquetFile = spark.read.parquet("people.parquet")
+    parquetFile.createOrReplaceTempView("parquetFile")
+    teenagers = spark.sql("SELECT name FROM parquetFile WHERE age >= 13 AND age <= 19")
+    teenagers.show()
+
+
+def json_dataset_example(spark: SparkSession) -> None:
+    path = "examples/src/main/resources/people.json"
+    peopleDF = spark.read.json(path)
+    peopleDF.printSchema()
+    peopleDF.createOrReplaceTempView("people")
+    teenagerNamesDF = spark.sql("SELECT name FROM people WHERE age BETWEEN 13 AND 19")
+    teenagerNamesDF.show()
+
+
+def csv_dataset_example(spark: SparkSession) -> None:
+    path = "examples/src/main/resources/people.csv"
+    df = spark.read.csv(path)
+    df.show()
+    df2 = spark.read.option("delimiter", ";").csv(path)
+    df2.show()
+    df3 = spark.read.option("delimiter", ";").option("header", True).csv(path)
+    df3.show()
+
+
+if __name__ == "__main__":
+    spark = SparkSession \
+        .builder \
+        .appName("Python Spark SQL data source example") \
+        .getOrCreate()
+    spark.stop()

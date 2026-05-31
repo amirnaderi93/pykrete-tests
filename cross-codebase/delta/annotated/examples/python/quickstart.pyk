@@ -1,0 +1,89 @@
+#
+# Copyright (2021) The Delta Lake Project Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from examples/python/quickstart.py at
+# delta-io/delta, pinned-commit 3f10aaec.
+#
+# Strategy: pykrete treats Delta-Lake-specific APIs (DeltaTable.forPath,
+# .merge, .whenMatchedUpdate, .delete) as opaque (they're not part of
+# the PySpark surface pykrete models). The annotated companion extracts
+# only the parts that *are* PySpark — spark.read.format / .option /
+# .load, spark.range, write.format/.mode/.save, and the F.col/F.expr
+# expressions threaded into the Delta builder — into typed helpers.
+#
+# Features covered:
+#   - spark.range(n).cast(DataFrame[X]) re-anchor
+#   - spark.read.format("delta").option(...).load(...) -> opaque
+#   - .write.format(...).mode(...).save(...) -> opaque
+#   - F.col("name.field") (dotted name string)
+#   - F.expr("id % 2 == 0") / F.expr("id + 100")
+#   - DataFrame.show()
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, expr
+
+
+class IdRow(Schema):
+    id: long
+
+
+def write_delta_demo(spark: SparkSession) -> None:
+    """Mirrors the "Create a table" + "Read the table" cores. The
+    .write.format("delta").save / .read.format("delta").load chain is
+    opaque to pykrete; user re-anchors after the read."""
+    data = spark.range(0, 5).cast(DataFrame[IdRow])
+    data.write.format("delta").save("/tmp/delta-table")
+
+    df = spark.read.format("delta").load("/tmp/delta-table").cast(DataFrame[IdRow])
+    df.show()
+
+
+def merge_expression_args(spark: SparkSession) -> None:
+    """Mirrors the deltaTable.merge(...) call: the merge condition
+    and the set/values dicts are built with F.col + dotted names. The
+    DeltaTable call itself is opaque; pykrete checks that the F.col
+    expressions are well-formed."""
+    new_data = spark.range(0, 20).cast(DataFrame[IdRow])
+    # The dotted names ("newData.id") are temp-view qualified — they're
+    # bare strings to F.col, which pykrete accepts without checking
+    # against a typed schema (alias-scoped names).
+    _ = col("newData.id")
+    _ = col("oldData.id")
+    new_data.show()
+
+
+def update_with_expr(spark: SparkSession) -> None:
+    """Mirrors deltaTable.update(condition=expr(...), set={...:
+    expr(...)}). The DeltaTable call is opaque; F.expr is a raw-SQL
+    column constructor that pykrete recognises."""
+    _ = expr("id % 2 == 0")
+    _ = expr("id + 100")
+
+
+def delete_with_expr(spark: SparkSession) -> None:
+    """Mirrors deltaTable.delete(condition=expr(...))."""
+    _ = expr("id % 2 == 0")
+
+
+def time_travel_read(spark: SparkSession) -> None:
+    """Mirrors the "Read old version" step. spark.read.format(...).
+    option(...).load(...) is opaque; user re-anchors after load."""
+    df = (
+        spark.read.format("delta")
+        .option("versionAsOf", 0)
+        .load("/tmp/delta-table")
+        .cast(DataFrame[IdRow])
+    )
+    df.show()

@@ -1,0 +1,76 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from quinn/dataframe_helpers.py at MrPowers/quinn,
+# pinned-commit 20156582.
+#
+# Strategy: same pattern as the rest of quinn — the bare-DataFrame
+# helpers don't carry schema info, so pykrete needs typed wrappers to
+# exercise the surface they touch (.select, .collect, Row indexing,
+# .asDict via map).
+#
+# Features covered:
+#   - df.select(bare-string-col).collect() pattern
+#   - row[<int>] and row[<col-name>] indexing on Row
+#   - r.asDict() over .collect()
+#   - df.select(col1, col2).collect() multi-col form
+#   - SparkSession.createDataFrame(rows, names) constructor
+
+
+from __future__ import annotations
+
+from typing import Any
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+class PersonRow(Schema):
+    name: string
+    age: int
+
+
+# ----------------------------------------------------------------------
+# pykrete-typed callers.
+# ----------------------------------------------------------------------
+
+
+def column_to_list_demo(df: DataFrame[PersonRow]) -> None:
+    """Mirrors column_to_list — bare-string col ref, .collect, then
+    row[0] indexing inside a comprehension."""
+    rows = df.select("name").collect()
+    out = [row[0] for row in rows]
+    _ = out
+
+
+def two_columns_to_dictionary_demo(df: DataFrame[PersonRow]) -> None:
+    """Mirrors two_columns_to_dictionary — two-col .select, name-keyed
+    Row access via x[k] / x[v]."""
+    k, v = "name", "age"
+    d = {x[k]: x[v] for x in df.select(k, v).collect()}
+    _ = d
+
+
+def to_list_of_dictionaries_demo(df: DataFrame[PersonRow]) -> None:
+    """Mirrors to_list_of_dictionaries — r.asDict() over .collect."""
+    out = list(map(lambda r: r.asDict(), df.collect()))
+    _ = out
+
+
+def show_output_round_trip_demo(spark: SparkSession) -> None:
+    """Mirrors show_output_to_df. spark.createDataFrame with a (rows,
+    schema-names) pair is recognised as opaque IO; user re-anchors when
+    they need column checks."""
+    rows = [("Alice", 50), ("Bob", 60)]
+    names = ["name", "age"]
+    df = spark.createDataFrame(rows, names).cast(DataFrame[PersonRow])
+    df.select("name", "age").count()

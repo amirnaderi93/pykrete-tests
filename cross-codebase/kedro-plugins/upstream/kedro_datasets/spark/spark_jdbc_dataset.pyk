@@ -1,0 +1,30 @@
+"""``AbstractDataset`` implementation to access JDBC-readable data via Spark."""
+#
+# Apache License 2.0. Copyright kedro-org / QuantumBlack.
+#
+# Excerpt from kedro-datasets/kedro_datasets/spark/spark_jdbc_dataset.py
+# at kedro-org/kedro-plugins, pinned-commit c4c367eb. The load/save core
+# is the pure-PySpark surface.
+
+from __future__ import annotations
+
+from typing import Any
+
+from pyspark.sql import DataFrame, SparkSession
+
+
+def get_spark() -> SparkSession:
+    return SparkSession.builder.getOrCreate()
+
+
+class SparkJDBCDataset:
+    _url: str
+    _table: str
+    _load_args: dict[str, Any]
+    _save_args: dict[str, Any]
+
+    def load(self) -> DataFrame:
+        return get_spark().read.jdbc(self._url, self._table, **self._load_args)
+
+    def save(self, data: DataFrame) -> None:
+        return data.write.jdbc(self._url, self._table, **self._save_args)

@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 22,
+      "endColumn": 31,
+      "endLine": 80,
+      "file": "cross-codebase/spark/annotated/examples/src/main/python/sql/streaming/structured_network_wordcount_windowed.pyk",
+      "line": 80,
+      "message": "Column 'timestamp' does not exist on inferred schema [word].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

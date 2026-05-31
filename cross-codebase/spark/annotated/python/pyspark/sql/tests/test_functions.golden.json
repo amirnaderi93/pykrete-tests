@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 71,
+      "endColumn": 74,
+      "endLine": 69,
+      "file": "cross-codebase/spark/annotated/python/pyspark/sql/tests/test_functions.pyk",
+      "line": 69,
+      "message": "Column 'b' does not exist on inferred schema [a]. Did you mean 'a'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "a"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

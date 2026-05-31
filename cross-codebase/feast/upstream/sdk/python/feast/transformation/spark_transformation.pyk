@@ -1,0 +1,32 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Excerpt from sdk/python/feast/transformation/spark_transformation.py
+# at feast-dev/feast, pinned-commit 4203eb74. The PySpark surface
+# (temp view + spark.sql) is preserved.
+
+from typing import Union
+
+import pyspark.sql
+
+
+class SparkTransformation:
+    spark_session: pyspark.sql.SparkSession
+    udf: object
+    mode: str
+
+    @staticmethod
+    def _create_temp_view_for_dataframe(df: pyspark.sql.DataFrame, name: str):
+        df_temp_view = f"feast_transformation_temp_view_{name}"
+        df.createOrReplaceTempView(df_temp_view)
+        return df_temp_view
+
+    def _transform_spark_sql(
+        self, *inputs: Union["pyspark.sql.DataFrame", str]
+    ):
+        inputs_str = [
+            self._create_temp_view_for_dataframe(v, f"index_{i}")
+            if isinstance(v, pyspark.sql.DataFrame)
+            else v
+            for i, v in enumerate(inputs)
+        ]
+        return self.spark_session.sql(self.udf(*inputs_str))

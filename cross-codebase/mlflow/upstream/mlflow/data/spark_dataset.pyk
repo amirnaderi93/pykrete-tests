@@ -1,0 +1,32 @@
+# Apache License 2.0. Copyright Databricks / MLflow.
+#
+# Excerpt from mlflow/data/spark_dataset.py at mlflow/mlflow,
+# pinned-commit 8f942548. Pure-PySpark surface preserved.
+
+from __future__ import annotations
+
+from typing import Any
+
+import pyspark
+
+
+class SparkDataset:
+    def __init__(self, df, source, targets=None, name=None, digest=None, predictions=None):
+        if targets is not None and targets not in df.columns:
+            raise ValueError(f"missing targets column '{targets}'")
+        if predictions is not None and predictions not in df.columns:
+            raise ValueError(f"missing predictions column '{predictions}'")
+        self._df = df
+        self._targets = targets
+        self._predictions = predictions
+
+    def to_pyfunc(self):
+        df = self._df.limit(10000).toPandas()
+        if self._targets is not None:
+            inputs = df.drop(columns=self._targets)
+            outputs = df[self._targets]
+            return inputs, outputs
+        return df, None
+
+    def to_evaluation_dataset(self, path=None, feature_names=None):
+        return self._df.limit(10000).toPandas()

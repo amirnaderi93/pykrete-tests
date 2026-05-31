@@ -1,0 +1,44 @@
+# Apache License 2.0. Copyright Databricks / MLflow.
+#
+# Annotated for pykrete from examples/spark_udf/spark_udf.py at
+# mlflow/mlflow, pinned-commit 8f942548.
+#
+# Strategy: the script-level `with SparkSession.builder.getOrCreate()
+# as spark:` block is hoisted into a function so pykrete can drive it
+# from a typed context. The mlflow.* calls are opaque; the spark df
+# is opaque after createDataFrame (pandas-input) and gets re-anchored.
+#
+# Features covered:
+#   - SparkSession.builder.getOrCreate() opaque context manager
+#   - spark.createDataFrame(pandas_df) opaque IO
+#   - .cast(DataFrame[X]) re-anchor after opaque IO
+#   - df.select(udf_call.alias("..."))  — UDF invocation pattern
+#   - .alias("predictions") on a column expression
+#   - .toPandas() pass-through terminal
+
+from pyspark.sql import SparkSession
+
+
+class IrisFeatures(Schema):
+    sepal_length_cm: double
+    sepal_width_cm: double
+    petal_length_cm: double
+    petal_width_cm: double
+
+
+def predict_with_spark_udf(spark: SparkSession, model_uri: str) -> None:
+    """Mirrors the inference half of spark_udf.py. The pyfunc_udf is
+    opaque (returned by mlflow.pyfunc.spark_udf), but the .select +
+    .alias + .toPandas chain are pure PySpark."""
+    import mlflow
+
+    # spark.createDataFrame(pandas_df) -> opaque -> re-anchor
+    infer_spark_df = spark.createDataFrame([]).cast(DataFrame[IrisFeatures])
+
+    pyfunc_udf = mlflow.pyfunc.spark_udf(spark, model_uri, env_manager="conda")
+    cols = [
+        "sepal_length_cm", "sepal_width_cm",
+        "petal_length_cm", "petal_width_cm",
+    ]
+    result = infer_spark_df.select(pyfunc_udf(*cols).alias("predictions")).toPandas()
+    _ = result

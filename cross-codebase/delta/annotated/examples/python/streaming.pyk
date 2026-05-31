@@ -1,0 +1,62 @@
+#
+# Copyright (2021) The Delta Lake Project Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Annotated for pykrete from examples/python/streaming.py at
+# delta-io/delta, pinned-commit 3f10aaec.
+#
+# Strategy: as with the spark structured-streaming fixture, pykrete
+# leaves readStream/writeStream opaque. The annotated companion lifts
+# the pieces of the chain that are pure DataFrame operations
+# (.selectExpr, .withColumn arithmetic, .drop) into typed helpers.
+#
+# Features covered:
+#   - df.withColumn with an arithmetic Column expression
+#   - df.withColumn with F.col(...) % scalar
+#   - df.drop("timestamp") bare-string
+#   - df.selectExpr("value as id") rename via SQL string
+#   - long/double arithmetic on Column
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+
+class IdValue(Schema):
+    id: long
+    value: long
+
+
+class RateRow(Schema):
+    timestamp: timestamp
+    value: long
+
+
+def with_value_demo(spark: SparkSession) -> None:
+    """Mirrors `data.withColumn("value", data.id + random.randint(...))`.
+    The scalar gets lifted into a literal during binding; pykrete
+    accepts the long + int arithmetic on Column."""
+    data = spark.range(8).cast(DataFrame[IdValue])
+    data.withColumn("value", data.id + 3000)
+
+
+def select_expr_rename_demo(df: DataFrame[RateRow]) -> None:
+    """Mirrors `streamingDf.selectExpr("value as id")` — selectExpr
+    accepts SQL-string projections including AS-renames."""
+    df.selectExpr("value as id")
+
+
+def modulo_and_drop_demo(df: DataFrame[RateRow]) -> None:
+    """Mirrors the streamingAggregatesDF.withColumn(...).drop(...)
+    chain. F.col("value") % 10 is a Column-arithmetic expression."""
+    df.withColumn("id", col("value") % 10).drop("timestamp")

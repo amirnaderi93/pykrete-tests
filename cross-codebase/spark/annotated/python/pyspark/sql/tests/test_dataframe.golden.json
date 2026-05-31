@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 23,
+      "endColumn": 43,
+      "endLine": 79,
+      "file": "cross-codebase/spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 79,
+      "message": "Column 'nonexistent_column' does not exist on schema 'NameAgeActive'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    },
+    {
+      "code": "D0030",
+      "column": 44,
+      "endColumn": 53,
+      "endLine": 104,
+      "file": "cross-codebase/spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 104,
+      "message": "Column 'address' does not exist on schema 'NameAgeActive'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 2,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

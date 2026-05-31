@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0010",
+      "column": 10,
+      "endColumn": 16,
+      "endLine": 32,
+      "file": "cross-codebase/mlflow/annotated/examples/spark_udf/structs_and_arrays.pyk",
+      "line": 32,
+      "message": "Unknown column type 'Struct'. Expected one of: int, long, double, byte, short, decimal, decimal(p, s), string, binary, bool, date, timestamp, Array, Map.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumnType",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    },
+    {
+      "code": "D0011",
+      "column": 14,
+      "endColumn": 27,
+      "endLine": 33,
+      "file": "cross-codebase/mlflow/annotated/examples/spark_udf/structs_and_arrays.pyk",
+      "line": 33,
+      "message": "Column type 'Array[Struct]' is not a recognized pykrete type. Use a bare atomic (int, long, double, byte, short, decimal, decimal(p, s), string, binary, bool, date, timestamp, Array, Map), a declared Schema, or an `Array[…]` / `Map[…, …]` collection.",
+      "relatedInformation": [],
+      "ruleName": "invalidColumnType",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 2,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

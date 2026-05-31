@@ -1,0 +1,71 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Excerpt from hudi-examples/hudi-examples-spark/src/test/python/
+# vector_blob_demo/hudi_dataframe_vector_blob_demo.py at apache/hudi,
+# pinned-commit fc85e3ea. The StructType schema builder + Row
+# constructor are preserved.
+
+from pyspark.sql import Row, SparkSession
+from pyspark.sql.types import (
+    ArrayType,
+    BinaryType,
+    BooleanType,
+    FloatType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+)
+
+
+def build_target_schema(embedding_dim: int) -> StructType:
+    return StructType(
+        [
+            StructField("image_id", StringType(), nullable=False),
+            StructField("category", StringType(), nullable=False),
+            StructField("label", IntegerType(), nullable=False),
+            StructField("description", StringType(), nullable=True),
+            StructField("image_bytes", BinaryType(), nullable=True),
+            StructField("width", IntegerType(), nullable=False),
+            StructField("height", IntegerType(), nullable=False),
+            StructField(
+                "embedding",
+                ArrayType(FloatType(), containsNull=False),
+                nullable=False,
+            ),
+        ]
+    )
+
+
+def write_to_hudi(spark: SparkSession, data, embedding_dim: int, path: str) -> None:
+    schema = build_target_schema(embedding_dim)
+    rows = [
+        Row(
+            d["image_id"],
+            d["category"],
+            int(d["label"]),
+            d.get("description"),
+            d["image_bytes_raw"],
+            int(d["width"]),
+            int(d["height"]),
+            [float(v) for v in d["embedding"]],
+        )
+        for d in data
+    ]
+    df = spark.createDataFrame(rows, schema)
+    df.write.format("hudi").save(path)

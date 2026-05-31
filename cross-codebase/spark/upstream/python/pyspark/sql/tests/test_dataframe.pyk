@@ -1,0 +1,91 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Verbatim rename of python/pyspark/sql/tests/test_dataframe.py at
+# apache/spark, pinned-commit d004e0d8. This file is a substantial
+# excerpt focused on the test methods covered by the annotated
+# companion. Full upstream file is 1220 lines; the subset preserved
+# here is the methods the annotated companion mirrors so the rename
+# stays faithful per-method while the file stays a reasonable size for
+# this fixture set. Original test classes / decorators are preserved.
+
+from pyspark.sql import Row, functions, DataFrame
+from pyspark.sql.functions import col, lit, count, struct, array, explode
+from pyspark.testing import assertDataFrameEqual
+
+
+class DataFrameTestsMixin:
+    def test_drop(self):
+        df = self.spark.createDataFrame([("A", 50, "Y"), ("B", 60, "Y")], ["name", "age", "active"])
+        self.assertEqual(df.drop("active").columns, ["name", "age"])
+        self.assertEqual(df.drop("active", "nonexistent_column").columns, ["name", "age"])
+        self.assertEqual(df.drop("name", "age", "active").columns, [])
+        self.assertEqual(df.drop(col("name")).columns, ["age", "active"])
+        self.assertEqual(df.drop(col("name"), col("age")).columns, ["active"])
+
+    def test_drop_join(self):
+        left_df = self.spark.createDataFrame(
+            [(1, "a"), (2, "b"), (3, "c")],
+            ["join_key", "value1"],
+        )
+        right_df = self.spark.createDataFrame(
+            [(1, "aa"), (2, "bb"), (4, "dd")],
+            ["join_key", "value2"],
+        )
+        joined_df = left_df.join(
+            right_df,
+            on=left_df["join_key"] == right_df["join_key"],
+            how="left",
+        )
+
+        dropped_1 = joined_df.drop(left_df["join_key"])
+        dropped_2 = joined_df.drop(right_df["join_key"])
+
+    def test_with_columns_renamed(self):
+        df = self.spark.createDataFrame([("Alice", 50), ("Alice", 60)], ["name", "age"])
+        renamed_df1 = df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})
+        renamed_df2 = df.withColumnsRenamed({"name": "naam", "address": "adres"})
+
+    def test_drop_duplicates(self):
+        df = self.spark.createDataFrame([("Alice", 50), ("Alice", 60)], ["name", "age"])
+        df.dropDuplicates().count()
+        df.dropDuplicates(["name"]).count()
+        df.dropDuplicates(["name", "age"]).count()
+
+    def test_with_columns(self):
+        kvs = (
+            self.df.withColumns({"key": self.df.key, "value": self.df.value})
+            .select("key", "value")
+            .collect()
+        )
+        kvs = (
+            self.df.withColumns({"key_alias": self.df.key, "value_alias": self.df.value})
+            .select("key_alias", "value_alias")
+            .collect()
+        )
+
+    def test_generic_hints(self):
+        df1 = self.spark.range(10e10).toDF("id")
+        df2 = self.spark.range(10e10).toDF("id")
+        df1.hint("broadcast")
+        df1.hint("broadcast", "foo", "bar")
+
+    def test_cache_dataframe(self):
+        df = self.spark.createDataFrame([(2, 2), (3, 3)])
+        df.cache()
+        df.unpersist()
+        df.persist()
+        df.unpersist(blocking=True)
