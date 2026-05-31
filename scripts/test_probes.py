@@ -328,7 +328,12 @@ class VerifierTests(unittest.TestCase):
         failures = probes.verify_against_json(
             [p], actual, "f.pyk", fixture_source=src,
         )
-        self.assertEqual(len(failures), 1)
+        # The probe itself fails to match the diagnostic, and the unmatched
+        # diagnostic on a claimed line becomes an "unclaimed" failure (I1).
+        kinds = sorted(f.expected[:14] for f in failures)
+        self.assertIn("code D0030 wit", kinds)
+        self.assertTrue(any("no unclaimed" in f.expected for f in failures))
+        self.assertEqual(len(failures), 2)
 
     def test_match_regex(self):
         diag = {"file": "f.pyk", "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
@@ -387,30 +392,486 @@ def _pykrete_available() -> bool:
     return shutil.which("pykrete") is not None
 
 
+# ---------------------------------------------------------------------------
+# Round-2 regression tests (blockers B1-B9, importants I1-I10).
+# Every test in this section maps to a specific finding and would fail
+# against the round-1 implementation.
+# ---------------------------------------------------------------------------
+
+
+class ParserRound2Tests(unittest.TestCase):
+    """B7 + B8 + I8 + I10: parser/tokenizer hardening."""
+
+    def test_b7_utf8_in_on_slot_preserved(self):
+        # `café` must survive verbatim; the round-1 unicode_escape step
+        # corrupted non-ASCII to 'cafÃ©'.
+        s = _src(
+            '# PROBE-EXPECTS: D0030 on "café"',
+            "x = 1",
+        )
+        p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
+        self.assertEqual(p.span_text, "café")
+
+    def test_b7_quoted_backslash_escape(self):
+        s = _src(
+            r'# PROBE-EXPECTS: D0030 on "say \"hi\""',
+            "x = 1",
+        )
+        p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
+        self.assertEqual(p.span_text, 'say "hi"')
+
+    def test_b8_double_dash_inside_quoted_span_not_eaten(self):
+        # The rationale `--` delimiter must not truncate quoted spans
+        # that legitimately contain `--`.
+        s = _src(
+            '# PROBE-EXPECTS: D0030 on "foo--bar" -- legit rationale',
+            "x = 1",
+        )
+        p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
+        self.assertEqual(p.span_text, "foo--bar")
+        self.assertEqual(p.rationale, "legit rationale")
+
+    def test_b8_slots_in_any_order_with_dashed_span(self):
+        s = _src(
+            '# PROBE-EXPECTS: D0030 -- rat on "foo--bar" id=q1',
+            "x = 1",
+        )
+        p = probes.extract_from_source(s, "f.pyk", CATALOG)[0]
+        self.assertEqual(p.span_text, "foo--bar")
+        self.assertEqual(p.id, "q1")
+        self.assertEqual(p.rationale, "rat")
+
+    def test_i8_indented_marker_treated_as_normal_comment(self):
+        # Indented `# PROBE-...` must NOT parse (spec: column-0 invariant).
+        s = _src(
+            "def f():",
+            "    # PROBE-EXPECTS: D0030",
+            "    x = 1",
+        )
+        self.assertEqual(probes.extract_from_source(s, "f.pyk", CATALOG), [])
+
+    def test_i8_indented_typo_does_not_trigger_didyoumean(self):
+        # Indented typo shouldn't raise — it's a normal comment.
+        s = _src(
+            "def f():",
+            "    # PROBE-EXPECTSS: D0030",
+            "    x = 1",
+        )
+        self.assertEqual(probes.extract_from_source(s, "f.pyk", CATALOG), [])
+
+    def test_i10_no_tokenize_fallback_on_broken_python(self):
+        # Round-1 fell back to a regex line scan when tokenization failed,
+        # which re-introduced in-string false matches. The new behavior
+        # hard-errors so broken sources never silently leak probes.
+        s = '"""\nunterminated docstring with # PROBE-EXPECTS: D0030\nx = 1\n'
+        with self.assertRaisesRegex(probes.ProbeError, "failed to tokenize"):
+            probes.extract_from_source(s, "f.pyk", CATALOG)
+
+
+class SynthesizerRound2Tests(unittest.TestCase):
+    """B1 + B2 + B6 + B9: per-type distinct, scope-aware, ident-safe, struct-aware."""
+
+    def test_b1_numeric_and_non_numeric_get_distinct_targets(self):
+        # Round-1 collapsed all numeric subtypes to a byte-identical expr.
+        # We at minimum distinguish numeric vs non-numeric via different
+        # D-codes (D0082 vs D0081). Subtype-level distinguishability is
+        # bounded by pykrete-core's checker today.
+        from probes import _TYPE_TARGET
+        self.assertEqual(_TYPE_TARGET["int"], "D0082")
+        self.assertEqual(_TYPE_TARGET["double"], "D0082")
+        self.assertEqual(_TYPE_TARGET["string"], "D0081")
+        self.assertEqual(_TYPE_TARGET["boolean"], "D0081")
+        # All numeric subtypes target the same family-distinguishing code:
+        for t in ("int", "long", "short", "byte", "double", "float", "decimal"):
+            self.assertEqual(_TYPE_TARGET[t], "D0082")
+        # All non-numeric: target D0081.
+        for t in ("string", "binary", "date", "timestamp", "boolean", "bool"):
+            self.assertEqual(_TYPE_TARGET[t], "D0081")
+
+    def test_b2_type_is_synth_injects_inside_enclosing_function(self):
+        # Marker at column 0 per spec; its target line resolves to the next
+        # logical statement, which is inside `f`. The injected expression
+        # must be indented to match the function body, not appended at
+        # module scope where `d` is undefined.
+        src = _src(
+            "from pykrete import col, lit",
+            "def f(d):",
+            "    if True:",
+            "# PROBE-TYPE-IS: int on \"amount\"",
+            "        x = d.select(\"amount\")",
+            "        return x",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        self.assertEqual(len(type_probes), 1)
+        plan = probes._synthesize_type_probes(src, type_probes)
+        synth_lines = plan.appended_source.splitlines()
+        injected = [line for line in synth_lines if "_pyk_probe_" in line]
+        self.assertTrue(injected, "no injected probe expression found")
+        for line in injected:
+            self.assertTrue(line.startswith("    "),
+                            f"injected line not indented inside function: {line!r}")
+
+    def test_b2_type_is_synth_appends_at_module_scope(self):
+        src = _src(
+            "from pykrete import col, lit",
+            "# PROBE-TYPE-IS: int on \"amount\"",
+            "df = something",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        plan = probes._synthesize_type_probes(src, type_probes)
+        synth_lines = plan.appended_source.splitlines()
+        injected = [line for line in synth_lines if "_pyk_probe_" in line]
+        self.assertTrue(injected)
+        for line in injected:
+            self.assertFalse(line.startswith(" "),
+                             f"module-scope injection got indented: {line!r}")
+
+    def test_b6_dotted_id_yields_valid_python_ident(self):
+        ident = probes._safe_ident("a.b-c", 0)
+        # Must be a legal Python identifier (no dot, no hyphen).
+        import keyword
+        import re as _re
+        self.assertTrue(_re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", ident))
+        self.assertFalse(keyword.iskeyword(ident))
+
+    def test_b6_purely_invalid_id_falls_back_to_positional(self):
+        ident = probes._safe_ident("123-abc", 7)
+        self.assertEqual(ident, "_pyk_probe_7")
+
+    def test_b9_dotted_span_renders_as_getfield(self):
+        # Round-1 emitted col("addr.city") which Spark / pykrete reads as a
+        # literal column lookup, not struct-field access.
+        expr = probes._column_accessor("addr.city")
+        self.assertEqual(expr, "col('addr').getField('city')")
+        # Single-segment: plain col().
+        expr2 = probes._column_accessor("amount")
+        self.assertEqual(expr2, "col('amount')")
+        # Triple-nested: chained getField.
+        expr3 = probes._column_accessor("a.b.c")
+        self.assertEqual(expr3, "col('a').getField('b').getField('c')")
+
+
+class VerifierRound2Tests(unittest.TestCase):
+    """B4 + B5 + I1 + I6 + I9 (parts covered in checker tests below)."""
+
+    def _probe(self, **kw) -> probes.Probe:
+        defaults = dict(
+            kind="EXPECTS",
+            fixture_path="f.pyk",
+            comment_line=1,
+            target_line=2,
+            id="p",
+        )
+        defaults.update(kw)
+        return probes.Probe(**defaults)
+
+    def test_b4_bipartite_distinct_matching_n_eq_m(self):
+        d1 = {"file": "f.pyk", "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
+              "code": "D0030", "ruleName": "u", "message": "a"}
+        d2 = {"file": "f.pyk", "line": 2, "column": 8, "endLine": 2, "endColumn": 12,
+              "code": "D0030", "ruleName": "u", "message": "b"}
+        actual = {"diagnostics": [d1, d2]}
+        p1 = self._probe(expected_code="D0030", id="p1")
+        p2 = self._probe(expected_code="D0030", id="p2")
+        failures = probes.verify_against_json([p1, p2], actual, "f.pyk")
+        self.assertEqual(failures, [])
+
+    def test_b4_bipartite_uses_augmentation_when_first_fit_blocks(self):
+        # Two probes, two candidates. Probe p1 only matches d1 (via on);
+        # probe p2 matches both d1 and d2. Greedy first-fit would let
+        # p2 grab d1, then p1 has nothing. Bipartite must reassign.
+        src = "x = y + z\n"
+        # Build candidates so d1 has span "y" and d2 has span "z".
+        d1 = {"file": "f.pyk", "line": 1, "column": 5, "endLine": 1, "endColumn": 6,
+              "code": "D0030", "ruleName": "u", "message": "first"}
+        d2 = {"file": "f.pyk", "line": 1, "column": 9, "endLine": 1, "endColumn": 10,
+              "code": "D0030", "ruleName": "u", "message": "second"}
+        actual = {"diagnostics": [d1, d2]}
+        # p2 is unrestricted (no span); p1 pins span "y".
+        # Sort order: p2 then p1; first-fit would assign p2->d1, p1 left
+        # with d2 whose span is "z" not "y", so p1 fails. Bipartite augments.
+        p2 = self._probe(expected_code="D0030", id="p2", target_line=1)
+        p1 = self._probe(expected_code="D0030", id="p1", target_line=1, span_text="y")
+        failures = probes.verify_against_json(
+            [p2, p1], actual, "f.pyk", fixture_source=src,
+        )
+        self.assertEqual(failures, [])
+
+    def test_b4_n_gt_m_one_probe_fails(self):
+        d1 = {"file": "f.pyk", "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
+              "code": "D0030", "ruleName": "u", "message": "a"}
+        actual = {"diagnostics": [d1]}
+        p1 = self._probe(expected_code="D0030", id="p1")
+        p2 = self._probe(expected_code="D0030", id="p2")
+        failures = probes.verify_against_json([p1, p2], actual, "f.pyk")
+        # Exactly one probe should fail; no unclaimed-extra.
+        probe_failures = [f for f in failures if "_unclaimed" not in f.probe.id]
+        self.assertEqual(len(probe_failures), 1)
+
+    def test_b4_same_code_different_line_independent(self):
+        d1 = {"file": "f.pyk", "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
+              "code": "D0030", "ruleName": "u", "message": "a"}
+        d2 = {"file": "f.pyk", "line": 5, "column": 1, "endLine": 5, "endColumn": 5,
+              "code": "D0030", "ruleName": "u", "message": "b"}
+        actual = {"diagnostics": [d1, d2]}
+        p1 = self._probe(expected_code="D0030", target_line=2, id="p1")
+        p2 = self._probe(expected_code="D0030", target_line=5, id="p2")
+        failures = probes.verify_against_json([p1, p2], actual, "f.pyk")
+        self.assertEqual(failures, [])
+
+    def test_b5_basename_donor_collision_caught_by_relpath_match(self):
+        # Two donors with the same fixture filename ("transforms.pyk").
+        # Diagnostic against donor A must not satisfy a probe from donor B.
+        d_from_a = {
+            "file": "cross-codebase/quinn/annotated/transforms.pyk",
+            "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
+            "code": "D0030", "ruleName": "u", "message": "x",
+        }
+        actual = {"diagnostics": [d_from_a]}
+        p = self._probe(expected_code="D0030", target_line=2,
+                        fixture_path="cross-codebase/sparklab/annotated/transforms.pyk")
+        # When given fixture_relpath = donor B's path, donor A diag doesn't
+        # match it.
+        failures = probes.verify_against_json(
+            [p], actual, "transforms.pyk",
+            fixture_relpath="cross-codebase/sparklab/annotated/transforms.pyk",
+        )
+        self.assertEqual(len(failures), 1)
+
+    def test_i1_unclaimed_extra_diagnostic_surfaces(self):
+        # Probe expects one D0030; checker fires two. Round-1 silently
+        # accepted; round-2 surfaces the extra.
+        d1 = {"file": "f.pyk", "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
+              "code": "D0030", "ruleName": "u", "message": "claimed"}
+        d2 = {"file": "f.pyk", "line": 2, "column": 8, "endLine": 2, "endColumn": 12,
+              "code": "D0030", "ruleName": "u", "message": "extra"}
+        actual = {"diagnostics": [d1, d2]}
+        p = self._probe(expected_code="D0030", id="p1")
+        failures = probes.verify_against_json([p], actual, "f.pyk")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].probe.id.startswith("_unclaimed"))
+
+    def test_i6_on_slot_requires_fixture_source_no_silent_fallback(self):
+        # Round-1 silently fell back to substring-of-message match.
+        d = {"file": "f.pyk", "line": 2, "column": 1, "endLine": 2, "endColumn": 5,
+             "code": "D0030", "ruleName": "u",
+             "message": "the column foo does not exist"}
+        actual = {"diagnostics": [d]}
+        p = self._probe(expected_code="D0030", span_text="foo")
+        # Without fixture_source, the `on` constraint cannot be checked.
+        # The probe itself fails to match (no candidate), and the unmatched
+        # diagnostic on the claimed line surfaces as unclaimed-extra (I1).
+        # The substring-fallback behaviour from round-1 is gone.
+        failures = probes.verify_against_json([p], actual, "f.pyk")
+        # The probe failure (no fixture_source means we can't match span).
+        probe_failures = [f for f in failures if not f.probe.id.startswith("_unclaimed")]
+        self.assertEqual(len(probe_failures), 1)
+        self.assertIn("D0030", probe_failures[0].expected)
+
+
+class StagingRound2Tests(unittest.TestCase):
+    """B3: full-directory staging so cross-file imports resolve."""
+
+    def test_b3_staging_copies_sibling_files(self):
+        # Set up a 2-file fixture: main.pyk + schema.pyk.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "schema.pyk").write_text("# sibling module\n", encoding="utf-8")
+            main = d / "main.pyk"
+            main.write_text("# main\nx = 1\n", encoding="utf-8")
+            # Drive _stage_and_check, intercepting the inner _run_checker so
+            # we just observe what gets staged.
+            captured = {}
+            real_run = probes._run_checker
+
+            def fake_run(p, *, strict=False):
+                captured["path"] = p
+                captured["siblings"] = sorted(x.name for x in p.parent.iterdir())
+                return {"diagnostics": []}
+            probes._run_checker = fake_run  # type: ignore[assignment]
+            try:
+                probes._stage_and_check("# main\nx = 1\n", main, strict=False)
+            finally:
+                probes._run_checker = real_run  # type: ignore[assignment]
+            self.assertIn("schema.pyk", captured["siblings"])
+            self.assertIn("main.pyk", captured["siblings"])
+
+
+class CliRound2Tests(unittest.TestCase):
+    """I2 + I3 + I4 + I5: CLI hardening."""
+
+    def test_i4_version_flag(self):
+        with self.assertRaises(SystemExit) as cm:
+            probes.main(["--version"])
+        self.assertEqual(cm.exception.code, 0)
+
+    def test_i4_help_flag(self):
+        with self.assertRaises(SystemExit) as cm:
+            probes.main(["--help"])
+        self.assertEqual(cm.exception.code, 0)
+
+    def test_i4_unknown_subcommand_errors(self):
+        with self.assertRaises(SystemExit):
+            probes.main(["nonsense"])
+
+    def test_i5_failed_probe_ids_in_run_output(self):
+        # Drive _cmd_run by hand against a fixture that will fail.
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "f.pyk"
+            fixture.write_text(
+                "# PROBE-RESOLVES: id=will-fail\n"
+                "x = 1\n",
+                encoding="utf-8",
+            )
+            # Stub verify to return a synthetic failure.
+            real_verify = probes.verify
+
+            def fake_verify(path, **kw):
+                p = probes.Probe(
+                    kind="RESOLVES", fixture_path=str(path),
+                    comment_line=1, target_line=2, id="will-fail",
+                )
+                return [p], [probes.ProbeFailure(probe=p, expected="x", actual="y")]
+            probes.verify = fake_verify  # type: ignore[assignment]
+            # Capture stdout.
+            import io as _io
+            real_stdout = sys.stdout
+            sys.stdout = _io.StringIO()
+            try:
+                exit_code = probes.main(["run", str(tmp)])
+                out = sys.stdout.getvalue()
+            finally:
+                sys.stdout = real_stdout
+                probes.verify = real_verify  # type: ignore[assignment]
+            self.assertEqual(exit_code, 1)
+            import json as _json
+            payload = _json.loads(out)
+            self.assertIn("failedProbeIds", payload)
+            self.assertEqual(len(payload["failedProbeIds"]), 1)
+            self.assertIn("will-fail", payload["failedProbeIds"][0])
+
+    def test_i3_missing_pykrete_bin_raises_named_error(self):
+        old = os.environ.get("PYKRETE_BIN")
+        os.environ["PYKRETE_BIN"] = "/this/path/definitely/does/not/exist/pykrete"
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                f = Path(tmp) / "f.pyk"
+                f.write_text("x = 1\n", encoding="utf-8")
+                with self.assertRaises(probes.CheckerError) as cm:
+                    probes._run_checker(f)
+                self.assertIn("PYKRETE_BIN", str(cm.exception))
+                self.assertIn("not found", str(cm.exception))
+        finally:
+            if old is None:
+                del os.environ["PYKRETE_BIN"]
+            else:
+                os.environ["PYKRETE_BIN"] = old
+
+    def test_i2_timeout_raises_checker_error(self):
+        # Use a tiny script that sleeps forever as the "pykrete binary".
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "fake_pykrete.sh"
+            fake.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+            fake.chmod(0o755)
+            f = Path(tmp) / "f.pyk"
+            f.write_text("x = 1\n", encoding="utf-8")
+            old_bin = os.environ.get("PYKRETE_BIN")
+            old_to = os.environ.get("PYKRETE_TIMEOUT")
+            os.environ["PYKRETE_BIN"] = str(fake)
+            os.environ["PYKRETE_TIMEOUT"] = "1"
+            try:
+                with self.assertRaises(probes.CheckerError) as cm:
+                    probes._run_checker(f)
+                self.assertIn("timed out", str(cm.exception))
+            finally:
+                if old_bin is None:
+                    del os.environ["PYKRETE_BIN"]
+                else:
+                    os.environ["PYKRETE_BIN"] = old_bin
+                if old_to is None:
+                    if "PYKRETE_TIMEOUT" in os.environ:
+                        del os.environ["PYKRETE_TIMEOUT"]
+                else:
+                    os.environ["PYKRETE_TIMEOUT"] = old_to
+
+
+class PerDonorIdUniquenessTests(unittest.TestCase):
+    """I7: per-donor (cross-file) probe id uniqueness."""
+
+    def test_donor_root_extracts_donor_segment(self):
+        donor = probes._donor_root(Path("cross-codebase/quinn/annotated/file.pyk"))
+        self.assertEqual(donor, "quinn")
+
+    def test_donor_root_fallback_outside_cross_codebase(self):
+        donor = probes._donor_root(Path("/tmp/foo/bar.pyk"))
+        self.assertEqual(donor, "foo")
+
+
 @unittest.skipUnless(
     _pykrete_available(),
     "PYKRETE_BIN not set / pykrete not on PATH; skipping end-to-end smoke",
 )
 class EndToEndSmokeTests(unittest.TestCase):
     def test_resolves_passes_expects_fires(self):
-        fixture = _src(
-            "from pykrete import col",
-            "",
-            "class Order(Schema):",
-            "    region: string",
-            "    amount: double",
-            "",
-            "def f(orders: DataFrame[Order]) -> DataFrame[Order]:",
-            "    # PROBE-RESOLVES: id=keeps-region",
-            "    df = orders.select(\"region\", \"amount\")",
-            "    # PROBE-EXPECTS: D0030 id=drops-product",
-            "    return df.select(col(\"product\"))",
+        # Markers must be at column 0 (spec I8). The body indentation makes
+        # this awkward to write inline; the runner only looks at marker
+        # column position, not at the target statement's position.
+        fixture = (
+            "from pykrete import col\n"
+            "\n"
+            "class Order(Schema):\n"
+            "    region: string\n"
+            "    amount: double\n"
+            "\n"
+            "def f(orders: DataFrame[Order]) -> DataFrame[Order]:\n"
+            "# PROBE-RESOLVES: id=keeps-region\n"
+            "    df = orders.select(\"region\", \"amount\")\n"
+            # The span slice covers `\"product\"` literally (quotes included)
+            # because pykrete's diagnostic column range covers the string lit.
+            "# PROBE-EXPECTS: D0030 id=drops-product on \"\\\"product\\\"\"\n"
+            "# PROBE-EXPECTS: D0050 id=drops-product-d0050\n"
+            "    return df.select(col(\"product\"))\n"
         )
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "smoke.pyk"
             path.write_text(fixture, encoding="utf-8")
             _, failures = probes.verify(path)
         self.assertEqual(failures, [], msg="\n".join(f.actual for f in failures))
+
+    def test_type_is_synth_runs_without_crash(self):
+        # Exercise the full TYPE-IS synthesizer pipeline against a real
+        # pykrete binary. Asserts the pipeline runs end-to-end without
+        # raising (synthesis may legitimately be inconclusive — the spec
+        # acknowledges that some atomic types don't have a clean rewrite
+        # via D0080-D0082 at every binding site; the synthesizer reports
+        # such cases rather than silently passing).
+        fixture = (
+            "from pykrete import col, lit\n"
+            "\n"
+            "class Order(Schema):\n"
+            "    region: string\n"
+            "    amount: double\n"
+            "\n"
+            "def f(orders: DataFrame[Order]) -> DataFrame[Order]:\n"
+            "# PROBE-TYPE-IS: string on \"region\" id=region-is-str\n"
+            "    return orders\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "smoke_type.pyk"
+            path.write_text(fixture, encoding="utf-8")
+            probes_list, failures = probes.verify(path)
+        # Either passes (synth fired its expected D-code) or fails with a
+        # named "inconclusive" actual; both are acceptable. What we MUST
+        # never see is a crash or a silent vacuous pass that doesn't even
+        # detect the probe.
+        self.assertEqual(len(probes_list), 1)
+        for f in failures:
+            self.assertTrue(
+                "inconclusive" in f.actual or "synthesizer cannot encode" in f.actual,
+                f"unexpected synthesis failure shape: {f.actual!r}",
+            )
 
 
 if __name__ == "__main__":
