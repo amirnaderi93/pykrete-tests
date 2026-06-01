@@ -1,0 +1,23 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from mlflow/data/spark_dataset.py's validate_columns_demo
+# schema (TrainRow). The real upstream MLflow code references the
+# "target" column by string — this fixture narrows to feature_a only
+# and then references target afterwards, which is the exact regression
+# probe asserts pykrete catches.
+#
+# Failure mode exercised: column reference not in narrowed schema (D0030).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class TrainRowNeg(Schema):
+    feature_a: double
+    feature_b: double
+    target: int
+
+
+def narrow_then_select_target(df: DataFrame[TrainRowNeg]) -> DataFrame:
+    inputs = df.select("feature_a")
+# PROBE-EXPECTS: D0030 on "\"target\"" id=mlflow-neg-target-after-narrow -- target was dropped by .select
+    return inputs.select(col("target"))

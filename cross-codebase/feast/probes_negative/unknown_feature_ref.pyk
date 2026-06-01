@@ -1,0 +1,20 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from feast/transformation/spark_transformation.py's
+# FeatureRow schema (entity_id, value). The real upstream code only
+# treats the dataframe as an opaque container for createOrReplaceTempView;
+# this fixture references a feature column that is not in the schema.
+#
+# Failure mode exercised: column not in schema (D0030).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class FeatureRowNeg(Schema):
+    entity_id: long
+    value: double
+
+
+def project_unknown_feature(df: DataFrame[FeatureRowNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0030 on "\"feature_score\"" id=feast-neg-unknown-feature -- feature_score is not in FeatureRowNeg
+    return df.select(col("feature_score"))

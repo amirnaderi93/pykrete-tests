@@ -1,0 +1,21 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from mlflow's eval-dataset shape but adds a string column
+# (label) and arithmetic that mixes it with the numeric target. The
+# real upstream MLflow code never mixes a string label into arithmetic;
+# this fixture forces the misuse so pykrete fires D0081 (non-numeric
+# arithmetic). Requires strict mode — see the sibling pykrete.json.
+#
+# Failure mode exercised: arithmetic on a non-numeric (string) column (D0081).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class LabelledRow(Schema):
+    label: string
+    target: int
+
+
+def add_label_to_target(df: DataFrame[LabelledRow]) -> DataFrame:
+# PROBE-EXPECTS: D0081 on "col(\"label\") + col(\"target\")" id=mlflow-neg-label-arith -- label:string used in arithmetic
+    return df.withColumn("combined", col("label") + col("target"))

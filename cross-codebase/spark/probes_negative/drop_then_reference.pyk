@@ -1,0 +1,30 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from test_dataframe.py's drop_demo schema (NameAgeActiveNeg).
+# The real upstream code drops columns it never references afterwards;
+# this fixture mirrors the shape but adds a follow-up reference that
+# pykrete must catch with D0030.
+#
+# Failure modes exercised:
+#   - dropped-column reference after .drop(...)
+#   - stacked PROBE-EXPECTS on a single line (two D0030 from one select)
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class NameAgeActiveNeg(Schema):
+    name: string
+    age: int
+    active: string
+
+
+def drop_then_select_dropped(df: DataFrame[NameAgeActiveNeg]) -> DataFrame:
+    narrowed = df.drop("active")
+# PROBE-EXPECTS: D0030 on "\"active\"" id=spark-neg-drop-then-ref -- active was dropped on the previous line
+    return narrowed.select(col("active"))
+
+
+def select_two_unknowns(df: DataFrame[NameAgeActiveNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0030 on "\"nam\"" id=spark-neg-stacked-nam -- typo of name
+# PROBE-EXPECTS: D0030 on "\"agee\"" id=spark-neg-stacked-agee -- typo of age
+    return df.select(col("nam"), col("agee"))

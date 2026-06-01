@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 36,
+      "endLine": 25,
+      "file": "quinn/probes_negative/unknown_column_in_filter.pyk",
+      "line": 25,
+      "message": "Column 'nickname' does not exist on schema 'PersonRowNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    },
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 35,
+      "endLine": 30,
+      "file": "quinn/probes_negative/unknown_column_in_filter.pyk",
+      "line": 30,
+      "message": "Column 'surname' does not exist on schema 'PersonRowNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 2,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

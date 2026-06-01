@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 32,
+      "endColumn": 37,
+      "endLine": 26,
+      "file": "quinn/probes_negative/select_drops_then_ref.pyk",
+      "line": 26,
+      "message": "Column 'nam' does not exist on inferred schema [age].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    },
+    {
+      "code": "D0030",
+      "column": 44,
+      "endColumn": 50,
+      "endLine": 26,
+      "file": "quinn/probes_negative/select_drops_then_ref.pyk",
+      "line": 26,
+      "message": "Column 'naem' does not exist on inferred schema [age].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 2,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 33,
+      "endLine": 20,
+      "file": "delta/probes_negative/unknown_column_after_load.pyk",
+      "line": 20,
+      "message": "Column 'value' does not exist on schema 'IdRowNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

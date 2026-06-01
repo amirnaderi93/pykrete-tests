@@ -1,0 +1,21 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from test_column.py's column_operators_demo shape (KV schema).
+# Real upstream code compares int-to-int and string-to-string; this
+# fixture mirrors the operator surface but crosses the type families
+# to force D0082 (crossTypeComparison). Requires strict mode — see
+# the sibling pykrete.json.
+#
+# Failure mode exercised: cross-type comparison (string vs int).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class KVNeg(Schema):
+    key: int
+    value: string
+
+
+def filter_string_against_int(df: DataFrame[KVNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0082 on "col(\"value\") > col(\"key\")" id=spark-neg-string-vs-int -- value:string vs key:int
+    return df.filter(col("value") > col("key"))

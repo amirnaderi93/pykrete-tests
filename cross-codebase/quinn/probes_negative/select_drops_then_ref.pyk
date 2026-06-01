@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from quinn/dataframe_helpers.py's PersonRow shape. The real
+# quinn helpers select(name) then read the value from row[0]; here we
+# add an extra .select(age) which drops name from the inferred schema,
+# then reference name with two typos to exercise stacked-EXPECTS
+# pairing in one shot.
+#
+# Failure modes exercised:
+#   - column reference dropped by narrow .select (D0030)
+#   - stacked PROBE-EXPECTS (two diagnostics, two probes, must pair
+#     via the bipartite matcher in PR #1)
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class PersonRowNeg(Schema):
+    name: string
+    age: int
+
+
+def select_then_typos(df: DataFrame[PersonRowNeg]) -> DataFrame:
+    age_only = df.select("age")
+# PROBE-EXPECTS: D0030 on "\"nam\"" id=quinn-neg-narrow-typo-nam -- name was dropped; nam is also a typo
+# PROBE-EXPECTS: D0030 on "\"naem\"" id=quinn-neg-narrow-typo-naem -- second typo on same select
+    return age_only.select(col("nam"), col("naem"))
