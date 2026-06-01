@@ -33,12 +33,14 @@ def load_demo(spark: SparkSession, file_format: str, load_path: str) -> DataFram
     """Mirrors SparkDataset.load — the .load(path, format, **kwargs)
     call is opaque; cast to anchor."""
     read_obj = spark.read
+# PROBE-RESOLVES: id=kedro-spark-load-cast-weather -- Weather re-anchor on opaque .load result
     return read_obj.load(load_path, file_format).cast(DataFrame[Weather])
 
 
 def save_demo(data: DataFrame[Weather], save_path: str, file_format: str) -> None:
     """Mirrors SparkDataset.save — write.save(path, format, **kwargs)
     is a terminal pass-through."""
+# PROBE-RESOLVES: id=kedro-spark-save-weather -- Weather flows into write.save terminal
     data.write.save(save_path, file_format)
 
 
@@ -57,4 +59,5 @@ def exists_demo(spark: SparkSession, load_path: str, file_format: str) -> bool:
 
 def alternate_save_path(data: DataFrame[Weather], path: str) -> None:
     """Mirrors the common alternate write path with .format().mode()."""
+# PROBE-RESOLVES: id=kedro-spark-save-alt-chain -- Weather flows through .format().mode().save() chain
     data.write.format("parquet").mode("overwrite").save(path)
