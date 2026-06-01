@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0084",
+      "column": 50,
+      "endColumn": 58,
+      "endLine": 21,
+      "file": "delta/probes_negative/cdc_change_type_off_vocab_eq.pyk",
+      "line": 21,
+      "message": "'isnert' is not in the enum vocabulary for '_change_type'. Did you mean 'insert'?",
+      "relatedInformation": [],
+      "ruleName": "enumValueMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "insert"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
