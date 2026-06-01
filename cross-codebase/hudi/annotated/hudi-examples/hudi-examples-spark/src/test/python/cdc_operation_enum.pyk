@@ -1,0 +1,73 @@
+#   Licensed to the Apache Software Foundation (ASF) under one
+#   or more contributor license agreements.  See the NOTICE file
+#   distributed with this work for additional information
+#   regarding copyright ownership.  The ASF licenses this file
+#   to you under the Apache License, Version 2.0 (the
+#   "License"); you may not use this file except in compliance
+#   with the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+# Annotated for pykrete from the Hudi CDC pattern at apache/hudi,
+# pinned-commit fc85e3ea. The base trip surface (uuid/partitionpath/
+# fare/...) is mirrored from HoodiePySparkQuickstart.py; the
+# _hoodie_operation column is sourced from Hudi's CDC-emitter
+# documentation (hudi.apache.org/.../change-data-capture.html), where
+# each CDC record carries the write operation that produced it. The
+# documented vocabulary is {insert, upsert, delete, bulk_insert}.
+#
+# Features covered:
+#   - .filter(col("_hoodie_operation") == lit("upsert"))
+#   - .filter(col("_hoodie_operation").isin("insert", "bulk_insert"))
+#   - groupBy("_hoodie_operation") preserves the enum-typed key
+#   - F.expr("_hoodie_operation = 'delete'") SQL fragment equality
+
+from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.functions import col, lit
+from pyspark.sql import functions as F
+
+
+class HudiCDCTrip(Schema):
+    uuid: string
+    partitionpath: string
+    ts: long
+    fare: double
+    _hoodie_operation: enum["insert", "upsert", "delete", "bulk_insert"]
+
+
+def read_cdc_view(spark: SparkSession, base_path: str) -> DataFrame[HudiCDCTrip]:
+    return (
+        spark.read.format("hudi")
+        .option("hoodie.datasource.query.type", "incremental")
+        .option("hoodie.datasource.query.incremental.format", "cdc")
+        .load(base_path)
+        .cast(DataFrame[HudiCDCTrip])
+    )
+
+
+def only_upserts(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
+# PROBE-RESOLVES: id=hudi-cdc-enum-upserts-eq -- _hoodie_operation resolves and == in-vocab lit is clean
+    return cdc.filter(col("_hoodie_operation") == lit("upsert"))
+
+
+def initial_loads(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
+# PROBE-RESOLVES: id=hudi-cdc-enum-initial-isin -- .isin with two in-vocab literals is clean
+    return cdc.filter(
+        col("_hoodie_operation").isin("insert", "bulk_insert")
+    )
+
+
+def counts_per_op(cdc: DataFrame[HudiCDCTrip]):
+# PROBE-RESOLVES: id=hudi-cdc-enum-groupby-op -- groupBy preserves _hoodie_operation; broken schema tracking would drop it
+    return cdc.groupBy("_hoodie_operation").agg(F.count(lit(1)).alias("n"))
+
+
+def deletes_via_expr(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
+# PROBE-RESOLVES: id=hudi-cdc-enum-expr-delete -- F.expr equality with in-vocab literal is clean
+    return cdc.filter(F.expr("_hoodie_operation = 'delete'"))

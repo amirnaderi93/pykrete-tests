@@ -1,0 +1,21 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Hudi CDC pattern in
+# annotated/hudi-examples/.../cdc_operation_enum.pyk; uses the
+# HudiCDCTrip schema (only _hoodie_operation here) but typos
+# 'upset' inside an .isin() against the documented Hudi CDC
+# vocabulary {insert, upsert, delete, bulk_insert}.
+#
+# Failure mode exercised: off-enum literal in .isin (D0084).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class HudiCDCTripNeg(Schema):
+    uuid: string
+    _hoodie_operation: enum["insert", "upsert", "delete", "bulk_insert"]
+
+
+def filter_typo_isin(cdc: DataFrame[HudiCDCTripNeg]) -> DataFrame[HudiCDCTripNeg]:
+# PROBE-EXPECTS: D0084 on "\"upset\"" id=hudi-cdc-neg-off-vocab-isin -- typo'd CDC operation triggers enumValueMismatch inside .isin
+    return cdc.filter(col("_hoodie_operation").isin("insert", "upset"))
