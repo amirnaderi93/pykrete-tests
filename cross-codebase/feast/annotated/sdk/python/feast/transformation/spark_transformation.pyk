@@ -27,6 +27,7 @@ class FeatureRow(Schema):
 def create_temp_view_demo(df: DataFrame[FeatureRow], name: str) -> str:
     """Mirrors _create_temp_view_for_dataframe."""
     df_temp_view = f"feast_transformation_temp_view_{name}"
+# PROBE-RESOLVES: id=feast-transform-create-temp-view -- FeatureRow flows into createOrReplaceTempView
     df.createOrReplaceTempView(df_temp_view)
     return df_temp_view
 
@@ -39,5 +40,6 @@ def transform_spark_sql_demo(
     """Mirrors _transform_spark_sql, simplified to one input. The
     spark.sql result is opaque; the caller .cast(...) if they want
     column checks."""
+# PROBE-RESOLVES: id=feast-transform-helper-call -- FeatureRow df flows into helper that exercises temp view
     view_name = create_temp_view_demo(df, "0")
     spark.sql(sql_template.format(view=view_name))

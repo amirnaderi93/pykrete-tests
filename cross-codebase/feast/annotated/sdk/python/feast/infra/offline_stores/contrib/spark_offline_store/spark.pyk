@@ -36,11 +36,13 @@ def to_spark_df_demo(spark: SparkSession, query: str) -> DataFrame[FeatureRow]:
     chain, then re-anchor the last result."""
     statements = query.split("---EOS---")
     *_, last = map(spark.sql, statements)
+# PROBE-RESOLVES: id=feast-to-spark-df-return-cast -- FeatureRow re-anchor on opaque sql output
     return last.cast(DataFrame[FeatureRow])
 
 
 def to_df_internal_demo(df: DataFrame[FeatureRow]) -> None:
     """Mirrors _to_df_internal."""
+# PROBE-RESOLVES: id=feast-to-pandas-feature-row -- FeatureRow survives .toPandas() pass-through
     _ = df.toPandas()
 
 
@@ -52,6 +54,7 @@ def persist_to_table_demo(
     """Mirrors persist_to_table — branches between write.saveAsTable
     and write.format().saveAsTable."""
     if file_format is None:
+# PROBE-RESOLVES: id=feast-persist-saveAsTable -- FeatureRow flows into the no-format branch
         df.write.saveAsTable(table_name)
     else:
         df.write.format(file_format).saveAsTable(table_name)

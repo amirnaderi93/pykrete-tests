@@ -17,6 +17,7 @@
 #   - .alias("table") on a from_json result
 #   - .select("table.*") star-projection of a struct column
 
+# PROBE-FILE-CLEAN-OF: D0030 -- kafka processor has no typed DataFrame slot; entire file clean of column-resolution diagnostics
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
 from pyspark.sql.avro.functions import from_avro
