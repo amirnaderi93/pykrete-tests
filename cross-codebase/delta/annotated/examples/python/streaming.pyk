@@ -47,6 +47,7 @@ def with_value_demo(spark: SparkSession) -> None:
     The scalar gets lifted into a literal during binding; pykrete
     accepts the long + int arithmetic on Column."""
     data = spark.range(8).cast(DataFrame[IdValue])
+# PROBE-RESOLVES: id=delta-streaming-withColumn-data-id -- data.id resolves under IdValue
     data.withColumn("value", data.id + 3000)
 
 
@@ -59,4 +60,5 @@ def select_expr_rename_demo(df: DataFrame[RateRow]) -> None:
 def modulo_and_drop_demo(df: DataFrame[RateRow]) -> None:
     """Mirrors the streamingAggregatesDF.withColumn(...).drop(...)
     chain. F.col("value") % 10 is a Column-arithmetic expression."""
+# PROBE-RESOLVES: id=delta-streaming-withColumn-modulo -- value and timestamp resolve in withColumn+drop chain
     df.withColumn("id", col("value") % 10).drop("timestamp")

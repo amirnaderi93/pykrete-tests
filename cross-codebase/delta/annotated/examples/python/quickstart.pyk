@@ -43,9 +43,11 @@ def write_delta_demo(spark: SparkSession) -> None:
     """Mirrors the "Create a table" + "Read the table" cores. The
     .write.format("delta").save / .read.format("delta").load chain is
     opaque to pykrete; user re-anchors after the read."""
+# PROBE-RESOLVES: id=delta-quickstart-write-range -- spark.range cast to IdRow binds cleanly
     data = spark.range(0, 5).cast(DataFrame[IdRow])
     data.write.format("delta").save("/tmp/delta-table")
 
+# PROBE-RESOLVES: id=delta-quickstart-read-cast -- IdRow re-anchored after opaque delta load
     df = spark.read.format("delta").load("/tmp/delta-table").cast(DataFrame[IdRow])
     df.show()
 

@@ -80,11 +80,13 @@ def read_back_and_anchor(spark: SparkSession, path: str) -> None:
     """Mirrors the "Initial Table" show step. Re-anchor with .cast,
     then orderBy on the typed name."""
     df = spark.read.format("delta").load(path).cast(DataFrame[Student])
+# PROBE-RESOLVES: id=delta-cdc-orderBy-id -- id resolves under Student after cast
     df.orderBy("id").show()
 
 
 def merge_source_query(spark: SparkSession) -> None:
     """Mirrors the source-read for the MERGE step — spark.sql then
     re-anchor."""
+# PROBE-RESOLVES: id=delta-cdc-sql-recast -- Student-typed binding after spark.sql + .cast
     source = spark.sql("SELECT * FROM student_source").cast(DataFrame[Student])
     source.show()
