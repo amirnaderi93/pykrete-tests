@@ -53,6 +53,7 @@ def verify_added_data_files(spark: SparkSession, identifier: str) -> None:
     f-string interpolated identifier is opaque-IO; the cast pins it
     to Manifest. The collect() returns list[Row]; row.added... is
     accepted as Row attribute access."""
+# PROBE-RESOLVES: id=iceberg-add-files-manifest-cast -- Manifest anchored on opaque spark.sql IO
     rows = spark.sql(
         f"""
         SELECT added_data_files_count, existing_data_files_count, deleted_data_files_count
@@ -64,6 +65,7 @@ def verify_added_data_files(spark: SparkSession, identifier: str) -> None:
     assert [row.existing_data_files_count for row in rows] == [0]
     assert [row.deleted_data_files_count for row in rows] == [0]
 
+# PROBE-RESOLVES: id=iceberg-add-files-table-cast -- AddFileRow anchored on opaque spark.table read
     df = spark.table(identifier).cast(DataFrame[AddFileRow])
     assert df.count() == 5
 

@@ -59,10 +59,12 @@ def write_with_writeto(spark: SparkSession, identifier: str, format_version: int
 
     spark.sql(f"DROP TABLE IF EXISTS {identifier}")
 
+# PROBE-RESOLVES: id=iceberg-writes-createOrReplace -- Person flows through writeTo+tableProperty chain
     spark_df.writeTo(identifier).using("iceberg").tableProperty(
         "write.format.default", "orc"
     ).tableProperty("format-version", str(format_version)).createOrReplace()
 
+# PROBE-RESOLVES: id=iceberg-writes-append -- Person flows through writeTo.append terminal
     spark_df.writeTo(identifier).using("iceberg").append()
 
     spark_result = spark.sql(f"SELECT * FROM {identifier}").toPandas()
