@@ -40,5 +40,14 @@ def predict_with_spark_udf(spark: SparkSession, model_uri: str) -> None:
         "sepal_length_cm", "sepal_width_cm",
         "petal_length_cm", "petal_width_cm",
     ]
+    # No probe: pyfunc_udf(*cols) — UDF-arg strings are an intentional
+    # pykrete carve-out (column_exprs.rs:203).
     result = infer_spark_df.select(pyfunc_udf(*cols).alias("predictions")).toPandas()
     _ = result
+
+
+def select_iris_demo(df: DataFrame[IrisFeatures]) -> None:
+    """pykrete-typed helper: bare-string col refs on a IrisFeatures-typed
+    DataFrame (not inside a UDF call), so D0030 actually checks them."""
+# PROBE-RESOLVES: id=mlflow-spark-udf-select-iris-direct -- sepal_length_cm and petal_width_cm resolve under IrisFeatures
+    df.select("sepal_length_cm", "petal_width_cm").collect()

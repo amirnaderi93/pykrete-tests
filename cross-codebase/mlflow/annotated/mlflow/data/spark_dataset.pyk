@@ -46,3 +46,13 @@ def to_pyfunc_demo(df: DataFrame[TrainRow]) -> None:
 def to_eval_dataset_demo(df: DataFrame[TrainRow]) -> None:
     """Mirrors to_evaluation_dataset."""
     _ = df.limit(10000).toPandas()
+
+
+def select_train_row_demo(df: DataFrame[TrainRow]) -> None:
+    """pykrete-typed helper: feature_a and target resolve under TrainRow;
+    narrowed filter on target proves chain survives."""
+# PROBE-RESOLVES: id=mlflow-spark-dataset-select-features -- feature_a and target resolve under TrainRow
+    df.select("feature_a", "target").collect()
+    narrowed = df.select("feature_a", "target")
+# PROBE-RESOLVES: id=mlflow-spark-dataset-narrowed-filter-target -- target resolves on narrowed result; broken .select() would lose target
+    narrowed.filter(narrowed.target > 0).collect()

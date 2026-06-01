@@ -65,3 +65,10 @@ def write_to_hudi_demo(spark: SparkSession, data, path: str) -> None:
     ]
     df = spark.createDataFrame(rows, schema=None).cast(DataFrame[ImageEmbedding])
     df.write.format("hudi").save(path)
+
+
+def select_embedding_demo(df: DataFrame[ImageEmbedding]) -> None:
+    """pykrete-typed helper: image_id and embedding resolve under
+    ImageEmbedding."""
+# PROBE-RESOLVES: id=hudi-vectorblob-select-embedding -- image_id and embedding resolve under ImageEmbedding
+    df.select("image_id", "embedding").collect()

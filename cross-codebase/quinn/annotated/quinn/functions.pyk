@@ -28,6 +28,7 @@
 #   - Column ops: .eqNullSafe, .isNull, .isNotNull, .isin, .between, []
 #   - Bitwise &, |, ~ for Column composition
 
+# PROBE-FILE-COUNT: D0030 == 0 -- explicit zero-count contract for unknown-column refs in this file
 from __future__ import annotations
 
 import pyspark.sql.functions as F
@@ -71,11 +72,13 @@ class FlagRow(Schema):
 def single_space_demo(df: DataFrame[StringRow]) -> None:
     """Mirrors quinn.functions.single_space — trim + regexp_replace
     on a string column."""
+# PROBE-RESOLVES: id=quinn-fn-single-space-s -- s resolves nested inside F.trim(F.regexp_replace(...))
     df.withColumn("s_clean", F.trim(F.regexp_replace(df.s, " +", " ")))
 
 
 def remove_all_whitespace_demo(df: DataFrame[StringRow]) -> None:
     """Mirrors quinn.functions.remove_all_whitespace."""
+# PROBE-RESOLVES: id=quinn-fn-remove-ws-s -- s resolves through regexp_replace arg
     df.withColumn("s_nows", F.regexp_replace(df.s, "\\s+", ""))
 
 
@@ -87,6 +90,7 @@ def remove_non_word_demo(df: DataFrame[StringRow]) -> None:
 def week_end_date_demo(df: DataFrame[DatePair]) -> None:
     """Mirrors quinn.functions.week_end_date — exercises dayofweek,
     eqNullSafe, when/otherwise, next_day, lit."""
+# PROBE-RESOLVES: id=quinn-fn-week-end-start-date -- start_date resolves multiple times nested in when/otherwise
     df.withColumn(
         "week_end",
         F.when(
@@ -108,12 +112,14 @@ def week_start_date_demo(df: DataFrame[DatePair]) -> None:
 
 def approx_equal_demo(df: DataFrame[NumericPair]) -> None:
     """Mirrors quinn.functions.approx_equal."""
+# PROBE-RESOLVES: id=quinn-fn-approx-eq-ab -- a and b resolve through arithmetic
     df.withColumn("close", F.abs(df.a - df.b) < 0.001)
 
 
 def array_choice_demo(df: DataFrame[ArrayBag]) -> None:
     """Mirrors quinn.functions.array_choice — F.rand, F.size, .cast,
     then item access via Column.__getitem__."""
+# PROBE-RESOLVES: id=quinn-fn-array-choice-items -- items resolves as df.items inside F.size
     index = (F.rand(0) * F.size(df.items)).cast("int")
     df.withColumn("pick", df.items[index])
 

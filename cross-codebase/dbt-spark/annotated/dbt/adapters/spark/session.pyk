@@ -45,6 +45,14 @@ def fetchall_demo(df: DataFrame[QueryResult]) -> None:
     _ = rows
 
 
+def select_id_demo(df: DataFrame[QueryResult]) -> None:
+    """pykrete-typed helper: id and msg resolve under QueryResult."""
+# PROBE-RESOLVES: id=dbt-spark-select-id -- id resolves under QueryResult
+    df.select("id").collect()
+# PROBE-RESOLVES: id=dbt-spark-select-id-msg -- id and msg both resolve under QueryResult
+    df.select("id", "msg").collect()
+
+
 def fetchone_demo(df: DataFrame[QueryResult]) -> None:
     """Mirrors Cursor.fetchone."""
     rows = df.take(1)

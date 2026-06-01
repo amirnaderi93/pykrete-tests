@@ -33,6 +33,7 @@
 #   - .cast(LongType()) (and string-form .cast("long") variant)
 #   - F.col + F.lit + Python literal bool mixed-arg binary ops
 
+# PROBE-FILE-CLEAN-OF: D0030 -- Column-method stress fixture: every column ref resolves on KV
 from pyspark.sql import Column
 from pyspark.sql import functions as sf
 from pyspark.sql.types import LongType
@@ -45,15 +46,20 @@ class KV(Schema):
 
 def and_or_filter_demo(df: DataFrame[KV]) -> None:
     """Mirrors test_and_in_expression."""
+# PROBE-RESOLVES: id=spark-test-column-and-filter -- key and value resolve in compound filter
     df.filter((df.key <= 10) & (df.value <= "2")).count()
+# PROBE-RESOLVES: id=spark-test-column-or-filter -- key and value resolve in OR-composed filter
     df.filter((df.key <= 3) | (df.value < "2")).count()
+# PROBE-RESOLVES: id=spark-test-column-not-filter -- key resolves inside negation
     df.filter(~(df.key == 1)).count()
 
 
 def column_operators_demo(df: DataFrame[KV]) -> None:
     """Mirrors test_column_operators — every supported binary op
     + every common Column method."""
+# PROBE-RESOLVES: id=spark-test-column-attr-key -- df.key attribute access resolves under KV
     ci = df.key
+# PROBE-RESOLVES: id=spark-test-column-attr-value -- df.value attribute access resolves under KV
     cs = df.value
 
     # comparisons

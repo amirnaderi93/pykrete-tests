@@ -47,6 +47,16 @@ def build_df_demo(spark: SparkSession) -> None:
     _ = df
 
 
+def select_input_row_demo(df: DataFrame[InputRow]) -> None:
+    """pykrete-typed helper: a and b resolve under InputRow;
+    narrowed filter on b proves chain survives."""
+# PROBE-RESOLVES: id=deequ-analyzers-select-a-b -- a and b resolve under InputRow
+    df.select("a", "b").collect()
+    narrowed = df.select("a", "b")
+# PROBE-RESOLVES: id=deequ-analyzers-narrowed-filter-b -- b resolves on narrowed result; broken .select() would lose b
+    narrowed.filter(narrowed.b > 0).collect()
+
+
 def metric_round_trip_demo(spark: SparkSession, result_json: str) -> None:
     """Mirrors the post-analyser pattern: read.json over a
     parallelized list of json strings, then re-anchor to MetricRow."""
@@ -54,4 +64,5 @@ def metric_round_trip_demo(spark: SparkSession, result_json: str) -> None:
     df_from_json = spark.read.json(sc.parallelize([result_json])).cast(
         DataFrame[MetricRow]
     )
+# PROBE-RESOLVES: id=deequ-analyzers-metric-select-value -- value resolves under MetricRow after re-anchor
     df_from_json.select("value").collect()

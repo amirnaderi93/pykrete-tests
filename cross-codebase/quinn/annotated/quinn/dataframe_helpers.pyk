@@ -47,6 +47,7 @@ class PersonRow(Schema):
 def column_to_list_demo(df: DataFrame[PersonRow]) -> None:
     """Mirrors column_to_list — bare-string col ref, .collect, then
     row[0] indexing inside a comprehension."""
+# PROBE-RESOLVES: id=quinn-helpers-select-name -- name resolves under PersonRow
     rows = df.select("name").collect()
     out = [row[0] for row in rows]
     _ = out
@@ -54,7 +55,9 @@ def column_to_list_demo(df: DataFrame[PersonRow]) -> None:
 
 def two_columns_to_dictionary_demo(df: DataFrame[PersonRow]) -> None:
     """Mirrors two_columns_to_dictionary — two-col .select, name-keyed
-    Row access via x[k] / x[v]."""
+    Row access via x[k] / x[v]. No probe: select(k, v) passes Name refs,
+    not string literals — col-ref extraction (col_refs.rs:10) skips
+    non-literal arguments, so RESOLVES would assert nothing meaningful."""
     k, v = "name", "age"
     d = {x[k]: x[v] for x in df.select(k, v).collect()}
     _ = d
@@ -73,4 +76,5 @@ def show_output_round_trip_demo(spark: SparkSession) -> None:
     rows = [("Alice", 50), ("Bob", 60)]
     names = ["name", "age"]
     df = spark.createDataFrame(rows, names).cast(DataFrame[PersonRow])
+# PROBE-RESOLVES: id=quinn-helpers-recast-select -- name and age resolve under PersonRow after .cast
     df.select("name", "age").count()

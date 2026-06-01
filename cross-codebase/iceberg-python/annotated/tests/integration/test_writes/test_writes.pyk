@@ -59,6 +59,9 @@ def write_with_writeto(spark: SparkSession, identifier: str, format_version: int
 
     spark.sql(f"DROP TABLE IF EXISTS {identifier}")
 
+# PROBE-RESOLVES: id=iceberg-writes-select-name-age -- name and age resolve under Person
+    spark_df.select("name", "age").show()
+
     spark_df.writeTo(identifier).using("iceberg").tableProperty(
         "write.format.default", "orc"
     ).tableProperty("format-version", str(format_version)).createOrReplace()
@@ -67,3 +70,13 @@ def write_with_writeto(spark: SparkSession, identifier: str, format_version: int
 
     spark_result = spark.sql(f"SELECT * FROM {identifier}").toPandas()
     _ = spark_result
+
+
+def select_person_demo(df: DataFrame[Person]) -> None:
+    """pykrete-typed helper: id and is_active resolve under Person;
+    narrowed filter on is_active proves chain survives."""
+# PROBE-RESOLVES: id=iceberg-writes-select-id-active -- id and is_active resolve under Person
+    df.select("id", "is_active").collect()
+    narrowed = df.select("id", "is_active")
+# PROBE-RESOLVES: id=iceberg-writes-narrowed-filter-active -- is_active resolves on narrowed result; broken .select() would lose is_active
+    narrowed.filter(narrowed.is_active).collect()

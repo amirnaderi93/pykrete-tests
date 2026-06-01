@@ -61,6 +61,7 @@ def split_and_explode(lines: DataFrame[LinesWithTimestamp]) -> None:
     """Mirrors the lines.select(...) step. `split(value, ' ')` produces
     an array<string>; explode then flattens it; the alias names the
     result `word`. `lines.timestamp` carries through as-is."""
+# PROBE-RESOLVES: id=spark-streaming-split-value-timestamp -- value and timestamp resolve via attribute access
     lines.select(
         explode(split(lines.value, ' ')).alias('word'),
         lines.timestamp,
@@ -70,12 +71,14 @@ def split_and_explode(lines: DataFrame[LinesWithTimestamp]) -> None:
 def windowed_count_demo(lines: DataFrame[LinesWithTimestamp]) -> None:
     """Mirrors the whole windowed-counts pipeline, end-to-end with the
     same column refs as the upstream script."""
+# PROBE-RESOLVES: id=spark-streaming-words-select -- value+timestamp resolve in select that builds words
     words = lines.select(
         explode(split(lines.value, ' ')).alias('word'),
         lines.timestamp,
     )
     # window() on a timestamp column is recognised as a column ref;
     # downstream groupBy + count + orderBy are pass-throughs in pykrete.
+# PROBE-RESOLVES: id=spark-streaming-windowed-groupby -- timestamp resolves inside window(...) groupby key
     words.groupBy(
         window(lines.timestamp, '10 seconds', '5 seconds'),
         # second key: a column ref against the freshly-projected schema;

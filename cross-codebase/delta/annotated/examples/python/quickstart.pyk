@@ -50,6 +50,12 @@ def write_delta_demo(spark: SparkSession) -> None:
     df.show()
 
 
+def select_id_demo(df: DataFrame[IdRow]) -> None:
+    """pykrete-typed helper: id resolves under IdRow."""
+# PROBE-RESOLVES: id=delta-quickstart-select-id -- id resolves under IdRow
+    df.select("id").show()
+
+
 def merge_expression_args(spark: SparkSession) -> None:
     """Mirrors the deltaTable.merge(...) call: the merge condition
     and the set/values dicts are built with F.col + dotted names. The

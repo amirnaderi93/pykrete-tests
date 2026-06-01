@@ -41,3 +41,13 @@ def pandas_to_pyspark_demo(spark: SparkSession, pandas_df) -> DataFrame[Customer
 def pyspark_to_pandas_demo(df: DataFrame[CustomerRow]):
     """Mirrors PandasConverter.pysparkDF_to_pandasDF."""
     return df.toPandas()
+
+
+def select_customer_demo(df: DataFrame[CustomerRow]) -> None:
+    """pykrete-typed helper: customer_id and name resolve under
+    CustomerRow; narrowed filter on customer_id proves chain."""
+# PROBE-RESOLVES: id=deequ-pandas-utils-select-customer -- customer_id and name resolve under CustomerRow
+    df.select("customer_id", "name").collect()
+    narrowed = df.select("customer_id", "name")
+# PROBE-RESOLVES: id=deequ-pandas-utils-narrowed-filter-customer -- customer_id resolves on narrowed result; broken .select() would lose customer_id
+    narrowed.filter(narrowed.customer_id > 0).collect()

@@ -60,3 +60,28 @@ def persist_to_table_demo(
 def persist_to_temp_view_demo(df: DataFrame[FeatureRow], table_name: str) -> None:
     """Mirrors persist_to_temp_view."""
     df.createOrReplaceTempView(table_name)
+
+
+def select_features_demo(df: DataFrame[FeatureRow]) -> None:
+    """pykrete-typed helper: feature_a and entity_id resolve under
+    FeatureRow; a downstream filter on entity_id proves the schema
+    survives select+filter narrowing."""
+# PROBE-RESOLVES: id=feast-select-features -- feature_a and entity_id resolve under FeatureRow
+    df.select("feature_a", "entity_id").collect()
+    narrowed = df.select("feature_a", "entity_id")
+# PROBE-RESOLVES: id=feast-narrowed-filter-entity -- entity_id resolves on narrowed result; broken .select() would lose entity_id
+    narrowed.filter(narrowed.entity_id > 0).collect()
+
+
+def groupby_features_demo(df: DataFrame[FeatureRow]) -> None:
+    """pykrete-typed helper: entity_id resolves as groupBy key under
+    FeatureRow."""
+# PROBE-RESOLVES: id=feast-groupby-entity -- entity_id resolves as groupBy key under FeatureRow
+    df.groupBy("entity_id").count().collect()
+
+
+def filter_features_demo(df: DataFrame[FeatureRow]) -> None:
+    """pykrete-typed helper: feature_b resolves via attribute access
+    inside filter under FeatureRow."""
+# PROBE-RESOLVES: id=feast-filter-feature-b -- feature_b resolves via df.feature_b inside filter
+    df.filter(df.feature_b > 0.5).collect()

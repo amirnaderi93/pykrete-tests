@@ -32,3 +32,13 @@ def jdbc_load_demo(spark: SparkSession, url: str, table: str) -> DataFrame[Order
 def jdbc_save_demo(data: DataFrame[Orders], url: str, table: str) -> None:
     """Mirrors SparkJDBCDataset.save."""
     data.write.jdbc(url, table, mode="overwrite")
+
+
+def select_orders_demo(df: DataFrame[Orders]) -> None:
+    """pykrete-typed helper: order_id and amount resolve under Orders;
+    narrowed filter on amount proves chain survives."""
+# PROBE-RESOLVES: id=kedro-jdbc-select-orders -- order_id and amount resolve under Orders
+    df.select("order_id", "amount").show()
+    narrowed = df.select("order_id", "amount")
+# PROBE-RESOLVES: id=kedro-jdbc-narrowed-filter-amount -- amount resolves on narrowed result; broken .select() would lose amount
+    narrowed.filter(narrowed.amount > 0).show()

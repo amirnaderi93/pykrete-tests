@@ -41,3 +41,11 @@ def transform_spark_sql_demo(
     column checks."""
     view_name = create_temp_view_demo(df, "0")
     spark.sql(sql_template.format(view=view_name))
+
+
+def select_entity_value_demo(df: DataFrame[FeatureRow]) -> None:
+    """pykrete-typed helper: entity_id and value resolve under FeatureRow."""
+# PROBE-RESOLVES: id=feast-transform-select-entity-value -- entity_id and value resolve under FeatureRow
+    df.select("entity_id", "value").collect()
+# PROBE-RESOLVES: id=feast-transform-groupby-entity -- entity_id resolves as groupBy key under FeatureRow
+    df.groupBy("entity_id").count().collect()

@@ -88,3 +88,13 @@ def merge_source_query(spark: SparkSession) -> None:
     re-anchor."""
     source = spark.sql("SELECT * FROM student_source").cast(DataFrame[Student])
     source.show()
+
+
+def select_student_demo(df: DataFrame[Student]) -> None:
+    """pykrete-typed helper: name and age resolve under Student;
+    a downstream .filter on age proves narrowing flows through."""
+# PROBE-RESOLVES: id=delta-cdc-select-name-age -- name and age resolve under Student
+    df.select("name", "age").show()
+    narrowed = df.select("name", "age")
+# PROBE-RESOLVES: id=delta-cdc-narrowed-filter-age -- age resolves on narrowed result; broken .select() would lose age
+    narrowed.filter(narrowed.age > 18).show()
