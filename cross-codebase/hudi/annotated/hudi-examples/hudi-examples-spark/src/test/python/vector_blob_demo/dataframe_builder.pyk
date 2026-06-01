@@ -64,4 +64,5 @@ def write_to_hudi_demo(spark: SparkSession, data, path: str) -> None:
         for d in data
     ]
     df = spark.createDataFrame(rows, schema=None).cast(DataFrame[ImageEmbedding])
+# PROBE-RESOLVES: id=hudi-vectorblob-write -- ImageEmbedding flows through .write.format("hudi").save chain
     df.write.format("hudi").save(path)

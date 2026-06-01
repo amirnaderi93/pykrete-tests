@@ -60,9 +60,11 @@ class HudiTrip(Schema):
 def query_data_demo(spark: sql.SparkSession, base_path: str) -> None:
     """Mirrors queryData. The read.format("hudi").load is opaque;
     cast to anchor for the temp-view + sql round-trip."""
+# PROBE-RESOLVES: id=hudi-quickstart-snapshot-cast -- HudiTrip re-anchor on opaque .load
     trips_snapshot_df = spark.read.format("hudi").load(base_path).cast(
         DataFrame[HudiTrip]
     )
+# PROBE-RESOLVES: id=hudi-quickstart-tempview -- HudiTrip flows into createOrReplaceTempView
     trips_snapshot_df.createOrReplaceTempView("hudi_trips_snapshot")
     spark.sql(
         "SELECT fare, begin_lon, begin_lat, ts "
