@@ -77,5 +77,6 @@ def select_addfile_demo(df: DataFrame[AddFileRow]) -> None:
     downstream filter on baz proves narrowing survives chaining."""
 # PROBE-RESOLVES: id=iceberg-add-files-select-foo-bar -- foo and bar resolve under AddFileRow
     df.select("foo", "bar", "baz").collect()
-# PROBE-RESOLVES: id=iceberg-add-files-narrowed-filter-baz -- baz survives select->filter chain
-    df.select("foo", "bar", "baz").filter(df.baz > 0).collect()
+    narrowed = df.select("foo", "bar", "baz")
+# PROBE-RESOLVES: id=iceberg-add-files-narrowed-filter-baz -- baz resolves on narrowed result; broken .select() would lose baz
+    narrowed.filter(narrowed.baz > 0).collect()

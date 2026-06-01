@@ -48,5 +48,6 @@ def select_customer_demo(df: DataFrame[CustomerRow]) -> None:
     CustomerRow; narrowed filter on customer_id proves chain."""
 # PROBE-RESOLVES: id=deequ-pandas-utils-select-customer -- customer_id and name resolve under CustomerRow
     df.select("customer_id", "name").collect()
-# PROBE-RESOLVES: id=deequ-pandas-utils-narrowed-filter-customer -- customer_id survives select->filter chain
-    df.select("customer_id", "name").filter(df.customer_id > 0).collect()
+    narrowed = df.select("customer_id", "name")
+# PROBE-RESOLVES: id=deequ-pandas-utils-narrowed-filter-customer -- customer_id resolves on narrowed result; broken .select() would lose customer_id
+    narrowed.filter(narrowed.customer_id > 0).collect()

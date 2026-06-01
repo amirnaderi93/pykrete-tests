@@ -95,5 +95,6 @@ def select_student_demo(df: DataFrame[Student]) -> None:
     a downstream .filter on age proves narrowing flows through."""
 # PROBE-RESOLVES: id=delta-cdc-select-name-age -- name and age resolve under Student
     df.select("name", "age").show()
-# PROBE-RESOLVES: id=delta-cdc-narrowed-filter-age -- age survives select->filter chain
-    df.select("name", "age").filter(df.age > 18).show()
+    narrowed = df.select("name", "age")
+# PROBE-RESOLVES: id=delta-cdc-narrowed-filter-age -- age resolves on narrowed result; broken .select() would lose age
+    narrowed.filter(narrowed.age > 18).show()

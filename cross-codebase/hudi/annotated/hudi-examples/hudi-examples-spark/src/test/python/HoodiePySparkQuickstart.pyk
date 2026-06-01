@@ -65,8 +65,9 @@ def query_data_demo(spark: sql.SparkSession, base_path: str) -> None:
     )
 # PROBE-RESOLVES: id=hudi-quickstart-select-fare -- fare resolves under HudiTrip
     trips_snapshot_df.select("fare", "begin_lat", "begin_lon").show()
-# PROBE-RESOLVES: id=hudi-quickstart-narrowed-filter-fare -- fare survives select->filter chain
-    trips_snapshot_df.select("fare", "begin_lat").filter(trips_snapshot_df.fare > 20.0).show()
+    narrowed = trips_snapshot_df.select("fare", "begin_lat")
+# PROBE-RESOLVES: id=hudi-quickstart-narrowed-filter-fare -- fare resolves on narrowed result; broken .select() would lose fare
+    narrowed.filter(narrowed.fare > 20.0).show()
     trips_snapshot_df.createOrReplaceTempView("hudi_trips_snapshot")
     spark.sql(
         "SELECT fare, begin_lon, begin_lat, ts "

@@ -25,10 +25,10 @@ the gate.
 Two fixture trees feed the runner:
 
 - **`cross-codebase/<donor>/annotated/`** — donor-faithful PySpark
-  code with positive probes (`PROBE-RESOLVES`, `PROBE-TYPE-IS`,
-  `PROBE-FILE-CLEAN-OF`). Each fixture's `.golden.json` has an empty
-  `diagnostics: []` array. These probes assert that pykrete correctly
-  tracks schemas through real transforms.
+  code with positive probes (`PROBE-RESOLVES`, `PROBE-FILE-CLEAN-OF`;
+  `PROBE-TYPE-IS` deferred to v1.2). Each fixture's `.golden.json` has
+  an empty `diagnostics: []` array. These probes assert that pykrete
+  correctly tracks schemas through real transforms.
 - **`cross-codebase/<donor>/probes_negative/`** — deliberately-corrupted
   fixtures with negative probes (`PROBE-EXPECTS`, `PROBE-FILE-COUNT`).
   Each fixture's `.golden.json` has a NON-EMPTY `diagnostics[]` array

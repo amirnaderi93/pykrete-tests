@@ -65,5 +65,6 @@ def select_weather_demo(df: DataFrame[Weather]) -> None:
     Weather; narrowed filter on temperature_c proves chain survives."""
 # PROBE-RESOLVES: id=kedro-spark-select-weather -- station_id and temperature_c resolve under Weather
     df.select("station_id", "temperature_c").show()
-# PROBE-RESOLVES: id=kedro-spark-narrowed-filter-temp -- temperature_c survives select->filter chain
-    df.select("station_id", "temperature_c").filter(df.temperature_c > 0).show()
+    narrowed = df.select("station_id", "temperature_c")
+# PROBE-RESOLVES: id=kedro-spark-narrowed-filter-temp -- temperature_c resolves on narrowed result; broken .select() would lose temperature_c
+    narrowed.filter(narrowed.temperature_c > 0).show()

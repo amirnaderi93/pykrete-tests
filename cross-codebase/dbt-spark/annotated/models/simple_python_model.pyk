@@ -39,5 +39,6 @@ def select_test1_demo(df: DataFrame[TwoIntCols]) -> None:
     """pykrete-typed helper: test1 resolves under TwoIntCols."""
 # PROBE-RESOLVES: id=dbt-spark-select-test1 -- test1 resolves under TwoIntCols
     df.select("test1").collect()
-# PROBE-RESOLVES: id=dbt-spark-narrowed-filter-test1 -- test1 survives select->filter chain
-    df.select("test1", "test3").filter(df.test1 > 0).collect()
+    narrowed = df.select("test1", "test3")
+# PROBE-RESOLVES: id=dbt-spark-narrowed-filter-test1 -- test1 resolves on narrowed result; broken .select() would lose test1
+    narrowed.filter(narrowed.test1 > 0).collect()

@@ -77,5 +77,6 @@ def select_person_demo(df: DataFrame[Person]) -> None:
     narrowed filter on is_active proves chain survives."""
 # PROBE-RESOLVES: id=iceberg-writes-select-id-active -- id and is_active resolve under Person
     df.select("id", "is_active").collect()
-# PROBE-RESOLVES: id=iceberg-writes-narrowed-filter-active -- is_active survives select->filter chain
-    df.select("id", "is_active").filter(df.is_active).collect()
+    narrowed = df.select("id", "is_active")
+# PROBE-RESOLVES: id=iceberg-writes-narrowed-filter-active -- is_active resolves on narrowed result; broken .select() would lose is_active
+    narrowed.filter(narrowed.is_active).collect()

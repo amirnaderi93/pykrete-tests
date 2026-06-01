@@ -68,8 +68,9 @@ def select_features_demo(df: DataFrame[FeatureRow]) -> None:
     survives select+filter narrowing."""
 # PROBE-RESOLVES: id=feast-select-features -- feature_a and entity_id resolve under FeatureRow
     df.select("feature_a", "entity_id").collect()
-# PROBE-RESOLVES: id=feast-narrowed-filter-entity -- entity_id survives select->filter chain
-    df.select("feature_a", "entity_id").filter(df.entity_id > 0).collect()
+    narrowed = df.select("feature_a", "entity_id")
+# PROBE-RESOLVES: id=feast-narrowed-filter-entity -- entity_id resolves on narrowed result; broken .select() would lose entity_id
+    narrowed.filter(narrowed.entity_id > 0).collect()
 
 
 def groupby_features_demo(df: DataFrame[FeatureRow]) -> None:

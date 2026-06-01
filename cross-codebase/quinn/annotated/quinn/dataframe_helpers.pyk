@@ -55,9 +55,10 @@ def column_to_list_demo(df: DataFrame[PersonRow]) -> None:
 
 def two_columns_to_dictionary_demo(df: DataFrame[PersonRow]) -> None:
     """Mirrors two_columns_to_dictionary — two-col .select, name-keyed
-    Row access via x[k] / x[v]."""
+    Row access via x[k] / x[v]. No probe: select(k, v) passes Name refs,
+    not string literals — col-ref extraction (col_refs.rs:10) skips
+    non-literal arguments, so RESOLVES would assert nothing meaningful."""
     k, v = "name", "age"
-# PROBE-RESOLVES: id=quinn-helpers-select-name-age -- name and age survive through variable indirection
     d = {x[k]: x[v] for x in df.select(k, v).collect()}
     _ = d
 

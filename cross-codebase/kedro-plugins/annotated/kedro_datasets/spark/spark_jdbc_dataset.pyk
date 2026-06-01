@@ -39,5 +39,6 @@ def select_orders_demo(df: DataFrame[Orders]) -> None:
     narrowed filter on amount proves chain survives."""
 # PROBE-RESOLVES: id=kedro-jdbc-select-orders -- order_id and amount resolve under Orders
     df.select("order_id", "amount").show()
-# PROBE-RESOLVES: id=kedro-jdbc-narrowed-filter-amount -- amount survives select->filter chain
-    df.select("order_id", "amount").filter(df.amount > 0).show()
+    narrowed = df.select("order_id", "amount")
+# PROBE-RESOLVES: id=kedro-jdbc-narrowed-filter-amount -- amount resolves on narrowed result; broken .select() would lose amount
+    narrowed.filter(narrowed.amount > 0).show()

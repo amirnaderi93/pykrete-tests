@@ -79,7 +79,8 @@ def select_customer_demo(df: DataFrame[CustomerRow]) -> None:
     CustomerRow; downstream filter on customer_id proves chain."""
 # PROBE-RESOLVES: id=kedro-hive-select-customer -- customer_id and email resolve under CustomerRow
     df.select("customer_id", "email").show()
-# PROBE-RESOLVES: id=kedro-hive-narrowed-filter-customer -- customer_id survives select->filter chain
-    df.select("customer_id", "email").filter(df.customer_id > 0).show()
+    narrowed = df.select("customer_id", "email")
+# PROBE-RESOLVES: id=kedro-hive-narrowed-filter-customer -- customer_id resolves on narrowed result; broken .select() would lose customer_id
+    narrowed.filter(narrowed.customer_id > 0).show()
 # PROBE-RESOLVES: id=kedro-hive-groupby-customer -- customer_id resolves as groupBy key under CustomerRow
     df.groupBy("customer_id").count().show()

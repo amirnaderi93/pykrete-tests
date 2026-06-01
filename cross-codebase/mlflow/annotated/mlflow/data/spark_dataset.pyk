@@ -53,5 +53,6 @@ def select_train_row_demo(df: DataFrame[TrainRow]) -> None:
     narrowed filter on target proves chain survives."""
 # PROBE-RESOLVES: id=mlflow-spark-dataset-select-features -- feature_a and target resolve under TrainRow
     df.select("feature_a", "target").collect()
-# PROBE-RESOLVES: id=mlflow-spark-dataset-narrowed-filter-target -- target survives select->filter chain
-    df.select("feature_a", "target").filter(df.target > 0).collect()
+    narrowed = df.select("feature_a", "target")
+# PROBE-RESOLVES: id=mlflow-spark-dataset-narrowed-filter-target -- target resolves on narrowed result; broken .select() would lose target
+    narrowed.filter(narrowed.target > 0).collect()

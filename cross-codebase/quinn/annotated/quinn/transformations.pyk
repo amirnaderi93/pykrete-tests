@@ -105,6 +105,12 @@ def flatten_map_demo(df: DataFrame[WithMap]) -> None:
     )
 
 
+def select_flat_demo(df: DataFrame[FlatRow]) -> None:
+    """pykrete-typed helper: bare-string col refs against FlatRow."""
+# PROBE-RESOLVES: id=quinn-transformations-select-flat -- first_name and age resolve under FlatRow
+    df.select("first_name", "age").collect()
+
+
 # ----------------------------------------------------------------------
 # Original upstream helpers (unchanged from MrPowers/quinn@20156582).
 # ----------------------------------------------------------------------
