@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0084",
+      "column": 35,
+      "endColumn": 43,
+      "endLine": 21,
+      "file": "mlflow/probes_negative/run_status_off_vocab_fillna.pyk",
+      "line": 21,
+      "message": "'UKNOWN' is not in the enum vocabulary for 'status'.",
+      "relatedInformation": [],
+      "ruleName": "enumValueMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

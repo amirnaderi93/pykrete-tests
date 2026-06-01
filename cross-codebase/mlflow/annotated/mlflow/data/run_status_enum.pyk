@@ -1,0 +1,54 @@
+# Apache License 2.0. Copyright Databricks / MLflow.
+#
+# Annotated for pykrete from the MLflow run-tracking surface — the
+# search_runs() return shape exposes a run "status" column whose
+# values come from mlflow/entities/run_status.py's RunStatus enum:
+# {RUNNING, FINISHED, FAILED, KILLED, SCHEDULED}. v1.1's enum
+# surface makes that vocabulary checkable at edit time when the
+# search_runs() result is materialized as a Spark DataFrame (the
+# pattern Databricks customers use for fleet-wide run analytics).
+#
+# Surface preserved: the column names and shapes (run_id / experiment_id
+# / status / start_time / end_time) mirror mlflow.entities.RunInfo.
+#
+# Features covered:
+#   - col("status") == lit("FINISHED")
+#   - col("status").isin("FAILED", "KILLED")
+#   - groupBy("status") preserves the enum-typed key
+#   - F.expr("status = 'RUNNING'") SQL fragment equality
+
+from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.functions import col, lit
+from pyspark.sql import functions as F
+
+
+class RunInfo(Schema):
+    run_id: string
+    experiment_id: string
+    status: enum["RUNNING", "FINISHED", "FAILED", "KILLED", "SCHEDULED"]
+    start_time: long
+    end_time: long
+
+
+def load_run_table(spark: SparkSession, path: str) -> DataFrame[RunInfo]:
+    return spark.read.format("parquet").load(path).cast(DataFrame[RunInfo])
+
+
+def finished_only(runs: DataFrame[RunInfo]) -> DataFrame[RunInfo]:
+# PROBE-RESOLVES: id=mlflow-runstatus-enum-finished-eq -- status resolves and == lit("FINISHED") is in-vocab
+    return runs.filter(col("status") == lit("FINISHED"))
+
+
+def unhealthy(runs: DataFrame[RunInfo]) -> DataFrame[RunInfo]:
+# PROBE-RESOLVES: id=mlflow-runstatus-enum-unhealthy-isin -- .isin("FAILED", "KILLED") is in-vocab
+    return runs.filter(col("status").isin("FAILED", "KILLED"))
+
+
+def counts_by_status(runs: DataFrame[RunInfo]):
+# PROBE-RESOLVES: id=mlflow-runstatus-enum-groupby-status -- groupBy preserves status; broken schema tracking would drop the key
+    return runs.groupBy("status").agg(F.count(lit(1)).alias("n"))
+
+
+def currently_running_via_expr(runs: DataFrame[RunInfo]) -> DataFrame[RunInfo]:
+# PROBE-RESOLVES: id=mlflow-runstatus-enum-expr-running -- F.expr equality with in-vocab literal is clean
+    return runs.filter(F.expr("status = 'RUNNING'"))

@@ -1,0 +1,21 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Delta CDC pattern in cdc_change_type_enum.pyk; uses
+# the StudentCDC schema unchanged but issues an off-vocabulary literal
+# in the col == lit comparison. Real upstream Delta CDC code uses
+# {insert, update_preimage, update_postimage, delete}; this fixture
+# typos 'isnert', forcing D0084.
+#
+# Failure mode exercised: off-enum literal in == comparison (D0084).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, lit
+
+
+class StudentCDCNeg(Schema):
+    id: int
+    _change_type: enum["insert", "update_preimage", "update_postimage", "delete"]
+
+
+def filter_typo(cdc: DataFrame[StudentCDCNeg]) -> DataFrame[StudentCDCNeg]:
+# PROBE-EXPECTS: D0084 on "\"isnert\"" id=delta-cdc-neg-off-vocab-eq -- typo'd CDC value triggers enumValueMismatch on == lit
+    return cdc.filter(col("_change_type") == lit("isnert"))
