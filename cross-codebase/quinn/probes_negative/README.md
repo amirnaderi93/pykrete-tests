@@ -10,6 +10,7 @@ fire a specific diagnostic.
   references `name` with two typos in one statement. Forces two
   D0030s from one `.select()` call (stacked-EXPECTS coverage,
   exercises the bipartite pairing logic).
-- `unknown_column_in_filter.pyk` — two helpers each `.filter` on a
-  column not in PersonRow. Forces exactly two D0030s file-wide, which
-  is the first real exercise of `PROBE-FILE-COUNT`.
+- `unknown_column_in_filter.pyk` — two helpers each reference a
+  column not in PersonRow (one via `.filter`, one via `.select`).
+  Forces exactly two D0030s file-wide, which is the first real
+  exercise of `PROBE-FILE-COUNT`.
