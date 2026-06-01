@@ -113,31 +113,41 @@ pykrete from `main` and diffs each fixture's live JSON diagnostic
 output against its committed `.golden.json`. Any drift fails the
 build — that's the release-blocking contract.
 
-## Schema-tracking probes (v1.1, in progress)
+## Schema-tracking probes (v1.1)
 
-Goldens prove pykrete emits no false positives. **Probes** prove
-pykrete is actually tracking schemas — that columns survive a
-`.select()`, that types stay correct through `.withColumn()`, and
-that intentionally-broken references fire the expected D-codes.
-Probes are inline `# PROBE-*` comments in `.pyk` fixtures that the
-runner expands and asserts against `pykrete check --format json`.
+Every pykrete release is regression-tested with **111
+schema-tracking probes** from 10 upstream codebases — Apache Spark,
+Delta Lake, Apache Iceberg (iceberg-python), Apache Hudi, MLflow,
+Feast, Kedro (kedro-plugins), quinn, dbt-spark, and python-deequ.
+The repo vendors **41 fixtures** on disk (32 annotated + 9 negative
+under `probes_negative/`); the **111 probes cover 40 of those** (31
+annotated + 9 negative — the feast `spark_kafka_processor` streaming
+fixture is annotated but probe-free because it has no typed-DataFrame
+slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
+markers in `.pyk` fixtures that the runner expands into synthetic
+checks against `pykrete check --format json`. Positive probes assert
+columns resolve cleanly after schema-changing operations (`.select`,
+`.filter`, `.withColumn`); negative probes assert specific diagnostics
+fire on deliberately-corrupted fixtures.
 
-The runner ships in PR #1. **CI is now wired** (this PR): the
-`probes` workflow runs `scripts/probes_ci.sh` on every push/PR and
-uploads a structured JSON report as a build artifact. **For v1.1
-the job is `continue-on-error: true`** — probe failures surface in
-the PR check list but do **not** block merge. PR #3 flips that to
-release-blocking once the 32 annotated fixtures have been seeded
-with probes. Until then, the runner reports "0 probes found" on a
-clean tree and the workflow stays green.
+- **97 positive probes** across 31 of the 32 annotated fixtures
+  verify column resolution and post-narrowing flow.
+- **14 negative probes** across all 9 deliberately-corrupted fixtures
+  under `probes_negative/` verify diagnostic firing (D0030
+  unknownColumn, D0081 nonNumericArithmetic, D0082
+  crossTypeComparison).
+- The `probes` workflow runs `scripts/probes_ci.sh` on every push
+  and PR; CI fails if any probe asserts the wrong outcome. The
+  combined structured JSON report uploads as the `probes-report`
+  artifact for postmortem inspection.
 
-A weekly `catalog-drift-watch` workflow polls pykrete-core's
-`main` and opens a `chore(catalog): refresh from pykrete <sha>` PR
-when new D-codes appear, so `PROBE-EXPECTS` validation stays in
-sync with upstream. Trigger it manually from the Actions tab to
-verify end-to-end.
+A weekly `catalog-drift-watch` workflow polls pykrete-core's `main`
+and opens a `chore(catalog): refresh from pykrete <sha>` PR when
+new D-codes appear, so `PROBE-EXPECTS` validation stays in sync
+with upstream. Trigger it manually from the Actions tab to verify
+end-to-end.
 
-See [scripts/PROBES.md](scripts/PROBES.md) for marker syntax,
+See [`scripts/PROBES.md`](scripts/PROBES.md) for marker syntax,
 running locally, and the drift-watch contract.
 
 ## License attribution

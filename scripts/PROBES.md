@@ -6,21 +6,16 @@ diagnostics. They close the gap between "no false positives" (what the
 v1.0 cross-codebase suite verifies) and "the checker really knows
 schemas evolve through `.select()`, `.withColumn()`, joins, etc."
 
-Status: v1.1, informational only. The runner ships now; CI wiring lands
-in the next PR. Fixture seeding lands in PR #3.
+Status: v1.1, release-blocking as of v1.1.
 
 ## Operating model
 
 The probes runner (`scripts/probes.py`) is wired into CI via
-`scripts/probes_ci.sh` and the `probes · informational coverage` job
-in `.github/workflows/probes.yml`. **Today (v1.1) it is informational
-only** — a probe failure surfaces in the PR check list and the
-structured JSON report uploads as the `probes-report` artifact, but
-the job runs `continue-on-error: true` and does not block merge.
-PR #3c of the v1.1 series flips this to release-blocking once the
-fixture corpus is fully seeded; this happens atomically with the
-trust-claim migration in README so the public claim never overruns
-the gate.
+`scripts/probes_ci.sh` and the `probes · coverage` job in
+`.github/workflows/probes.yml`. **Release-blocking as of v1.1** — a
+probe failure (positive or negative) fails the job and blocks merge.
+The combined structured JSON report uploads as the `probes-report`
+artifact for postmortem inspection.
 
 Two fixture trees feed the runner:
 
@@ -46,8 +41,8 @@ snapshot of pykrete-core's `DIAGNOSTIC_CATALOG`. When pykrete-core
 ships a release that adds or renames D-codes, the
 `catalog-drift-watch` workflow opens a one-step refresh PR (typically
 weekly cadence). Probe fixtures keep working across these refreshes
-because PR #3a's `probes_negative/` exercises the catalog-resolution
-path — a stale catalog or a renamed D-code surfaces here first.
+because `probes_negative/` exercises the catalog-resolution path —
+a stale catalog or a renamed D-code surfaces here first.
 
 **Authoring expectations for new donors.** When a future donor lands
 under `cross-codebase/<donor>/`, it should ship with at least three
@@ -65,8 +60,7 @@ expectation in code review.
 Markers are single-line `#`-prefixed comments and **must start at
 column 0** — the parser only extracts COMMENT tokens whose source
 column is 0. An indented `# PROBE-...` comment in a function body
-is treated as a normal comment and silently skipped. This is the
-v1.1 convention; PR #3b authors ~80-120 probes following it. Two
+is treated as a normal comment and silently skipped. Two
 implications for authors:
 
 - **Line-anchored markers above an indented statement.** The target
@@ -227,19 +221,12 @@ PYKRETE_BIN=/path/to/pykrete bash scripts/probes_ci.sh
 Exit codes match `probes.py run`: 0 = all green (or no probes
 found), 1 = at least one probe failed, 2 = setup error.
 
-### CI behavior (v1.1)
+### CI behavior
 
-The `probes · informational coverage` job runs on every push and
-PR. It uses `continue-on-error: true` — a probe failure surfaces in
-the PR check list and the structured JSON report uploads as a
-workflow artifact (`probes-report`), but the failure does NOT block
-merge. PR #3 of the v1.1 series flips this to release-blocking
-once probes are seeded across the 32 annotated fixtures.
-
-If you're reading CI output and see a yellow/orange check on
-`probes · informational coverage`, that's the contract: investigate
-the failed probes, but it's intentional that the PR can still
-merge.
+The `probes · coverage` job runs on every push and PR. A probe
+failure (positive or negative) fails the job and blocks merge. The
+combined structured JSON report uploads as the `probes-report`
+artifact for postmortem inspection.
 
 ### Env vars
 
@@ -304,8 +291,8 @@ correctly fires D0030 (`EXPECTS`).
 ### Tricky placement cases
 
 The "column 0, target = next logical statement" rule covers every
-case, but three placements come up often enough in PR #3b authoring
-that they're worth showing explicitly.
+case, but three placements come up often enough that they're worth
+showing explicitly.
 
 **(a) Marker describing a class-method body line.** The marker sits
 at column 0 even though the method body it targets is double-indented
@@ -365,7 +352,7 @@ probes_negative/pykrete.json` and `cross-codebase/mlflow/
 probes_negative/pykrete.json` are 31-byte files enabling strict mode
 across their directories.
 
-Two implications for PR #3b authors:
+Two implications for fixture authors:
 
 - The existing `spark/probes_negative/` and `mlflow/probes_negative/`
   directories are **strict-mode directories**. Adding a new fixture

@@ -5,12 +5,15 @@
 #   scripts/golden.sh generate <pykrete-binary>   # regenerate all goldens
 #   scripts/golden.sh check <pykrete-binary>      # diff each fixture vs its golden
 #
-# Each annotated cross-codebase/<donor>/.../<file>.pyk has a sibling
-# <file>.golden.json. CI calls `check`; releases call `generate` deliberately.
+# Each cross-codebase/<donor>/{annotated,probes_negative}/.../<file>.pyk
+# has a sibling <file>.golden.json. CI calls `check` on both trees;
+# releases call `generate` deliberately.
 #
 # Normalization (applied to both actual and stored golden):
 #   - strip top-level `version` (changes per pykrete release)
-#   - rewrite each diagnostic's `file` to a repo-relative path
+#   - rewrite each diagnostic's `file` to a donor-anchored path
+#     (drops `$REPO_ROOT/` and any leading `cross-codebase/`), matching
+#     the format `_fixture_relpath` in scripts/probes.py emits.
 # `schemaVersion` is kept — a bump there IS a regression contract change.
 
 set -euo pipefail
@@ -33,11 +36,11 @@ cd "$REPO_ROOT"
 normalize() {
   jq --arg root "$REPO_ROOT/" '
     del(.version)
-    | .diagnostics |= map(.file |= sub("^" + $root; ""))
+    | .diagnostics |= map(.file |= (sub("^" + $root; "") | sub("^cross-codebase/"; "")))
   '
 }
 
-fixtures=$(find cross-codebase -path "*/annotated/*" -name "*.pyk" -type f | sort)
+fixtures=$(find cross-codebase \( -path "*/annotated/*" -o -path "*/probes_negative/*" \) -name "*.pyk" -type f | sort)
 total=0
 fails=0
 
