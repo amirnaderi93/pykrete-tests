@@ -3,10 +3,10 @@ name: probes
 # Runs the schema-tracking probes runner (scripts/probes.py via
 # scripts/probes_ci.sh) across the cross-codebase tree.
 #
-# v1.1 ship: continue-on-error: true — probe failures surface in the
-# PR check list but do not block merge. PR #3 of the v1.1 series
-# flips this to release-blocking after the 32 annotated fixtures
-# have been seeded with probes.
+# v1.1 ship: release-blocking. A probe failure (positive or negative)
+# fails the job and blocks merge. Both annotated/ and probes_negative/
+# trees feed the runner; the combined report uploads as the
+# `probes-report` artifact for postmortem inspection.
 
 on:
   push:
@@ -33,9 +33,8 @@ env:
 
 jobs:
   probes:
-    name: probes · informational coverage
+    name: probes · coverage
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         shell: bash
@@ -93,7 +92,7 @@ jobs:
           bash scripts/probes_ci.sh | tee /tmp/probes-out.txt
           rc=${PIPESTATUS[0]}
           {
-            echo "## Schema-tracking probes (informational)"
+            echo "## Schema-tracking probes"
             echo ""
             echo '```'
             tail -n 40 /tmp/probes-out.txt
