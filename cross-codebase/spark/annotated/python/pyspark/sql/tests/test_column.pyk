@@ -33,6 +33,7 @@
 #   - .cast(LongType()) (and string-form .cast("long") variant)
 #   - F.col + F.lit + Python literal bool mixed-arg binary ops
 
+# PROBE-FILE-CLEAN-OF: D0030 -- Column-method stress fixture: every column ref resolves on KV
 from pyspark.sql import Column
 from pyspark.sql import functions as sf
 from pyspark.sql.types import LongType

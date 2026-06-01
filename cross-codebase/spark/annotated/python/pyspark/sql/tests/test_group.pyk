@@ -31,6 +31,7 @@
 #   - df.groupBy("year").pivot("electronic", ["a", "b"]).sum("sales")
 #   - df.groupBy("year").pivot("electronic").sum("sales") (no values)
 
+# PROBE-FILE-CLEAN-OF: D0030 -- groupBy/pivot/agg surface: every column ref resolves on KV or Sales
 from pyspark.sql import Row
 from pyspark.sql import functions as sf
 

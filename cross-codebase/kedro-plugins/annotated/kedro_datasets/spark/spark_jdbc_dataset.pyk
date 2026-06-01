@@ -26,11 +26,18 @@ class Orders(Schema):
 
 def jdbc_load_demo(spark: SparkSession, url: str, table: str) -> DataFrame[Orders]:
     """Mirrors SparkJDBCDataset.load."""
-# PROBE-RESOLVES: id=kedro-jdbc-load-orders -- Orders re-anchor on opaque .jdbc result
     return spark.read.jdbc(url, table).cast(DataFrame[Orders])
 
 
 def jdbc_save_demo(data: DataFrame[Orders], url: str, table: str) -> None:
     """Mirrors SparkJDBCDataset.save."""
-# PROBE-RESOLVES: id=kedro-jdbc-save-orders -- Orders flows into write.jdbc terminal
     data.write.jdbc(url, table, mode="overwrite")
+
+
+def select_orders_demo(df: DataFrame[Orders]) -> None:
+    """pykrete-typed helper: order_id and amount resolve under Orders;
+    narrowed filter on amount proves chain survives."""
+# PROBE-RESOLVES: id=kedro-jdbc-select-orders -- order_id and amount resolve under Orders
+    df.select("order_id", "amount").show()
+# PROBE-RESOLVES: id=kedro-jdbc-narrowed-filter-amount -- amount survives select->filter chain
+    df.select("order_id", "amount").filter(df.amount > 0).show()

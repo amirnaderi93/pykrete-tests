@@ -80,13 +80,20 @@ def read_back_and_anchor(spark: SparkSession, path: str) -> None:
     """Mirrors the "Initial Table" show step. Re-anchor with .cast,
     then orderBy on the typed name."""
     df = spark.read.format("delta").load(path).cast(DataFrame[Student])
-# PROBE-RESOLVES: id=delta-cdc-orderBy-id -- id resolves under Student after cast
     df.orderBy("id").show()
 
 
 def merge_source_query(spark: SparkSession) -> None:
     """Mirrors the source-read for the MERGE step — spark.sql then
     re-anchor."""
-# PROBE-RESOLVES: id=delta-cdc-sql-recast -- Student-typed binding after spark.sql + .cast
     source = spark.sql("SELECT * FROM student_source").cast(DataFrame[Student])
     source.show()
+
+
+def select_student_demo(df: DataFrame[Student]) -> None:
+    """pykrete-typed helper: name and age resolve under Student;
+    a downstream .filter on age proves narrowing flows through."""
+# PROBE-RESOLVES: id=delta-cdc-select-name-age -- name and age resolve under Student
+    df.select("name", "age").show()
+# PROBE-RESOLVES: id=delta-cdc-narrowed-filter-age -- age survives select->filter chain
+    df.select("name", "age").filter(df.age > 18).show()

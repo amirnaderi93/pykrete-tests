@@ -39,13 +39,21 @@ def build_df_demo(spark: SparkSession) -> None:
     """Mirrors setUpClass — sc.parallelize(rows).toDF() is opaque so
     .cast pins the InputRow schema."""
     sc = spark.sparkContext
-# PROBE-RESOLVES: id=deequ-analyzers-input-recast -- InputRow anchored after opaque .toDF()
     df = sc.parallelize([
         Row(a="foo", b=1, c=5, d=1),
         Row(a="bar", b=2, c=6, d=3),
         Row(a="baz", b=3, c=None, d=1),
     ]).toDF().cast(DataFrame[InputRow])
     _ = df
+
+
+def select_input_row_demo(df: DataFrame[InputRow]) -> None:
+    """pykrete-typed helper: a and b resolve under InputRow;
+    narrowed filter on b proves chain survives."""
+# PROBE-RESOLVES: id=deequ-analyzers-select-a-b -- a and b resolve under InputRow
+    df.select("a", "b").collect()
+# PROBE-RESOLVES: id=deequ-analyzers-narrowed-filter-b -- b survives select->filter chain
+    df.select("a", "b").filter(df.b > 0).collect()
 
 
 def metric_round_trip_demo(spark: SparkSession, result_json: str) -> None:

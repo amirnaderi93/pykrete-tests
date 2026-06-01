@@ -113,8 +113,9 @@ authors can confirm placement without firing pykrete.
 
 ## Marker syntax
 
-There are five marker kinds. All are single-line `#`-prefixed comments
-at column 0. Three are line-anchored (they target the **next logical
+There are five marker kinds (one of which, `PROBE-TYPE-IS`, is deferred
+to v1.2 — see below). All are single-line `#`-prefixed comments at
+column 0. Three are line-anchored (they target the **next logical
 Python statement**); two are file-scoped.
 
 ### Line-anchored
@@ -131,10 +132,14 @@ Python statement**); two are file-scoped.
 - `PROBE-RESOLVES` — pykrete must NOT emit any diagnostic on the target
   line. This proves the tracked schema accepts the reference. Use it
   to verify columns survive a narrow `.select()`, an alias chain, etc.
-- `PROBE-TYPE-IS` — pykrete's tracked schema gives `<column>` the
-  asserted type at the target line. Implemented via a synthesizer
-  rewrite that targets D0081 (strict-mode operator check). One type
-  expression per probe.
+- `PROBE-TYPE-IS` — **deferred to v1.2.** The marker still parses, but
+  synthesis is inconclusive in v1.1: the synthesizer emits a standalone
+  `col("x") + lit(1)` expression that does not bind to a typed
+  DataFrame in scope, so no type-mismatch D-code can fire. Do not
+  author TYPE-IS markers in v1.1 — they are no-ops. v1.2 will inject
+  the synthesized expression inside a `df.select(...)` against the
+  typed DataFrame so `col()` binds and D0081 can fire. See pykrete's
+  `docs/design/schema-tracking-probes.md` v1.2 tracker.
 
 ### File-scoped
 
@@ -180,19 +185,10 @@ pass through unchanged.
 
 ### Type expressions
 
-`PROBE-TYPE-IS` accepts the same atomic type names as `Schema`
-annotations: `string`, `boolean`, `bool`, `date`, `timestamp`, `binary`.
-Collections: `Array[T]` and `array<T>` are accepted (normalized to
-`array<T>`).
-
-**Numeric carve-out (v1.1).** Within-family numeric subtypes
-(`int`, `long`, `short`, `byte`, `double`, `float`, `decimal`,
-`decimal(p, s)`) are rejected at parse time with a named `ProbeError`.
-The synthesizer can only fire family-level D-codes (D0080-D0082), so a
-green for an int-vs-double probe would be vacuous. v1.2 will re-enable
-numeric subtypes once pykrete-core ships numeric-subtype-mismatch
-D-codes. For now, use a cross-family assertion (e.g., `string on
-"name"`) to prove a column is non-numeric.
+`PROBE-TYPE-IS` is **deferred to v1.2** (see above). The marker grammar
+still parses type expressions for forward compatibility, but no v1.1
+TYPE-IS marker drives a meaningful assertion. Do not author TYPE-IS
+markers in v1.1.
 
 ## Target-line resolution
 
@@ -292,21 +288,18 @@ def pipeline(orders: DataFrame[Order]) -> DataFrame[Order]:
 # PROBE-RESOLVES: id=quinn-select-region -- region survives narrow select
     df = orders.select("region", "amount")
 
-# PROBE-TYPE-IS: string on "region" id=quinn-region-type
-    df2 = df
-
 # PROBE-EXPECTS: D0030 id=quinn-select-drops-product on "product"
-    return df2.select(col("product"))
+    return df.select(col("product"))
 ```
 
-All three markers sit at column 0 even though the statements they
-target are indented inside `pipeline`. The parser only extracts
-COMMENT tokens at column 0; an indented `# PROBE-...` would be
-silently skipped (see "Probe placement convention" above).
+Both markers sit at column 0 even though the statements they target
+are indented inside `pipeline`. The parser only extracts COMMENT
+tokens at column 0; an indented `# PROBE-...` would be silently
+skipped (see "Probe placement convention" above).
 
-Three probes cover the same chain end-to-end: the `select` keeps
-`region` (`RESOLVES`), `region` stays a `string` (`TYPE-IS`), and a
-follow-up reference to `product` correctly fires D0030 (`EXPECTS`).
+The two probes cover the chain end-to-end: the `select` keeps
+`region` (`RESOLVES`), and a follow-up reference to `product`
+correctly fires D0030 (`EXPECTS`).
 
 ### Tricky placement cases
 

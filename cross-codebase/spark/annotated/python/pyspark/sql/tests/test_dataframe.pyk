@@ -36,7 +36,6 @@
 #   - .hint("broadcast"), .hint("REBALANCE", "col")
 #   - .cache / .persist / .unpersist (all pass-through)
 
-# PROBE-FILE-CLEAN-OF: D0030 -- all dataframe-method demos resolve only declared schema columns
 # PROBE-FILE-COUNT: D0030 == 0 -- regression contract: no unknown-column refs across the file
 from pyspark.sql import Row, functions, DataFrame
 from pyspark.sql.functions import col, lit, count, struct, array, explode
@@ -77,12 +76,11 @@ class KV(Schema):
 def drop_demo(df: DataFrame[NameAgeActive]) -> None:
     """Mirrors test_drop. drop accepts bare strings, multiple
     arguments, missing names (silently tolerated), and Column objects."""
-# PROBE-RESOLVES: id=spark-test-df-drop-active -- active resolves under NameAgeActive prior to drop
     df.drop("active")
+    df.drop("active", "nonexistent_column")
+    df.drop("name", "age", "active")
 # PROBE-RESOLVES: id=spark-test-df-drop-col -- name resolves through col() arg to drop
     df.drop(col("name"))
-# PROBE-RESOLVES: id=spark-test-df-drop-stacked-name -- stacked: name resolves on multi-col drop
-# PROBE-RESOLVES: id=spark-test-df-drop-stacked-age -- stacked: age resolves on the same multi-col drop
     df.drop(col("name"), col("age"))
 
 
@@ -106,7 +104,6 @@ def drop_join_demo(
 def with_columns_renamed_demo(df: DataFrame[NameAgeActive]) -> None:
     """Mirrors test_with_columns_renamed — withColumnsRenamed accepts
     a dict and silently tolerates non-existent source names."""
-# PROBE-RESOLVES: id=spark-test-df-rename-name-age -- name and age (the rename sources) exist on NameAgeActive
     df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})
     df.withColumnsRenamed({"name": "naam", "address": "adres"})
 

@@ -35,11 +35,18 @@ def pandas_to_pyspark_demo(spark: SparkSession, pandas_df) -> DataFrame[Customer
     _ = (columns, types)
     # In real code, build_struct_type(columns, types) constructs a
     # StructType; we treat the resulting createDataFrame as opaque.
-# PROBE-RESOLVES: id=deequ-pandas-utils-recast -- CustomerRow re-anchor on opaque createDataFrame
     return spark.createDataFrame(pandas_df, schema=None).cast(DataFrame[CustomerRow])
 
 
 def pyspark_to_pandas_demo(df: DataFrame[CustomerRow]):
     """Mirrors PandasConverter.pysparkDF_to_pandasDF."""
-# PROBE-RESOLVES: id=deequ-pandas-utils-toPandas -- CustomerRow survives .toPandas() pass-through
     return df.toPandas()
+
+
+def select_customer_demo(df: DataFrame[CustomerRow]) -> None:
+    """pykrete-typed helper: customer_id and name resolve under
+    CustomerRow; narrowed filter on customer_id proves chain."""
+# PROBE-RESOLVES: id=deequ-pandas-utils-select-customer -- customer_id and name resolve under CustomerRow
+    df.select("customer_id", "name").collect()
+# PROBE-RESOLVES: id=deequ-pandas-utils-narrowed-filter-customer -- customer_id survives select->filter chain
+    df.select("customer_id", "name").filter(df.customer_id > 0).collect()

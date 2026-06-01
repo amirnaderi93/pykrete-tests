@@ -30,7 +30,14 @@ def model(dbt, spark: SparkSession) -> DataFrame[TwoIntCols]:
     is opaque; the .cast pins the return shape."""
     dbt.config(materialized='table')
     data = [[1, 2]] * 10
-# PROBE-RESOLVES: id=dbt-spark-model-recast -- TwoIntCols re-anchor on opaque createDataFrame return
     return spark.createDataFrame(data, schema=['test1', 'test3']).cast(
         DataFrame[TwoIntCols]
     )
+
+
+def select_test1_demo(df: DataFrame[TwoIntCols]) -> None:
+    """pykrete-typed helper: test1 resolves under TwoIntCols."""
+# PROBE-RESOLVES: id=dbt-spark-select-test1 -- test1 resolves under TwoIntCols
+    df.select("test1").collect()
+# PROBE-RESOLVES: id=dbt-spark-narrowed-filter-test1 -- test1 survives select->filter chain
+    df.select("test1", "test3").filter(df.test1 > 0).collect()

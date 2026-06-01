@@ -28,7 +28,6 @@
 #   - Column ops: .eqNullSafe, .isNull, .isNotNull, .isin, .between, []
 #   - Bitwise &, |, ~ for Column composition
 
-# PROBE-FILE-CLEAN-OF: D0030 -- quinn function surface refs only columns declared on the typed schemas
 # PROBE-FILE-COUNT: D0030 == 0 -- explicit zero-count contract for unknown-column refs in this file
 from __future__ import annotations
 
@@ -120,7 +119,7 @@ def approx_equal_demo(df: DataFrame[NumericPair]) -> None:
 def array_choice_demo(df: DataFrame[ArrayBag]) -> None:
     """Mirrors quinn.functions.array_choice — F.rand, F.size, .cast,
     then item access via Column.__getitem__."""
-# PROBE-RESOLVES: id=quinn-fn-array-choice-items -- items resolves through F.size and bracket access
+# PROBE-RESOLVES: id=quinn-fn-array-choice-items -- items resolves as df.items inside F.size
     index = (F.rand(0) * F.size(df.items)).cast("int")
     df.withColumn("pick", df.items[index])
 

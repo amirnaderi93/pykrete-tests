@@ -36,15 +36,21 @@ def cursor_execute_anchored(sql: str) -> DataFrame[QueryResult]:
     builder = SparkSession.builder.enableHiveSupport()
     builder = builder.config("spark.executor.memory", "4g")
     spark_session = builder.getOrCreate()
-# PROBE-RESOLVES: id=dbt-spark-execute-cast -- QueryResult re-anchor on opaque spark.sql IO
     return spark_session.sql(sql).cast(DataFrame[QueryResult])
 
 
 def fetchall_demo(df: DataFrame[QueryResult]) -> None:
     """Mirrors Cursor.fetchall."""
-# PROBE-RESOLVES: id=dbt-spark-fetchall-collect -- QueryResult survives .collect() pass-through
     rows = df.collect()
     _ = rows
+
+
+def select_id_demo(df: DataFrame[QueryResult]) -> None:
+    """pykrete-typed helper: id and msg resolve under QueryResult."""
+# PROBE-RESOLVES: id=dbt-spark-select-id -- id resolves under QueryResult
+    df.select("id").collect()
+# PROBE-RESOLVES: id=dbt-spark-select-id-msg -- id and msg both resolve under QueryResult
+    df.select("id", "msg").collect()
 
 
 def fetchone_demo(df: DataFrame[QueryResult]) -> None:
