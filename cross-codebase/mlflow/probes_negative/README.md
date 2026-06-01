@@ -17,3 +17,9 @@ a directory. See the "Strict-mode caveat" subsection of
 - `withColumn_arith_on_string.pyk` — LabelledRow shape with a string
   `label` column. Adds `label + target` arithmetic, forcing D0081
   (`nonNumericArith`, strict mode).
+- `run_status_off_vocab_fillna.pyk` — RunInfoNeg shape from the
+  MLflow run-tracking pattern (sibling
+  `annotated/mlflow/data/run_status_enum.pyk`). The `status` column
+  is `enum["RUNNING", "FINISHED", "FAILED", "KILLED", "SCHEDULED"]`;
+  this fixture writes `'UKNOWN'` via `.fillna({"status": ...})`,
+  forcing D0084 (`enumValueMismatch`).

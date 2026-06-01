@@ -1,0 +1,21 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the MLflow run-tracking pattern in
+# annotated/mlflow/data/run_status_enum.pyk; uses a narrowed RunInfoNeg
+# schema and a .fillna({...}) sink with an off-vocabulary string.
+# RunStatus's documented enum is {RUNNING, FINISHED, FAILED, KILLED,
+# SCHEDULED}; this fixture writes 'UKNOWN' (typo of "UNKNOWN" — itself
+# not part of the documented vocabulary), forcing D0084.
+#
+# Failure mode exercised: off-enum literal in .fillna(dict) (D0084).
+
+from pyspark.sql import DataFrame
+
+
+class RunInfoNeg(Schema):
+    run_id: string
+    status: enum["RUNNING", "FINISHED", "FAILED", "KILLED", "SCHEDULED"]
+
+
+def fill_status_typo(runs: DataFrame[RunInfoNeg]) -> DataFrame[RunInfoNeg]:
+# PROBE-EXPECTS: D0084 on "\"UKNOWN\"" id=mlflow-runstatus-neg-off-vocab-fillna -- off-vocab fillna value triggers enumValueMismatch
+    return runs.fillna({"status": "UKNOWN"})
