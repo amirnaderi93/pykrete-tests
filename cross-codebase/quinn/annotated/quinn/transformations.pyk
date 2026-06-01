@@ -67,6 +67,7 @@ def rename_all_demo(df: DataFrame[FlatRow]) -> None:
     """Mirrors with_columns_renamed/snake_case_col_names application.
     Real quinn callers feed the curried renamer a DataFrame, which
     re-emits df.select with each col aliased."""
+# PROBE-RESOLVES: id=quinn-trans-rename-all-columns -- df.columns introspection over FlatRow
     cols = [F.col(f"`{c}`").alias(c.lower().replace(" ", "_")) for c in df.columns]
     df.select(*cols)
 
