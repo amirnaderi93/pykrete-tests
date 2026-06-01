@@ -48,4 +48,5 @@ def show_and_predict(spark: SparkSession, model_uri: str) -> None:
         model_uri=model_uri,
         result_type="string",
     )
+# PROBE-RESOLVES: id=mlflow-structs-withColumn-udf-args -- str/arr/obj/obj_arr all resolve as udf args
     df.withColumn("output", udf("str", "arr", "obj", "obj_arr")).show()

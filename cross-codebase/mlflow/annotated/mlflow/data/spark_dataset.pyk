@@ -37,6 +37,7 @@ def validate_columns_demo(df: DataFrame[TrainRow]) -> None:
 def to_pyfunc_demo(df: DataFrame[TrainRow]) -> None:
     """Mirrors SparkDataset.to_pyfunc — limit-then-toPandas, then a
     pandas drop+series-select."""
+# PROBE-RESOLVES: id=mlflow-spark-dataset-limit-toPandas -- TrainRow chain through .limit().toPandas() resolves
     pandas_df = df.limit(10000).toPandas()
     inputs = pandas_df.drop(columns="target")
     outputs = pandas_df["target"]
@@ -45,4 +46,5 @@ def to_pyfunc_demo(df: DataFrame[TrainRow]) -> None:
 
 def to_eval_dataset_demo(df: DataFrame[TrainRow]) -> None:
     """Mirrors to_evaluation_dataset."""
+# PROBE-RESOLVES: id=mlflow-spark-dataset-eval-limit -- TrainRow survives .limit() pass-through
     _ = df.limit(10000).toPandas()

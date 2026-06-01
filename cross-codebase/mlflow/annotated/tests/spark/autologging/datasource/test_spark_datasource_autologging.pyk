@@ -45,9 +45,12 @@ class Numbers(Schema):
 def chained_filter_select_limit_demo(df: DataFrame[Numbers]) -> None:
     """Mirrors the dfs list in
     test_autologging_of_datasources_with_different_formats."""
+# PROBE-RESOLVES: id=mlflow-autolog-filter-number1 -- number1 resolves in filter under Numbers
     df.filter(col("number1") > 0)
+# PROBE-RESOLVES: id=mlflow-autolog-select-number1 -- number1 resolves in narrow select
     df.select("number1")
     df.limit(2)
+# PROBE-RESOLVES: id=mlflow-autolog-chain-filter-select-limit -- number1 survives filter+select+limit chain
     df.filter(col("number1") > 0).select("number1").limit(2)
 
 
@@ -56,6 +59,7 @@ def sql_query_result_demo(df: DataFrame[Numbers]) -> None:
     5')` — the SQL is opaque to pykrete; the user re-anchors with a
     `.cast(DataFrame[Numbers])` and downstream column refs are then
     checked normally."""
+# PROBE-RESOLVES: id=mlflow-autolog-sql-select-both-numbers -- both number1 and number2 resolve after .cast
     df.select(col("number1"), col("number2"))
 
 
