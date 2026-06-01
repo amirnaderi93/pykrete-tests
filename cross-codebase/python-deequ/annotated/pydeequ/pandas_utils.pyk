@@ -35,9 +35,11 @@ def pandas_to_pyspark_demo(spark: SparkSession, pandas_df) -> DataFrame[Customer
     _ = (columns, types)
     # In real code, build_struct_type(columns, types) constructs a
     # StructType; we treat the resulting createDataFrame as opaque.
+# PROBE-RESOLVES: id=deequ-pandas-utils-recast -- CustomerRow re-anchor on opaque createDataFrame
     return spark.createDataFrame(pandas_df, schema=None).cast(DataFrame[CustomerRow])
 
 
 def pyspark_to_pandas_demo(df: DataFrame[CustomerRow]):
     """Mirrors PandasConverter.pysparkDF_to_pandasDF."""
+# PROBE-RESOLVES: id=deequ-pandas-utils-toPandas -- CustomerRow survives .toPandas() pass-through
     return df.toPandas()

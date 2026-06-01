@@ -39,6 +39,7 @@ def build_df_demo(spark: SparkSession) -> None:
     """Mirrors setUpClass — sc.parallelize(rows).toDF() is opaque so
     .cast pins the InputRow schema."""
     sc = spark.sparkContext
+# PROBE-RESOLVES: id=deequ-analyzers-input-recast -- InputRow anchored after opaque .toDF()
     df = sc.parallelize([
         Row(a="foo", b=1, c=5, d=1),
         Row(a="bar", b=2, c=6, d=3),
@@ -54,4 +55,5 @@ def metric_round_trip_demo(spark: SparkSession, result_json: str) -> None:
     df_from_json = spark.read.json(sc.parallelize([result_json])).cast(
         DataFrame[MetricRow]
     )
+# PROBE-RESOLVES: id=deequ-analyzers-metric-select-value -- value resolves under MetricRow after re-anchor
     df_from_json.select("value").collect()
