@@ -12,6 +12,7 @@
 # Schema: the CSVs read by these tests carry two integer columns,
 # `number1` and `number2` (see the literal SQL query on line 39 of the
 # upstream file: `SELECT number1, number2 from temptable LIMIT 5`).
+# PROBE-FILE-COUNT: D0030 == 0 -- entire fixture references only number1/number2 declared on Numbers
 import time
 from unittest import mock
 

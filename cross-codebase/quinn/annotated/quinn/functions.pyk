@@ -28,6 +28,8 @@
 #   - Column ops: .eqNullSafe, .isNull, .isNotNull, .isin, .between, []
 #   - Bitwise &, |, ~ for Column composition
 
+# PROBE-FILE-CLEAN-OF: D0030 -- quinn function surface refs only columns declared on the typed schemas
+# PROBE-FILE-COUNT: D0030 == 0 -- explicit zero-count contract for unknown-column refs in this file
 from __future__ import annotations
 
 import pyspark.sql.functions as F

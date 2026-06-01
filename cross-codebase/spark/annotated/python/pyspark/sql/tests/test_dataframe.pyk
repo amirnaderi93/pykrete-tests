@@ -36,6 +36,8 @@
 #   - .hint("broadcast"), .hint("REBALANCE", "col")
 #   - .cache / .persist / .unpersist (all pass-through)
 
+# PROBE-FILE-CLEAN-OF: D0030 -- all dataframe-method demos resolve only declared schema columns
+# PROBE-FILE-COUNT: D0030 == 0 -- regression contract: no unknown-column refs across the file
 from pyspark.sql import Row, functions, DataFrame
 from pyspark.sql.functions import col, lit, count, struct, array, explode
 from pyspark.testing import assertDataFrameEqual
@@ -79,6 +81,8 @@ def drop_demo(df: DataFrame[NameAgeActive]) -> None:
     df.drop("active")
 # PROBE-RESOLVES: id=spark-test-df-drop-col -- name resolves through col() arg to drop
     df.drop(col("name"))
+# PROBE-RESOLVES: id=spark-test-df-drop-stacked-name -- stacked: name resolves on multi-col drop
+# PROBE-RESOLVES: id=spark-test-df-drop-stacked-age -- stacked: age resolves on the same multi-col drop
     df.drop(col("name"), col("age"))
 
 
