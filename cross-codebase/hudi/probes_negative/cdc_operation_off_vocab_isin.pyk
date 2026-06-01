@@ -1,11 +1,15 @@
 # probes_negative/ fixture — deliberately broken, NOT donor-faithful.
 # Derived from the Hudi CDC pattern in
 # annotated/hudi-examples/.../cdc_operation_enum.pyk; uses the
-# HudiCDCTrip schema (only _hoodie_operation here) but typos
-# 'upset' inside an .isin() against the documented Hudi CDC
-# vocabulary {insert, upsert, delete, bulk_insert}.
+# HudiCDCTrip schema (only _hoodie_operation here) but typos the
+# vocab value '-u' (lowercase) inside an .isin() against Hudi's
+# authentic _hoodie_operation vocabulary {"I", "-U", "U", "D"}
+# (per apache/hudi HoodieOperation.java).
 #
-# Failure mode exercised: off-enum literal in .isin (D0084).
+# Failure mode exercised: case-mismatched off-enum literal in .isin
+# (D0084) — a real silent-bug pattern when CDC payloads get
+# accidentally lowercased upstream. The Levenshtein-closest in-vocab
+# value is '-U', which the diagnostic surfaces as the suggestion.
 
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col
@@ -13,9 +17,9 @@ from pyspark.sql.functions import col
 
 class HudiCDCTripNeg(Schema):
     uuid: string
-    _hoodie_operation: enum["insert", "upsert", "delete", "bulk_insert"]
+    _hoodie_operation: enum["I", "-U", "U", "D"]
 
 
 def filter_typo_isin(cdc: DataFrame[HudiCDCTripNeg]) -> DataFrame[HudiCDCTripNeg]:
-# PROBE-EXPECTS: D0084 on "\"upset\"" id=hudi-cdc-neg-off-vocab-isin -- typo'd CDC operation triggers enumValueMismatch inside .isin
-    return cdc.filter(col("_hoodie_operation").isin("insert", "upset"))
+# PROBE-EXPECTS: D0084 on "\"-u\"" id=hudi-cdc-neg-off-vocab-isin -- case-mismatched CDC operation triggers enumValueMismatch inside .isin
+    return cdc.filter(col("_hoodie_operation").isin("I", "-u"))

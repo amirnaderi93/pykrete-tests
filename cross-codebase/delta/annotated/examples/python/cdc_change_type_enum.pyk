@@ -68,6 +68,9 @@ def updates_only(cdc: DataFrame[StudentCDC]) -> DataFrame[StudentCDC]:
     )
 
 
+# NOTE: v1.1 withColumn(name, lit(...)) checks the literal against the sink's enum
+# constraint but does NOT preserve the constraint on the output column. Return type
+# relaxed to DataFrame; v1.2 tracker in literal-value-vocabulary.md polish backlog.
 def rewrite_as_deletes(cdc: DataFrame[StudentCDC]) -> DataFrame:
 # PROBE-RESOLVES: id=delta-cdc-enum-withcolumn-delete -- in-vocab lit on enum sink does not fire D0084
     return cdc.withColumn("_change_type", lit("delete"))

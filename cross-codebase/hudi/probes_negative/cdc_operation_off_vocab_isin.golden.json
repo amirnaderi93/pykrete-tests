@@ -2,17 +2,17 @@
   "diagnostics": [
     {
       "code": "D0084",
-      "column": 63,
-      "endColumn": 70,
-      "endLine": 21,
+      "column": 58,
+      "endColumn": 62,
+      "endLine": 25,
       "file": "hudi/probes_negative/cdc_operation_off_vocab_isin.pyk",
-      "line": 21,
-      "message": "'upset' is not in the enum vocabulary for '_hoodie_operation'. Did you mean 'upsert'?",
+      "line": 25,
+      "message": "'-u' is not in the enum vocabulary for '_hoodie_operation'. Did you mean '-U'?",
       "relatedInformation": [],
       "ruleName": "enumValueMismatch",
       "severity": "error",
       "source": "pykrete",
-      "suggestion": "upsert"
+      "suggestion": "-U"
     }
   ],
   "schemaVersion": "1",

@@ -17,16 +17,23 @@
 # Annotated for pykrete from the Hudi CDC pattern at apache/hudi,
 # pinned-commit fc85e3ea. The base trip surface (uuid/partitionpath/
 # fare/...) is mirrored from HoodiePySparkQuickstart.py; the
-# _hoodie_operation column is sourced from Hudi's CDC-emitter
-# documentation (hudi.apache.org/.../change-data-capture.html), where
-# each CDC record carries the write operation that produced it. The
-# documented vocabulary is {insert, upsert, delete, bulk_insert}.
+# _hoodie_operation column carries the per-row CDC change-type emitted
+# by Hudi's incremental CDC reader.
+#
+# Vocabulary per apache/hudi HoodieOperation.java:
+#   "I"  = INSERT
+#   "-U" = UPDATE_BEFORE (pre-image)
+#   "U"  = UPDATE_AFTER  (post-image)
+#   "D"  = DELETE
+# (Note: the {insert, upsert, delete, bulk_insert} strings live in
+# WriteOperationType.java — that is commit-time write metadata, not the
+# per-row _hoodie_operation column vocabulary.)
 #
 # Features covered:
-#   - .filter(col("_hoodie_operation") == lit("upsert"))
-#   - .filter(col("_hoodie_operation").isin("insert", "bulk_insert"))
+#   - .filter(col("_hoodie_operation") == lit("U"))
+#   - .filter(col("_hoodie_operation").isin("I", "U"))
 #   - groupBy("_hoodie_operation") preserves the enum-typed key
-#   - F.expr("_hoodie_operation = 'delete'") SQL fragment equality
+#   - F.expr("_hoodie_operation = 'D'") SQL fragment equality
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, lit
@@ -38,7 +45,7 @@ class HudiCDCTrip(Schema):
     partitionpath: string
     ts: long
     fare: double
-    _hoodie_operation: enum["insert", "upsert", "delete", "bulk_insert"]
+    _hoodie_operation: enum["I", "-U", "U", "D"]
 
 
 def read_cdc_view(spark: SparkSession, base_path: str) -> DataFrame[HudiCDCTrip]:
@@ -51,15 +58,15 @@ def read_cdc_view(spark: SparkSession, base_path: str) -> DataFrame[HudiCDCTrip]
     )
 
 
-def only_upserts(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
-# PROBE-RESOLVES: id=hudi-cdc-enum-upserts-eq -- _hoodie_operation resolves and == in-vocab lit is clean
-    return cdc.filter(col("_hoodie_operation") == lit("upsert"))
+def only_updates_after(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
+# PROBE-RESOLVES: id=hudi-cdc-enum-updates-eq -- _hoodie_operation resolves and == in-vocab lit is clean
+    return cdc.filter(col("_hoodie_operation") == lit("U"))
 
 
-def initial_loads(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
-# PROBE-RESOLVES: id=hudi-cdc-enum-initial-isin -- .isin with two in-vocab literals is clean
+def inserts_and_updates(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
+# PROBE-RESOLVES: id=hudi-cdc-enum-inserts-isin -- .isin with two in-vocab literals is clean
     return cdc.filter(
-        col("_hoodie_operation").isin("insert", "bulk_insert")
+        col("_hoodie_operation").isin("I", "U")
     )
 
 
@@ -70,4 +77,4 @@ def counts_per_op(cdc: DataFrame[HudiCDCTrip]):
 
 def deletes_via_expr(cdc: DataFrame[HudiCDCTrip]) -> DataFrame[HudiCDCTrip]:
 # PROBE-RESOLVES: id=hudi-cdc-enum-expr-delete -- F.expr equality with in-vocab literal is clean
-    return cdc.filter(F.expr("_hoodie_operation = 'delete'"))
+    return cdc.filter(F.expr("_hoodie_operation = 'D'"))

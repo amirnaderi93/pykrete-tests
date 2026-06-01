@@ -8,6 +8,8 @@ specific diagnostic.
 - `cdc_operation_off_vocab_isin.pyk` — HudiCDCTripNeg shape from the
   Hudi CDC pattern (sibling
   `annotated/hudi-examples/.../cdc_operation_enum.pyk`). The
-  `_hoodie_operation` column is `enum["insert", "upsert", "delete",
-  "bulk_insert"]`; this fixture typos `'upset'` inside an `.isin(...)`
-  call, forcing D0084 (`enumValueMismatch`).
+  `_hoodie_operation` column is `enum["I", "-U", "U", "D"]` — the
+  authentic per-row vocabulary per apache/hudi `HoodieOperation.java`
+  (Insert / Update-pre / Update-post / Delete). This fixture typos the
+  lowercased `'-u'` inside an `.isin(...)` call, forcing D0084
+  (`enumValueMismatch`) with Levenshtein-closest suggestion `'-U'`.
