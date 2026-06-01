@@ -115,20 +115,24 @@ build — that's the release-blocking contract.
 
 ## Schema-tracking probes (v1.1)
 
-Every pykrete release is regression-tested against **111
-schema-tracking probes** across **40 fixtures from 10 upstream
-codebases** — Apache Spark, Delta Lake, Apache Iceberg
-(iceberg-python), Apache Hudi, MLflow, Feast, Kedro (kedro-plugins),
-quinn, dbt-spark, and python-deequ. Probes are inline `# PROBE-*`
-comment markers in `.pyk` fixtures that the runner expands into
-synthetic checks against `pykrete check --format json`. Positive
-probes assert columns resolve cleanly after schema-changing
-operations (`.select`, `.filter`, `.withColumn`); negative probes
-assert specific diagnostics fire on deliberately-corrupted fixtures.
+Every pykrete release is regression-tested with **111
+schema-tracking probes** from 10 upstream codebases — Apache Spark,
+Delta Lake, Apache Iceberg (iceberg-python), Apache Hudi, MLflow,
+Feast, Kedro (kedro-plugins), quinn, dbt-spark, and python-deequ.
+The repo vendors **41 fixtures** on disk (32 annotated + 9 negative
+under `probes_negative/`); the **111 probes cover 40 of those** (31
+annotated + 9 negative — the feast `spark_kafka_processor` streaming
+fixture is annotated but probe-free because it has no typed-DataFrame
+slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
+markers in `.pyk` fixtures that the runner expands into synthetic
+checks against `pykrete check --format json`. Positive probes assert
+columns resolve cleanly after schema-changing operations (`.select`,
+`.filter`, `.withColumn`); negative probes assert specific diagnostics
+fire on deliberately-corrupted fixtures.
 
-- **97 positive probes** across 31 annotated fixtures verify column
-  resolution and post-narrowing flow.
-- **14 negative probes** across 9 deliberately-corrupted fixtures
+- **97 positive probes** across 31 of the 32 annotated fixtures
+  verify column resolution and post-narrowing flow.
+- **14 negative probes** across all 9 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing (D0030
   unknownColumn, D0081 nonNumericArithmetic, D0082
   crossTypeComparison).
