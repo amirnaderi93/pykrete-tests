@@ -105,35 +105,42 @@ class IdNameAge(Schema):
 def ser_to_frame_udf_demo(df: DataFrame[LongStringStruct]) -> None:
     """Mirrors ser_to_frame_pandas_udf_example — pandas_udf called with
     three bare-string positional args, each a column name on `df`."""
+# PROBE-RESOLVES: id=spark-arrow-frame-udf-cols -- all three column names resolve under LongStringStruct
     df.select(func("long_col", "string_col", "struct_col"))
 
 
 def ser_to_ser_udf_demo(df: DataFrame[X]) -> None:
     """Mirrors ser_to_ser_pandas_udf_example — udf called with col() refs."""
+# PROBE-RESOLVES: id=spark-arrow-ser-to-ser-x -- x resolves twice under X schema
     df.select(multiply(col("x"), col("x")))
 
 
 def iter_ser_udf_demo(df: DataFrame[X]) -> None:
     """Mirrors iter_ser_to_iter_ser_pandas_udf_example — udf with a
     single bare-string column arg."""
+# PROBE-RESOLVES: id=spark-arrow-iter-ser-x -- x resolves through plus_one udf
     df.select(plus_one("x"))
 
 
 def iter_sers_udf_demo(df: DataFrame[X]) -> None:
     """Mirrors iter_sers_to_iter_ser_pandas_udf_example — udf with two
     bare-string column args (same column used twice)."""
+# PROBE-RESOLVES: id=spark-arrow-iter-sers-x -- x resolves on both udf positional args
     df.select(multiply_two_cols("x", "x"))
 
 
 def scalar_udf_and_window_demo(df: DataFrame[IdV]) -> None:
     """Mirrors ser_to_scalar_pandas_udf_example — scalar pandas_udf
     over both a plain DataFrame and a Window partitioned on `id`."""
+# PROBE-RESOLVES: id=spark-arrow-mean-v -- v resolves on bracket-access df["v"]
     df.select(mean_udf(df["v"]))
+# PROBE-RESOLVES: id=spark-arrow-groupby-id -- id resolves as groupby key
     df.groupby("id").agg(mean_udf(df["v"]))
     w = (
         Window.partitionBy("id")
         .rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
     )
+# PROBE-RESOLVES: id=spark-arrow-withColumn-mean-v -- v resolves inside withColumn over window
     df.withColumn("mean_v", mean_udf(df["v"]).over(w))
 
 
@@ -161,6 +168,7 @@ def cogrouped_apply_in_pandas_demo(
 def arrow_python_udf_demo(df: DataFrame[IdNameAge]) -> None:
     """Mirrors arrow_python_udf_example — two UDFs side-by-side, both
     called with the same bare-string column name."""
+# PROBE-RESOLVES: id=spark-arrow-py-udf-name -- name resolves through both udf wrappers
     df.select(slen("name"), arrow_slen("name"))
 
 

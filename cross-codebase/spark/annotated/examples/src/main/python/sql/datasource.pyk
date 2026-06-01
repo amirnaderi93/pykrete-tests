@@ -89,11 +89,13 @@ def csv_options_chain(spark: SparkSession) -> None:
     checks."""
     path = "examples/src/main/resources/people.csv"
     df3 = spark.read.option("delimiter", ";").option("header", True).csv(path).cast(DataFrame[People])
+# PROBE-RESOLVES: id=spark-datasource-csv-select -- name and age survive post-cast .select
     df3.select("name", "age").show()
 
 
 def users_select_then_write(users_df: DataFrame[Users]) -> None:
     """Mirrors the select+write split from basic_datasource_example."""
+# PROBE-RESOLVES: id=spark-datasource-users-select -- name and favorite_color resolve under Users
     users_df.select("name", "favorite_color").write.save("namesAndFavColors.parquet")
 
 

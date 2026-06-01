@@ -33,6 +33,7 @@
 #   - df.select(df['name'], <arithmetic_col>) multi-arg select with
 #     a column-reference arg + a computed column arg
 
+# PROBE-FILE-CLEAN-OF: D0030 -- entire fixture references only People columns
 from pyspark.sql import SparkSession
 
 
@@ -46,9 +47,13 @@ def basic_df_demo(spark: SparkSession, df: DataFrame[People]) -> None:
     df.show()
     df.printSchema()
 
+# PROBE-RESOLVES: id=spark-basic-select-name -- name survives narrow string-form select
     df.select("name").show()
+# PROBE-RESOLVES: id=spark-basic-bracket-name-age -- name and age resolve via df['...']
     df.select(df['name'], df['age'] + 1).show()
+# PROBE-RESOLVES: id=spark-basic-filter-age -- age resolves in filter comparison
     df.filter(df['age'] > 21).show()
+# PROBE-RESOLVES: id=spark-basic-groupBy-age -- age survives as groupBy key
     df.groupBy("age").count().show()
 
     df.createOrReplaceTempView("people")

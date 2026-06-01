@@ -64,8 +64,10 @@ class KV(Schema):
 def explode_demo(data: DataFrame[CollectionRow]) -> None:
     """Mirrors test_explode."""
     # array<int> → int (single column)
+# PROBE-RESOLVES: id=spark-test-fn-explode-intlist -- intlist resolves through F.explode arg
     data.select(F.explode(data.intlist).alias("a")).select("a").collect()
     # map<string,string> → key + value columns (multi-alias)
+# PROBE-RESOLVES: id=spark-test-fn-explode-mapfield -- mapfield resolves through F.explode arg
     data.select(F.explode(data.mapfield).alias("a", "b")).select("a", "b").collect()
     # posexplode_outer on a bare-string column ref
     data.select(F.posexplode_outer("intlist")).collect()
@@ -79,14 +81,19 @@ def math_functions_demo(df: DataFrame[AB]) -> None:
     """Mirrors test_math_functions. Each F.* below is recognised in
     the COLUMN_REF list or has its first arg checked; mixed col+lit
     args are common in real code."""
+# PROBE-RESOLVES: id=spark-test-fn-cos-attr -- a resolves via attribute access in F.cos
     df.select(F.cos(df.a)).collect()
+# PROBE-RESOLVES: id=spark-test-fn-cos-string -- a resolves via bare-string in F.cos
     df.select(F.cos("a")).collect()
     df.select(F.sin(df.a)).collect()
+# PROBE-RESOLVES: id=spark-test-fn-sin-bracket -- a resolves via df["a"] bracket access
     df.select(F.sin(df["a"])).collect()
+# PROBE-RESOLVES: id=spark-test-fn-pow-attr -- both a and b resolve in F.pow
     df.select(F.pow(df.a, df.b)).collect()
     df.select(F.pow(df.a, 2)).collect()
     df.select(F.pow(df.a, 2.0)).collect()
     df.select(F.hypot(df.a, df.b)).collect()
+# PROBE-RESOLVES: id=spark-test-fn-hypot-strings -- both a and b resolve in F.hypot via bare strings
     df.select(F.hypot("a", "b")).collect()
     df.select(F.hypot("a", 2)).collect()
     df.select(F.hypot(df.a, 2)).collect()
@@ -95,6 +102,7 @@ def math_functions_demo(df: DataFrame[AB]) -> None:
 def rand_functions_demo(df: DataFrame[KV]) -> None:
     """Mirrors test_rand_functions. F.rand / F.randn are no-arg or
     take a seed; both forms exercised here."""
+# PROBE-RESOLVES: id=spark-test-fn-rand-key -- key resolves alongside zero-arg F.rand
     df.select("key", F.rand()).collect()
     df.select("key", F.randn(5)).collect()
     df.select("key", F.rand(0)).collect()

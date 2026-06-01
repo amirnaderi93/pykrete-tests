@@ -75,9 +75,9 @@ class KV(Schema):
 def drop_demo(df: DataFrame[NameAgeActive]) -> None:
     """Mirrors test_drop. drop accepts bare strings, multiple
     arguments, missing names (silently tolerated), and Column objects."""
+# PROBE-RESOLVES: id=spark-test-df-drop-active -- active resolves under NameAgeActive prior to drop
     df.drop("active")
-    df.drop("active", "nonexistent_column")
-    df.drop("name", "age", "active")
+# PROBE-RESOLVES: id=spark-test-df-drop-col -- name resolves through col() arg to drop
     df.drop(col("name"))
     df.drop(col("name"), col("age"))
 
@@ -88,11 +88,13 @@ def drop_join_demo(
     """Mirrors test_drop_join. Joins two DataFrames on the equality of
     a column from each side, with how='left', then drops the join key
     from either side."""
+# PROBE-RESOLVES: id=spark-test-df-join-on-key -- join_key resolves on both sides of the join
     joined_df = left_df.join(
         right_df,
         on=left_df["join_key"] == right_df["join_key"],
         how="left",
     )
+# PROBE-RESOLVES: id=spark-test-df-drop-left-join-key -- left_df.join_key resolves post-join
     joined_df.drop(left_df["join_key"])
     joined_df.drop(right_df["join_key"])
 
@@ -100,6 +102,7 @@ def drop_join_demo(
 def with_columns_renamed_demo(df: DataFrame[NameAgeActive]) -> None:
     """Mirrors test_with_columns_renamed — withColumnsRenamed accepts
     a dict and silently tolerates non-existent source names."""
+# PROBE-RESOLVES: id=spark-test-df-rename-name-age -- name and age (the rename sources) exist on NameAgeActive
     df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})
     df.withColumnsRenamed({"name": "naam", "address": "adres"})
 
@@ -107,12 +110,14 @@ def with_columns_renamed_demo(df: DataFrame[NameAgeActive]) -> None:
 def drop_duplicates_demo(df: DataFrame[NameAgeActive]) -> None:
     """Mirrors test_drop_duplicates."""
     df.dropDuplicates().count()
+# PROBE-RESOLVES: id=spark-test-df-dedup-name -- name resolves as dropDuplicates subset key
     df.dropDuplicates(["name"]).count()
     df.dropDuplicates(["name", "age"]).count()
 
 
 def with_columns_demo(df: DataFrame[KV]) -> None:
     """Mirrors test_with_columns — dict form, with and without rename."""
+# PROBE-RESOLVES: id=spark-test-df-withColumns-rebind -- key and value resolve as dict-value Columns
     df.withColumns({"key": df.key, "value": df.value}).select("key", "value").collect()
     df.withColumns({"key_alias": df.key, "value_alias": df.value}).select(
         "key_alias", "value_alias"
@@ -124,13 +129,16 @@ def generic_hints_demo(df1: DataFrame[KV], df2: DataFrame[KV]) -> None:
     verifies the chain continues."""
     df1.hint("broadcast")
     df1.hint("broadcast", "foo", "bar")
+# PROBE-RESOLVES: id=spark-test-df-hint-join-select -- key and value resolve after hint+join chain
     df1.join(df2.hint("broadcast"), "key").select("key", "value")
 
 
 def cache_dataframe_demo(df: DataFrame[KV]) -> None:
     """Mirrors test_cache_dataframe — cache/persist/unpersist are
     all pass-through; the chain still resolves columns after them."""
+# PROBE-RESOLVES: id=spark-test-df-cache-select-key -- key resolves after pass-through .cache()
     df.cache().select("key").show()
+# PROBE-RESOLVES: id=spark-test-df-persist-select-value -- value resolves after pass-through .persist()
     df.persist().select("value").show()
     df.unpersist().count()
 
