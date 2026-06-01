@@ -30,6 +30,7 @@ def model(dbt, spark: SparkSession) -> DataFrame[TwoIntCols]:
     is opaque; the .cast pins the return shape."""
     dbt.config(materialized='table')
     data = [[1, 2]] * 10
+# PROBE-RESOLVES: id=dbt-spark-model-recast -- TwoIntCols re-anchor on opaque createDataFrame return
     return spark.createDataFrame(data, schema=['test1', 'test3']).cast(
         DataFrame[TwoIntCols]
     )
