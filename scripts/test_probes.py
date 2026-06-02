@@ -495,10 +495,15 @@ class SynthesizerRound2Tests(unittest.TestCase):
         # Marker at column 0 per spec; its target line resolves to the next
         # logical statement, which is inside `f`. The injected expression
         # must be indented to match the function body, not appended at
-        # module scope where `d` is undefined.
+        # module scope where `d` is undefined. v1.2: the enclosing function
+        # must declare a DataFrame[Schema] parameter for the synth to bind;
+        # use `def f(d: DataFrame[S])` so the helper resolves df_ident = "d".
         src = _src(
             "from pykrete import col, lit",
-            "def f(d):",
+            "from pyspark.sql import DataFrame",
+            "class S(Schema):",
+            "    name: string",
+            "def f(d: DataFrame[S]):",
             "    if True:",
             "# PROBE-TYPE-IS: string on \"name\"",
             "        x = d.select(\"name\")",
@@ -514,8 +519,13 @@ class SynthesizerRound2Tests(unittest.TestCase):
         for line in injected:
             self.assertTrue(line.startswith("    "),
                             f"injected line not indented inside function: {line!r}")
+            # v1.2: synth wraps in `{df_ident}.select(...)` for typed binding.
+            self.assertIn("d.select(", line)
 
-    def test_b2_type_is_synth_appends_at_module_scope(self):
+    def test_v12_module_scope_probe_is_unsynthesizable(self):
+        # v1.2: module-scope target has no enclosing FunctionDef.args to
+        # walk; the probe falls through to the unsynthesizable path. No
+        # silent pass — the expectation is recorded as <unsynthesizable>.
         src = _src(
             "from pykrete import col, lit",
             "# PROBE-TYPE-IS: string on \"name\"",
@@ -524,12 +534,13 @@ class SynthesizerRound2Tests(unittest.TestCase):
         probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
         type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
         plan = probes._synthesize_type_probes(src, type_probes)
-        synth_lines = plan.appended_source.splitlines()
-        injected = [line for line in synth_lines if "_pyk_probe_" in line]
-        self.assertTrue(injected)
-        for line in injected:
-            self.assertFalse(line.startswith(" "),
-                             f"module-scope injection got indented: {line!r}")
+        self.assertEqual(len(plan.expectations), 1)
+        _, target_code, _ = plan.expectations[0]
+        self.assertEqual(target_code, "<unsynthesizable>")
+        # Synth source carries no injected probe statement.
+        injected = [line for line in plan.appended_source.splitlines()
+                    if "_pyk_probe_" in line]
+        self.assertEqual(injected, [])
 
     def test_b6_dotted_id_yields_valid_python_ident(self):
         ident = probes._safe_ident("a.b-c", 0)
@@ -554,6 +565,153 @@ class SynthesizerRound2Tests(unittest.TestCase):
         # Triple-nested: chained getField.
         expr3 = probes._column_accessor("a.b.c")
         self.assertEqual(expr3, "col('a').getField('b').getField('c')")
+
+
+class V12FirstDataFrameParamTests(unittest.TestCase):
+    """v1.2: AST param-resolution helper for the PROBE-TYPE-IS scope-binding fix.
+
+    Covers the annotation-shape policy locked in the v1.2 spec:
+    - bare `DataFrame[Schema]` -> match
+    - generic wrappers (list[...], Optional[...], Union[...], PEP 604 `... | None`) -> skip
+    - string forward refs -> skip (not parsed)
+    - type aliases -> skip (no name binder)
+    - bare `DataFrame` (no schema parameter) -> skip
+    - variadics (*args, **kwargs) -> skip
+    - module-scope (no enclosing FunctionDef) -> None at caller
+    """
+
+    import ast as _ast
+
+    def _func(self, src: str) -> "probes.ast.FunctionDef":
+        import ast
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                return node
+        raise AssertionError(f"no FunctionDef in source: {src!r}")
+
+    def test_single_dataframe_param(self):
+        src = "def f(df: DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_two_dataframe_params_first_wins(self):
+        src = "def f(a: DataFrame[A], b: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "a")
+
+    def test_optional_dataframe_skipped(self):
+        # Optional[DataFrame[A]] is a generic wrapper; falls through.
+        src = "def f(maybe: Optional[DataFrame[A]], df: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_list_dataframe_skipped(self):
+        src = "def f(dfs: list[DataFrame[A]], df: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_string_forward_ref_skipped(self):
+        # String forward refs are ast.Constant, not ast.Subscript; not parsed.
+        src = 'def f(df: "DataFrame[A]") -> DataFrame: ...'
+        self.assertIsNone(probes._first_dataframe_param(self._func(src)))
+
+    def test_bare_dataframe_skipped(self):
+        # No schema parameter -> annotation is ast.Name, not ast.Subscript.
+        src = "def f(df: DataFrame) -> DataFrame: ..."
+        self.assertIsNone(probes._first_dataframe_param(self._func(src)))
+
+    def test_variadic_args_skipped(self):
+        # *args / **kwargs are never named scalar bindings.
+        src = "def f(*dfs: DataFrame[A], **kwargs: DataFrame[B]) -> DataFrame: ..."
+        self.assertIsNone(probes._first_dataframe_param(self._func(src)))
+
+    def test_pep604_optional_skipped(self):
+        # `DataFrame[A] | None` is ast.BinOp(|), not Subscript.
+        src = "def f(maybe: DataFrame[A] | None, df: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_keyword_only_dataframe_matches(self):
+        # Positional-or-keyword first, then keyword-only — `kw` is the only
+        # DataFrame param so it wins.
+        src = "def f(x: int, *, kw: DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "kw")
+
+    def test_positional_only_first(self):
+        # Positional-only walked first.
+        src = "def f(a: DataFrame[A], /, b: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "a")
+
+    def test_qualified_dataframe_name(self):
+        # `pykrete.types.DataFrame[X]` — attribute chain ending in DataFrame.
+        src = "def f(df: pykrete.types.DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_module_scope_returns_none(self):
+        # `_enclosing_function` returns None at module scope; the synth
+        # path treats that as unsynthesizable per spec.
+        src = _src(
+            "from pykrete import col, lit",
+            "x = 1",
+        )
+        self.assertIsNone(probes._enclosing_function(src, 2))
+
+
+class V12SynthRewriteTests(unittest.TestCase):
+    """v1.2: synthesizer wraps in `{df_ident}.select(...)` and tags
+    unsynthesizable on missing DataFrame parameter or module-scope target."""
+
+    def test_synth_wraps_in_df_select(self):
+        src = _src(
+            "from pyspark.sql import DataFrame",
+            "from pyspark.sql.functions import col, lit",
+            "class S(Schema):",
+            "    label: string",
+            "def f(df: DataFrame[S]) -> DataFrame:",
+            "# PROBE-TYPE-IS: string on \"label\"",
+            "    return df",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        self.assertEqual(len(type_probes), 1)
+        plan = probes._synthesize_type_probes(src, type_probes)
+        synth = plan.appended_source
+        # Synth must wrap the accessor in df.select(...) using the first
+        # DataFrame[Schema] param's ident.
+        self.assertIn("df.select(col('label') + lit(1))", synth)
+        # And tag as the D0081 target (string -> non-numeric arithmetic).
+        self.assertEqual(plan.expectations[0][1], "D0081")
+
+    def test_synth_picks_first_dataframe_param(self):
+        # Two DataFrame params; first-wins binds to `a`.
+        src = _src(
+            "from pyspark.sql import DataFrame",
+            "from pyspark.sql.functions import col, lit",
+            "class A(Schema):",
+            "    label: string",
+            "class B(Schema):",
+            "    label: string",
+            "def f(a: DataFrame[A], b: DataFrame[B]) -> DataFrame:",
+            "# PROBE-TYPE-IS: string on \"label\"",
+            "    return a",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        plan = probes._synthesize_type_probes(src, type_probes)
+        self.assertIn("a.select(col('label') + lit(1))", plan.appended_source)
+
+    def test_synth_unsynthesizable_when_no_dataframe_param(self):
+        # Function takes a non-DataFrame parameter — probe is unsynthesizable
+        # per the v1.2 "no silent pass" rule, not synthesized as a bare expr.
+        src = _src(
+            "from pyspark.sql.functions import col, lit",
+            "def f(spark):",
+            "# PROBE-TYPE-IS: string on \"label\"",
+            "    return spark",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        plan = probes._synthesize_type_probes(src, type_probes)
+        self.assertEqual(plan.expectations[0][1], "<unsynthesizable>")
+        injected = [line for line in plan.appended_source.splitlines()
+                    if "_pyk_probe_" in line]
+        self.assertEqual(injected, [])
 
 
 class VerifierRound2Tests(unittest.TestCase):
@@ -844,12 +1002,10 @@ class EndToEndSmokeTests(unittest.TestCase):
         self.assertEqual(failures, [], msg="\n".join(f.actual for f in failures))
 
     def test_type_is_synth_runs_without_crash(self):
-        # Exercise the full TYPE-IS synthesizer pipeline against a real
-        # pykrete binary. Asserts the pipeline runs end-to-end without
-        # raising (synthesis may legitimately be inconclusive — the spec
-        # acknowledges that some atomic types don't have a clean rewrite
-        # via D0080-D0082 at every binding site; the synthesizer reports
-        # such cases rather than silently passing).
+        # v1.2: the synth wraps the accessor in `{df_ident}.select(...)`,
+        # binding `col("region")` to orders' tracked schema. region IS string,
+        # so D0081 fires (lit(1) + string = non-numeric arithmetic) and the
+        # probe passes. v1.1 was silent-inconclusive here; v1.2 is honest.
         fixture = (
             "from pykrete import col, lit\n"
             "\n"
@@ -865,16 +1021,8 @@ class EndToEndSmokeTests(unittest.TestCase):
             path = Path(tmp) / "smoke_type.pyk"
             path.write_text(fixture, encoding="utf-8")
             probes_list, failures = probes.verify(path)
-        # Either passes (synth fired its expected D-code) or fails with a
-        # named "inconclusive" actual; both are acceptable. What we MUST
-        # never see is a crash or a silent vacuous pass that doesn't even
-        # detect the probe.
         self.assertEqual(len(probes_list), 1)
-        for f in failures:
-            self.assertTrue(
-                "inconclusive" in f.actual or "synthesizer cannot encode" in f.actual,
-                f"unexpected synthesis failure shape: {f.actual!r}",
-            )
+        self.assertEqual(failures, [], msg="\n".join(f.actual for f in failures))
 
 
 # ---------------------------------------------------------------------------
