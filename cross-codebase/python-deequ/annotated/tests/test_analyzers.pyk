@@ -51,6 +51,7 @@ def select_input_row_demo(df: DataFrame[InputRow]) -> None:
     """pykrete-typed helper: a and b resolve under InputRow;
     narrowed filter on b proves chain survives."""
 # PROBE-RESOLVES: id=deequ-analyzers-select-a-b -- a and b resolve under InputRow
+# PROBE-TYPE-IS: string on "a" id=deequ-analyzers-a-type -- v1.2 scope-binding: a is string in InputRow; synth fires D0081 on lit(1) + string
     df.select("a", "b").collect()
     narrowed = df.select("a", "b")
 # PROBE-RESOLVES: id=deequ-analyzers-narrowed-filter-b -- b resolves on narrowed result; broken .select() would lose b

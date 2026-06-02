@@ -36,6 +36,7 @@ def load_run_table(spark: SparkSession, path: str) -> DataFrame[RunInfo]:
 
 def finished_only(runs: DataFrame[RunInfo]) -> DataFrame[RunInfo]:
 # PROBE-RESOLVES: id=mlflow-runstatus-enum-finished-eq -- status resolves and == lit("FINISHED") is in-vocab
+# PROBE-TYPE-IS: string on "run_id" id=mlflow-runstatus-run-id-type -- v1.2 scope-binding: run_id is string in RunInfo; synth fires D0081 on lit(1) + string
     return runs.filter(col("status") == lit("FINISHED"))
 
 

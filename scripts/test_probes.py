@@ -1324,5 +1324,157 @@ class NegativeProbeCoverageRegressionTests(unittest.TestCase):
         )
 
 
+# ---------------------------------------------------------------------------
+# v1.2: per-D-code falsifiable mutation tests.
+#
+# Per the v1.2 spec ("Falsifiability requirement (per-fixture)"), every
+# PROBE-TYPE-IS marker and every cross-codebase PROBE-EXPECTS marker that
+# targets a typed D-code must be falsifiable: mutating the schema in-place
+# to invert the claim must stop the diagnostic from firing; reverting the
+# mutation must resume firing. The suite covers each of D0080 / D0081 /
+# D0082 with at least one falsifiable fixture; a probe that always passes
+# vacuously is indistinguishable from one that lost its signal, which is
+# the failure mode the v1.0 trust signals are built to detect.
+#
+# Each test below builds a fixture in a tmp dir, invokes pykrete, snaps
+# the diagnostic firing under the original schema, mutates the schema,
+# asserts the diagnostic stops, reverts, and asserts it fires again.
+# ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(
+    _pykrete_available(),
+    "PYKRETE_BIN not set / pykrete not on PATH; skipping mutation tests",
+)
+class V12PerDCodeFalsifiabilityTests(unittest.TestCase):
+    """One falsifiable case per typed D-code: D0080, D0081, D0082."""
+
+    def _check(self, source: str, tmpdir: Path) -> dict:
+        path = tmpdir / "fixture.pyk"
+        path.write_text(source, encoding="utf-8")
+        return probes._run_checker(path, strict=True)
+
+    def _has_code(self, result: dict, code: str) -> bool:
+        return any(d.get("code") == code for d in result.get("diagnostics") or [])
+
+    def test_d0081_falsifiable_via_probe_type_is(self):
+        # v1.2 PROBE-TYPE-IS marker claims `string on "label"`. Under
+        # `label: string` the synth fires D0081 in the scratch synth source
+        # and the probe passes. Under the mutation `label: int`, the synth
+        # `(col("label") + lit(1))` is valid numeric arithmetic, D0081
+        # does NOT fire, and the probe FAILS.
+        unmutated = (
+            "from pyspark.sql import DataFrame\n"
+            "from pyspark.sql.functions import col, lit\n"
+            "\n"
+            "class S(Schema):\n"
+            "    label: string\n"
+            "    amount: int\n"
+            "\n"
+            "def f(df: DataFrame[S]) -> DataFrame:\n"
+            "# PROBE-TYPE-IS: string on \"label\" id=d0081-falsify\n"
+            "    return df\n"
+        )
+        mutated = unmutated.replace("label: string", "label: int")
+        self.assertNotEqual(unmutated, mutated, "mutation must change the source")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "fixture.pyk"
+            # 1. Snap probe firing under the original schema -> passes.
+            path.write_text(unmutated, encoding="utf-8")
+            _, failures = probes.verify(path)
+            self.assertEqual(failures, [], "v1.2 synth must fire D0081 under label:string")
+            # 2. Mutate -> probe fails (D0081 no longer fires).
+            path.write_text(mutated, encoding="utf-8")
+            _, failures_mutated = probes.verify(path)
+            self.assertTrue(
+                failures_mutated,
+                "mutation label:string->int must silence D0081 and fail the probe",
+            )
+            # 3. Revert -> probe passes again.
+            path.write_text(unmutated, encoding="utf-8")
+            _, failures_reverted = probes.verify(path)
+            self.assertEqual(
+                failures_reverted, [],
+                "reverting the mutation must restore the D0081 firing",
+            )
+
+    def test_d0082_falsifiable_via_cross_type_comparison(self):
+        # D0082 fires on comparison between unrelated types. Under
+        # `value: string`, comparing `value` to `key: int` is cross-type
+        # and fires D0082; under the mutation `value: int`, the comparison
+        # is same-family and D0082 stops firing.
+        unmutated = (
+            "from pyspark.sql import DataFrame\n"
+            "from pyspark.sql.functions import col\n"
+            "\n"
+            "class KV(Schema):\n"
+            "    key: int\n"
+            "    value: string\n"
+            "\n"
+            "def f(df: DataFrame[KV]) -> DataFrame:\n"
+            "    return df.filter(col(\"value\") > col(\"key\"))\n"
+        )
+        mutated = unmutated.replace("value: string", "value: int")
+        self.assertNotEqual(unmutated, mutated)
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            r1 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r1, "D0082"),
+                "D0082 must fire under cross-type comparison value:string vs key:int",
+            )
+            r2 = self._check(mutated, d)
+            self.assertFalse(
+                self._has_code(r2, "D0082"),
+                "mutation value:string->int must silence D0082 (same-family comparison)",
+            )
+            r3 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r3, "D0082"),
+                "reverting the mutation must restore D0082 firing",
+            )
+
+    def test_d0080_falsifiable_via_return_type_mismatch(self):
+        # D0080 fires when a function's declared return schema disagrees
+        # with the inferred output. Under `scores: string` in Out, the
+        # body produces array<int> via collect_list and D0080 fires.
+        # Under the mutation `scores: Array[int]`, the declared and
+        # inferred types align and D0080 stops firing.
+        unmutated = (
+            "from pyspark.sql import DataFrame\n"
+            "from pyspark.sql import functions as F\n"
+            "\n"
+            "class In(Schema):\n"
+            "    name: string\n"
+            "    score: int\n"
+            "\n"
+            "class Out(Schema):\n"
+            "    name: string\n"
+            "    scores: string\n"
+            "\n"
+            "def f(d: DataFrame[In]) -> DataFrame[Out]:\n"
+            "    return d.groupBy(\"name\").agg(F.collect_list(\"score\").alias(\"scores\"))\n"
+        )
+        mutated = unmutated.replace("scores: string", "scores: Array[int]")
+        self.assertNotEqual(unmutated, mutated)
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            r1 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r1, "D0080"),
+                "D0080 must fire when Out.scores:string but body produces array<int>",
+            )
+            r2 = self._check(mutated, d)
+            self.assertFalse(
+                self._has_code(r2, "D0080"),
+                "mutation Out.scores->Array[int] must silence D0080 (schemas align)",
+            )
+            r3 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r3, "D0080"),
+                "reverting the mutation must restore D0080 firing",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
