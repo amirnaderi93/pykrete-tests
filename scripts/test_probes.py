@@ -6,6 +6,7 @@ Run: python -m unittest scripts/test_probes.py -v
 
 from __future__ import annotations
 
+import ast
 import os
 import shutil
 import subprocess
@@ -580,10 +581,7 @@ class V12FirstDataFrameParamTests(unittest.TestCase):
     - module-scope (no enclosing FunctionDef) -> None at caller
     """
 
-    import ast as _ast
-
-    def _func(self, src: str) -> "probes.ast.FunctionDef":
-        import ast
+    def _func(self, src: str) -> ast.FunctionDef:
         tree = ast.parse(src)
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
@@ -1347,7 +1345,30 @@ class NegativeProbeCoverageRegressionTests(unittest.TestCase):
     "PYKRETE_BIN not set / pykrete not on PATH; skipping mutation tests",
 )
 class V12PerDCodeFalsifiabilityTests(unittest.TestCase):
-    """One falsifiable case per typed D-code: D0080, D0081, D0082."""
+    """One falsifiable case per typed D-code: D0080, D0081, D0082.
+
+    Two patterns intentionally co-exist in this class — per the v1.2 spec
+    amendment "Per-D-code coverage" (`docs/design/schema-tracking-probes.md`,
+    section "Falsifiability requirement (per-fixture)"):
+
+    - **D0081** is exercised via the PROBE-TYPE-IS synth path. The v1.2
+      synth shape is arithmetic by construction
+      (`{df_ident}.select({accessor} + lit(1))`) and routes specifically
+      to D0081 (non-numeric arithmetic). `test_d0081_*` authors a
+      PROBE-TYPE-IS marker, snaps it through `probes.verify()`, mutates
+      the schema to invert the claim, and re-snaps.
+    - **D0080 and D0082** are exercised via raw schema-flip mutation
+      tests on hand-built fixtures fed straight to `probes._run_checker`.
+      The v1.2 synth shape cannot, by construction, route to D0080
+      (return-type-mismatch) or D0082 (cross-type-comparison), so these
+      D-codes can't ride the PROBE-TYPE-IS path in v1.2. v1.3 adds
+      additional PROBE-TYPE-IS synth shapes that route to those D-codes
+      (see v1.1-polish backlog entry "PROBE-TYPE-IS synth shapes for
+      D0080 / D0082" in the same spec file).
+
+    The reflective `V12FalsifiabilityCoverageGuard` (below) ensures none
+    of {D0080, D0081, D0082} silently loses its falsifiability test.
+    """
 
     def _check(self, source: str, tmpdir: Path) -> dict:
         path = tmpdir / "fixture.pyk"
@@ -1474,6 +1495,148 @@ class V12PerDCodeFalsifiabilityTests(unittest.TestCase):
                 self._has_code(r3, "D0080"),
                 "reverting the mutation must restore D0080 firing",
             )
+
+
+# ---------------------------------------------------------------------------
+# Reflective coverage guard. Per the v1.2 spec amendment "Per-D-code coverage"
+# (`docs/design/schema-tracking-probes.md`): the suite MUST contain at least
+# one falsifiable test per D-code in {D0080, D0081, D0082}. This guard fails
+# CI if a future refactor silently deletes one — closing the gap the spec
+# text alone cannot enforce.
+# ---------------------------------------------------------------------------
+
+
+EXPECTED_FALSIFIABLE_DCODES = frozenset({"D0080", "D0081", "D0082"})
+
+
+class V12FalsifiabilityCoverageGuard(unittest.TestCase):
+    """Fail CI if any expected D-code lacks a falsifiability test."""
+
+    def test_each_expected_dcode_has_falsifiability_test(self):
+        method_names = [
+            name for name in dir(V12PerDCodeFalsifiabilityTests)
+            if name.startswith("test_")
+        ]
+        for code in EXPECTED_FALSIFIABLE_DCODES:
+            token = code.lower()  # "d0081"
+            matches = [n for n in method_names if token in n]
+            self.assertTrue(
+                matches,
+                f"V12PerDCodeFalsifiabilityTests is missing a falsifiability "
+                f"test method for {code}; expected at least one test_* method "
+                f"containing {token!r}. Found methods: {method_names!r}",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Per-cross-codebase-fixture mutation tests. Spec "Falsifiability requirement
+# (per-fixture)": every PROBE-TYPE-IS probe added to the cross-codebase suite
+# must come with a schema-flip mutation test. The 3 v1.2 markers (quinn /
+# single_space_demo / s, mlflow / load_run_table / run_id, deequ /
+# select_input_row_demo / a) share the synth shape and are covered
+# transitively by `test_d0081_falsifiable_via_probe_type_is`, but per-fixture
+# mutation pairs make the contract individually auditable: each fixture's
+# PROBE-TYPE-IS probe is proven to track *its* schema, not the fixture text.
+# ---------------------------------------------------------------------------
+
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+@unittest.skipUnless(
+    _pykrete_available(),
+    "PYKRETE_BIN not set / pykrete not on PATH; skipping mutation tests",
+)
+class V12CrossCodebaseMarkerMutationTests(unittest.TestCase):
+    """Per-fixture schema-flip mutation tests for v1.2 cross-codebase markers.
+
+    Each test mirrors the D0081 falsifiability pattern: copy the donor
+    fixture into a tempdir, snap probes through `probes.verify()` under the
+    original schema (PROBE-TYPE-IS passes — D0081 fires in the synth),
+    schema-mutate the relevant column from `string` to `int` (synth becomes
+    valid numeric arithmetic — D0081 stops firing — the PROBE-TYPE-IS probe
+    must FAIL), revert and re-snap (probe passes again).
+
+    Note that we do NOT touch the donor fixture in-tree — only a tempdir
+    copy is mutated. This keeps `git diff main -- cross-codebase/` clean
+    (donor-faithful: only the PROBE-TYPE-IS comment lines, no schema edits).
+    """
+
+    def _snap_via_verify(
+        self,
+        tmpdir: Path,
+        fixture_rel: str,
+        source: str,
+    ) -> list:
+        path = tmpdir / Path(fixture_rel).name
+        path.write_text(source, encoding="utf-8")
+        _, failures = probes.verify(path, fixture_relpath=fixture_rel)
+        return failures
+
+    def _run_mutation_cycle(
+        self,
+        fixture_rel_path: str,
+        schema_before: str,
+        schema_after: str,
+    ) -> None:
+        donor = _REPO_ROOT / fixture_rel_path
+        unmutated = donor.read_text(encoding="utf-8")
+        self.assertIn(
+            schema_before, unmutated,
+            f"fixture {fixture_rel_path!r} missing expected schema text "
+            f"{schema_before!r}; cross-codebase donor drift?",
+        )
+        mutated = unmutated.replace(schema_before, schema_after, 1)
+        self.assertNotEqual(
+            unmutated, mutated,
+            f"mutation {schema_before!r} -> {schema_after!r} produced "
+            f"identical source; check the schema text",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            t = Path(tmp)
+            # 1. Original schema -> PROBE-TYPE-IS passes (D0081 fires in synth).
+            f1 = self._snap_via_verify(t, fixture_rel_path, unmutated)
+            self.assertEqual(
+                f1, [],
+                f"original {fixture_rel_path}: PROBE-TYPE-IS should pass "
+                f"(D0081 fires under {schema_before!r}); got failures: {f1!r}",
+            )
+            # 2. Mutated schema -> PROBE-TYPE-IS fails (D0081 no longer fires).
+            f2 = self._snap_via_verify(t, fixture_rel_path, mutated)
+            self.assertTrue(
+                f2,
+                f"mutated {fixture_rel_path} ({schema_before!r} -> "
+                f"{schema_after!r}): PROBE-TYPE-IS should fail because D0081 "
+                f"no longer fires under same-family arithmetic; got no failures",
+            )
+            # 3. Revert -> probe passes again.
+            f3 = self._snap_via_verify(t, fixture_rel_path, unmutated)
+            self.assertEqual(
+                f3, [],
+                f"reverted {fixture_rel_path}: PROBE-TYPE-IS should pass "
+                f"again; got failures: {f3!r}",
+            )
+
+    def test_quinn_single_space_demo_s_falsifiable(self):
+        self._run_mutation_cycle(
+            "cross-codebase/quinn/annotated/quinn/functions.pyk",
+            "    s: string",
+            "    s: int",
+        )
+
+    def test_mlflow_load_run_table_run_id_falsifiable(self):
+        self._run_mutation_cycle(
+            "cross-codebase/mlflow/annotated/mlflow/data/run_status_enum.pyk",
+            "    run_id: string",
+            "    run_id: int",
+        )
+
+    def test_deequ_select_input_row_demo_a_falsifiable(self):
+        self._run_mutation_cycle(
+            "cross-codebase/python-deequ/annotated/tests/test_analyzers.pyk",
+            "    a: string",
+            "    a: int",
+        )
 
 
 if __name__ == "__main__":

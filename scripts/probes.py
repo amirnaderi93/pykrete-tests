@@ -37,7 +37,7 @@ import tempfile
 import tokenize
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Literal, Optional
+from typing import Iterable, Literal, Optional, Union
 
 # Single source of truth for the probes-layer schema version.
 PROBES_SCHEMA_VERSION = "1"
@@ -569,7 +569,9 @@ def _resolve_target_line(
     return None
 
 
-def _enclosing_function(source: str, target_line: int) -> Optional[ast.FunctionDef]:
+def _enclosing_function(
+    source: str, target_line: int
+) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     """Return the innermost FunctionDef/AsyncFunctionDef enclosing target_line.
 
     Returns None if target_line is at module scope. Used by the TYPE-IS
@@ -580,14 +582,14 @@ def _enclosing_function(source: str, target_line: int) -> Optional[ast.FunctionD
         tree = ast.parse(source)
     except SyntaxError:
         return None
-    enclosing: Optional[ast.FunctionDef] = None
+    enclosing: Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef]] = None
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             start = node.lineno
             end = getattr(node, "end_lineno", None) or start
             if start <= target_line <= end:
                 if enclosing is None or node.lineno > enclosing.lineno:
-                    enclosing = node  # type: ignore[assignment]
+                    enclosing = node
     return enclosing
 
 
@@ -614,7 +616,9 @@ def _is_dataframe_schema_annotation(annotation: Optional[ast.expr]) -> bool:
     return False
 
 
-def _first_dataframe_param(func: ast.FunctionDef) -> Optional[str]:
+def _first_dataframe_param(
+    func: Union[ast.FunctionDef, ast.AsyncFunctionDef],
+) -> Optional[str]:
     """Return the identifier of the first `DataFrame[Schema]` parameter (v1.2).
 
     Walks `func.args` in declaration order — positional-only, then
