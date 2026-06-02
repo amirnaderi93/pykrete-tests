@@ -37,7 +37,7 @@ import tempfile
 import tokenize
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Literal, Optional
+from typing import Iterable, Literal, Optional, Union
 
 # Single source of truth for the probes-layer schema version.
 PROBES_SCHEMA_VERSION = "1"
@@ -569,7 +569,9 @@ def _resolve_target_line(
     return None
 
 
-def _enclosing_function(source: str, target_line: int) -> Optional[ast.FunctionDef]:
+def _enclosing_function(
+    source: str, target_line: int
+) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     """Return the innermost FunctionDef/AsyncFunctionDef enclosing target_line.
 
     Returns None if target_line is at module scope. Used by the TYPE-IS
@@ -580,15 +582,65 @@ def _enclosing_function(source: str, target_line: int) -> Optional[ast.FunctionD
         tree = ast.parse(source)
     except SyntaxError:
         return None
-    enclosing: Optional[ast.FunctionDef] = None
+    enclosing: Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef]] = None
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             start = node.lineno
             end = getattr(node, "end_lineno", None) or start
             if start <= target_line <= end:
                 if enclosing is None or node.lineno > enclosing.lineno:
-                    enclosing = node  # type: ignore[assignment]
+                    enclosing = node
     return enclosing
+
+
+def _is_dataframe_schema_annotation(annotation: Optional[ast.expr]) -> bool:
+    """Return True iff the annotation is a bare `DataFrame[Schema]` subscript.
+
+    Matches `DataFrame[X]` and `pykrete.types.DataFrame[X]` (any
+    attribute chain ending in `DataFrame`). Rejects every wrapped or
+    non-literal shape per the v1.2 first-wins annotation-shape policy:
+    generic wrappers (`list[...]`, `Optional[...]`, `Union[..., None]`,
+    PEP 604 `... | None`), string forward refs, type aliases (not
+    inspected; the annotation must literally be a Subscript), and bare
+    `DataFrame` with no schema parameter.
+    """
+    if annotation is None:
+        return False
+    if not isinstance(annotation, ast.Subscript):
+        return False
+    value = annotation.value
+    if isinstance(value, ast.Name):
+        return value.id == "DataFrame"
+    if isinstance(value, ast.Attribute):
+        return value.attr == "DataFrame"
+    return False
+
+
+def _first_dataframe_param(
+    func: Union[ast.FunctionDef, ast.AsyncFunctionDef],
+) -> Optional[str]:
+    """Return the identifier of the first `DataFrame[Schema]` parameter (v1.2).
+
+    Walks `func.args` in declaration order — positional-only, then
+    positional-or-keyword, then keyword-only — and returns the first
+    parameter whose annotation is a bare `DataFrame[Schema]` subscript
+    per `_is_dataframe_schema_annotation`. Variadics (`*args`,
+    `**kwargs`) are never named scalar bindings and are skipped.
+
+    Returns None if no parameter matches. The synthesizer treats None
+    as the unsynthesizable fallthrough (no silent pass).
+
+    Locks the v1.2 first-wins resolution policy; any change is a
+    `probesSchemaVersion` semver-minor amendment.
+    """
+    walk_order: list[ast.arg] = []
+    walk_order.extend(func.args.posonlyargs)
+    walk_order.extend(func.args.args)
+    walk_order.extend(func.args.kwonlyargs)
+    for arg in walk_order:
+        if _is_dataframe_schema_annotation(arg.annotation):
+            return arg.arg
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -795,22 +847,32 @@ def _synthesize_type_probes(
         if target_code is None:
             expectations.append((probe, "<unsynthesizable>", -1))
             continue
-        ident = _safe_ident(probe.id, idx)
-        accessor = _column_accessor(probe.span_text)
-        expr = f'{ident} = ({accessor} + lit(1))'
         enclosing = _enclosing_function(source, probe.target_line)
         if enclosing is None:
-            insert_after = len(lines)
-            code_line = expr
+            # v1.2: module-scope probe has no FunctionDef.args to inspect.
+            # No silent pass — record as unsynthesizable.
+            expectations.append((probe, "<unsynthesizable>", -1))
+            continue
+        df_ident = _first_dataframe_param(enclosing)
+        if df_ident is None:
+            # v1.2: no DataFrame[Schema] param in scope — synth cannot bind
+            # col(...) to a typed receiver, so the probe is unsynthesizable.
+            expectations.append((probe, "<unsynthesizable>", -1))
+            continue
+        ident = _safe_ident(probe.id, idx)
+        accessor = _column_accessor(probe.span_text)
+        # v1.2 scope-binding fix: wrap synth in `{df}.select(...)` so the
+        # accessor binds to df's tracked schema; v1.1's bare-statement form
+        # left col("x") with no typed receiver, silencing D-codes.
+        expr = f'{ident} = {df_ident}.select({accessor} + lit(1))'
+        target_idx = probe.target_line - 1
+        if target_idx < len(lines):
+            indent_match = re.match(r"\s*", lines[target_idx])
+            indent = indent_match.group(0) if indent_match else "    "
         else:
-            target_idx = probe.target_line - 1
-            if target_idx < len(lines):
-                indent_match = re.match(r"\s*", lines[target_idx])
-                indent = indent_match.group(0) if indent_match else "    "
-            else:
-                indent = "    "
-            insert_after = probe.target_line
-            code_line = indent + expr
+            indent = "    "
+        insert_after = probe.target_line
+        code_line = indent + expr
         inserts.append((insert_after, idx, probe, code_line, target_code))
 
     # Sort by insert_after ascending (top-down). Insertions at the same

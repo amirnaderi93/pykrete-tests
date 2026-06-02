@@ -73,6 +73,7 @@ def single_space_demo(df: DataFrame[StringRow]) -> None:
     """Mirrors quinn.functions.single_space — trim + regexp_replace
     on a string column."""
 # PROBE-RESOLVES: id=quinn-fn-single-space-s -- s resolves nested inside F.trim(F.regexp_replace(...))
+# PROBE-TYPE-IS: string on "s" id=quinn-fn-single-space-s-type -- v1.2 scope-binding: s is string in StringRow; synth fires D0081 on lit(1) + string
     df.withColumn("s_clean", F.trim(F.regexp_replace(df.s, " +", " ")))
 
 

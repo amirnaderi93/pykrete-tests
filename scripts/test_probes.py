@@ -6,6 +6,7 @@ Run: python -m unittest scripts/test_probes.py -v
 
 from __future__ import annotations
 
+import ast
 import os
 import shutil
 import subprocess
@@ -495,10 +496,15 @@ class SynthesizerRound2Tests(unittest.TestCase):
         # Marker at column 0 per spec; its target line resolves to the next
         # logical statement, which is inside `f`. The injected expression
         # must be indented to match the function body, not appended at
-        # module scope where `d` is undefined.
+        # module scope where `d` is undefined. v1.2: the enclosing function
+        # must declare a DataFrame[Schema] parameter for the synth to bind;
+        # use `def f(d: DataFrame[S])` so the helper resolves df_ident = "d".
         src = _src(
             "from pykrete import col, lit",
-            "def f(d):",
+            "from pyspark.sql import DataFrame",
+            "class S(Schema):",
+            "    name: string",
+            "def f(d: DataFrame[S]):",
             "    if True:",
             "# PROBE-TYPE-IS: string on \"name\"",
             "        x = d.select(\"name\")",
@@ -514,8 +520,13 @@ class SynthesizerRound2Tests(unittest.TestCase):
         for line in injected:
             self.assertTrue(line.startswith("    "),
                             f"injected line not indented inside function: {line!r}")
+            # v1.2: synth wraps in `{df_ident}.select(...)` for typed binding.
+            self.assertIn("d.select(", line)
 
-    def test_b2_type_is_synth_appends_at_module_scope(self):
+    def test_v12_module_scope_probe_is_unsynthesizable(self):
+        # v1.2: module-scope target has no enclosing FunctionDef.args to
+        # walk; the probe falls through to the unsynthesizable path. No
+        # silent pass — the expectation is recorded as <unsynthesizable>.
         src = _src(
             "from pykrete import col, lit",
             "# PROBE-TYPE-IS: string on \"name\"",
@@ -524,12 +535,13 @@ class SynthesizerRound2Tests(unittest.TestCase):
         probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
         type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
         plan = probes._synthesize_type_probes(src, type_probes)
-        synth_lines = plan.appended_source.splitlines()
-        injected = [line for line in synth_lines if "_pyk_probe_" in line]
-        self.assertTrue(injected)
-        for line in injected:
-            self.assertFalse(line.startswith(" "),
-                             f"module-scope injection got indented: {line!r}")
+        self.assertEqual(len(plan.expectations), 1)
+        _, target_code, _ = plan.expectations[0]
+        self.assertEqual(target_code, "<unsynthesizable>")
+        # Synth source carries no injected probe statement.
+        injected = [line for line in plan.appended_source.splitlines()
+                    if "_pyk_probe_" in line]
+        self.assertEqual(injected, [])
 
     def test_b6_dotted_id_yields_valid_python_ident(self):
         ident = probes._safe_ident("a.b-c", 0)
@@ -554,6 +566,150 @@ class SynthesizerRound2Tests(unittest.TestCase):
         # Triple-nested: chained getField.
         expr3 = probes._column_accessor("a.b.c")
         self.assertEqual(expr3, "col('a').getField('b').getField('c')")
+
+
+class V12FirstDataFrameParamTests(unittest.TestCase):
+    """v1.2: AST param-resolution helper for the PROBE-TYPE-IS scope-binding fix.
+
+    Covers the annotation-shape policy locked in the v1.2 spec:
+    - bare `DataFrame[Schema]` -> match
+    - generic wrappers (list[...], Optional[...], Union[...], PEP 604 `... | None`) -> skip
+    - string forward refs -> skip (not parsed)
+    - type aliases -> skip (no name binder)
+    - bare `DataFrame` (no schema parameter) -> skip
+    - variadics (*args, **kwargs) -> skip
+    - module-scope (no enclosing FunctionDef) -> None at caller
+    """
+
+    def _func(self, src: str) -> ast.FunctionDef:
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                return node
+        raise AssertionError(f"no FunctionDef in source: {src!r}")
+
+    def test_single_dataframe_param(self):
+        src = "def f(df: DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_two_dataframe_params_first_wins(self):
+        src = "def f(a: DataFrame[A], b: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "a")
+
+    def test_optional_dataframe_skipped(self):
+        # Optional[DataFrame[A]] is a generic wrapper; falls through.
+        src = "def f(maybe: Optional[DataFrame[A]], df: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_list_dataframe_skipped(self):
+        src = "def f(dfs: list[DataFrame[A]], df: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_string_forward_ref_skipped(self):
+        # String forward refs are ast.Constant, not ast.Subscript; not parsed.
+        src = 'def f(df: "DataFrame[A]") -> DataFrame: ...'
+        self.assertIsNone(probes._first_dataframe_param(self._func(src)))
+
+    def test_bare_dataframe_skipped(self):
+        # No schema parameter -> annotation is ast.Name, not ast.Subscript.
+        src = "def f(df: DataFrame) -> DataFrame: ..."
+        self.assertIsNone(probes._first_dataframe_param(self._func(src)))
+
+    def test_variadic_args_skipped(self):
+        # *args / **kwargs are never named scalar bindings.
+        src = "def f(*dfs: DataFrame[A], **kwargs: DataFrame[B]) -> DataFrame: ..."
+        self.assertIsNone(probes._first_dataframe_param(self._func(src)))
+
+    def test_pep604_optional_skipped(self):
+        # `DataFrame[A] | None` is ast.BinOp(|), not Subscript.
+        src = "def f(maybe: DataFrame[A] | None, df: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_keyword_only_dataframe_matches(self):
+        # Positional-or-keyword first, then keyword-only — `kw` is the only
+        # DataFrame param so it wins.
+        src = "def f(x: int, *, kw: DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "kw")
+
+    def test_positional_only_first(self):
+        # Positional-only walked first.
+        src = "def f(a: DataFrame[A], /, b: DataFrame[B]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "a")
+
+    def test_qualified_dataframe_name(self):
+        # `pykrete.types.DataFrame[X]` — attribute chain ending in DataFrame.
+        src = "def f(df: pykrete.types.DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_module_scope_returns_none(self):
+        # `_enclosing_function` returns None at module scope; the synth
+        # path treats that as unsynthesizable per spec.
+        src = _src(
+            "from pykrete import col, lit",
+            "x = 1",
+        )
+        self.assertIsNone(probes._enclosing_function(src, 2))
+
+
+class V12SynthRewriteTests(unittest.TestCase):
+    """v1.2: synthesizer wraps in `{df_ident}.select(...)` and tags
+    unsynthesizable on missing DataFrame parameter or module-scope target."""
+
+    def test_synth_wraps_in_df_select(self):
+        src = _src(
+            "from pyspark.sql import DataFrame",
+            "from pyspark.sql.functions import col, lit",
+            "class S(Schema):",
+            "    label: string",
+            "def f(df: DataFrame[S]) -> DataFrame:",
+            "# PROBE-TYPE-IS: string on \"label\"",
+            "    return df",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        self.assertEqual(len(type_probes), 1)
+        plan = probes._synthesize_type_probes(src, type_probes)
+        synth = plan.appended_source
+        # Synth must wrap the accessor in df.select(...) using the first
+        # DataFrame[Schema] param's ident.
+        self.assertIn("df.select(col('label') + lit(1))", synth)
+        # And tag as the D0081 target (string -> non-numeric arithmetic).
+        self.assertEqual(plan.expectations[0][1], "D0081")
+
+    def test_synth_picks_first_dataframe_param(self):
+        # Two DataFrame params; first-wins binds to `a`.
+        src = _src(
+            "from pyspark.sql import DataFrame",
+            "from pyspark.sql.functions import col, lit",
+            "class A(Schema):",
+            "    label: string",
+            "class B(Schema):",
+            "    label: string",
+            "def f(a: DataFrame[A], b: DataFrame[B]) -> DataFrame:",
+            "# PROBE-TYPE-IS: string on \"label\"",
+            "    return a",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        plan = probes._synthesize_type_probes(src, type_probes)
+        self.assertIn("a.select(col('label') + lit(1))", plan.appended_source)
+
+    def test_synth_unsynthesizable_when_no_dataframe_param(self):
+        # Function takes a non-DataFrame parameter — probe is unsynthesizable
+        # per the v1.2 "no silent pass" rule, not synthesized as a bare expr.
+        src = _src(
+            "from pyspark.sql.functions import col, lit",
+            "def f(spark):",
+            "# PROBE-TYPE-IS: string on \"label\"",
+            "    return spark",
+        )
+        probes_list = probes.extract_from_source(src, "f.pyk", CATALOG)
+        type_probes = [p for p in probes_list if p.kind == "TYPE-IS"]
+        plan = probes._synthesize_type_probes(src, type_probes)
+        self.assertEqual(plan.expectations[0][1], "<unsynthesizable>")
+        injected = [line for line in plan.appended_source.splitlines()
+                    if "_pyk_probe_" in line]
+        self.assertEqual(injected, [])
 
 
 class VerifierRound2Tests(unittest.TestCase):
@@ -844,12 +1000,10 @@ class EndToEndSmokeTests(unittest.TestCase):
         self.assertEqual(failures, [], msg="\n".join(f.actual for f in failures))
 
     def test_type_is_synth_runs_without_crash(self):
-        # Exercise the full TYPE-IS synthesizer pipeline against a real
-        # pykrete binary. Asserts the pipeline runs end-to-end without
-        # raising (synthesis may legitimately be inconclusive — the spec
-        # acknowledges that some atomic types don't have a clean rewrite
-        # via D0080-D0082 at every binding site; the synthesizer reports
-        # such cases rather than silently passing).
+        # v1.2: the synth wraps the accessor in `{df_ident}.select(...)`,
+        # binding `col("region")` to orders' tracked schema. region IS string,
+        # so D0081 fires (lit(1) + string = non-numeric arithmetic) and the
+        # probe passes. v1.1 was silent-inconclusive here; v1.2 is honest.
         fixture = (
             "from pykrete import col, lit\n"
             "\n"
@@ -865,16 +1019,8 @@ class EndToEndSmokeTests(unittest.TestCase):
             path = Path(tmp) / "smoke_type.pyk"
             path.write_text(fixture, encoding="utf-8")
             probes_list, failures = probes.verify(path)
-        # Either passes (synth fired its expected D-code) or fails with a
-        # named "inconclusive" actual; both are acceptable. What we MUST
-        # never see is a crash or a silent vacuous pass that doesn't even
-        # detect the probe.
         self.assertEqual(len(probes_list), 1)
-        for f in failures:
-            self.assertTrue(
-                "inconclusive" in f.actual or "synthesizer cannot encode" in f.actual,
-                f"unexpected synthesis failure shape: {f.actual!r}",
-            )
+        self.assertEqual(failures, [], msg="\n".join(f.actual for f in failures))
 
 
 # ---------------------------------------------------------------------------
@@ -1173,6 +1319,323 @@ class NegativeProbeCoverageRegressionTests(unittest.TestCase):
             any("unclaimed" in f.expected for f in failures),
             f"expected an 'unclaimed' failure for the injected diagnostic, got"
             f" expected={[f.expected for f in failures]!r}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# v1.2: per-D-code falsifiable mutation tests.
+#
+# Per the v1.2 spec ("Falsifiability requirement (per-fixture)"), every
+# PROBE-TYPE-IS marker and every cross-codebase PROBE-EXPECTS marker that
+# targets a typed D-code must be falsifiable: mutating the schema in-place
+# to invert the claim must stop the diagnostic from firing; reverting the
+# mutation must resume firing. The suite covers each of D0080 / D0081 /
+# D0082 with at least one falsifiable fixture; a probe that always passes
+# vacuously is indistinguishable from one that lost its signal, which is
+# the failure mode the v1.0 trust signals are built to detect.
+#
+# Each test below builds a fixture in a tmp dir, invokes pykrete, snaps
+# the diagnostic firing under the original schema, mutates the schema,
+# asserts the diagnostic stops, reverts, and asserts it fires again.
+# ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(
+    _pykrete_available(),
+    "PYKRETE_BIN not set / pykrete not on PATH; skipping mutation tests",
+)
+class V12PerDCodeFalsifiabilityTests(unittest.TestCase):
+    """One falsifiable case per typed D-code: D0080, D0081, D0082.
+
+    Two patterns intentionally co-exist in this class — per the v1.2 spec
+    amendment "Per-D-code coverage" (`docs/design/schema-tracking-probes.md`,
+    section "Falsifiability requirement (per-fixture)"):
+
+    - **D0081** is exercised via the PROBE-TYPE-IS synth path. The v1.2
+      synth shape is arithmetic by construction
+      (`{df_ident}.select({accessor} + lit(1))`) and routes specifically
+      to D0081 (non-numeric arithmetic). `test_d0081_*` authors a
+      PROBE-TYPE-IS marker, snaps it through `probes.verify()`, mutates
+      the schema to invert the claim, and re-snaps.
+    - **D0080 and D0082** are exercised via raw schema-flip mutation
+      tests on hand-built fixtures fed straight to `probes._run_checker`.
+      The v1.2 synth shape cannot, by construction, route to D0080
+      (return-type-mismatch) or D0082 (cross-type-comparison), so these
+      D-codes can't ride the PROBE-TYPE-IS path in v1.2. v1.3 adds
+      additional PROBE-TYPE-IS synth shapes that route to those D-codes
+      (see v1.1-polish backlog entry "PROBE-TYPE-IS synth shapes for
+      D0080 / D0082" in the same spec file).
+
+    The reflective `V12FalsifiabilityCoverageGuard` (below) ensures none
+    of {D0080, D0081, D0082} silently loses its falsifiability test.
+    """
+
+    def _check(self, source: str, tmpdir: Path) -> dict:
+        path = tmpdir / "fixture.pyk"
+        path.write_text(source, encoding="utf-8")
+        return probes._run_checker(path, strict=True)
+
+    def _has_code(self, result: dict, code: str) -> bool:
+        return any(d.get("code") == code for d in result.get("diagnostics") or [])
+
+    def test_d0081_falsifiable_via_probe_type_is(self):
+        # v1.2 PROBE-TYPE-IS marker claims `string on "label"`. Under
+        # `label: string` the synth fires D0081 in the scratch synth source
+        # and the probe passes. Under the mutation `label: int`, the synth
+        # `(col("label") + lit(1))` is valid numeric arithmetic, D0081
+        # does NOT fire, and the probe FAILS.
+        unmutated = (
+            "from pyspark.sql import DataFrame\n"
+            "from pyspark.sql.functions import col, lit\n"
+            "\n"
+            "class S(Schema):\n"
+            "    label: string\n"
+            "    amount: int\n"
+            "\n"
+            "def f(df: DataFrame[S]) -> DataFrame:\n"
+            "# PROBE-TYPE-IS: string on \"label\" id=d0081-falsify\n"
+            "    return df\n"
+        )
+        mutated = unmutated.replace("label: string", "label: int")
+        self.assertNotEqual(unmutated, mutated, "mutation must change the source")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "fixture.pyk"
+            # 1. Snap probe firing under the original schema -> passes.
+            path.write_text(unmutated, encoding="utf-8")
+            _, failures = probes.verify(path)
+            self.assertEqual(failures, [], "v1.2 synth must fire D0081 under label:string")
+            # 2. Mutate -> probe fails (D0081 no longer fires).
+            path.write_text(mutated, encoding="utf-8")
+            _, failures_mutated = probes.verify(path)
+            self.assertTrue(
+                failures_mutated,
+                "mutation label:string->int must silence D0081 and fail the probe",
+            )
+            # 3. Revert -> probe passes again.
+            path.write_text(unmutated, encoding="utf-8")
+            _, failures_reverted = probes.verify(path)
+            self.assertEqual(
+                failures_reverted, [],
+                "reverting the mutation must restore the D0081 firing",
+            )
+
+    def test_d0082_falsifiable_via_cross_type_comparison(self):
+        # D0082 fires on comparison between unrelated types. Under
+        # `value: string`, comparing `value` to `key: int` is cross-type
+        # and fires D0082; under the mutation `value: int`, the comparison
+        # is same-family and D0082 stops firing.
+        unmutated = (
+            "from pyspark.sql import DataFrame\n"
+            "from pyspark.sql.functions import col\n"
+            "\n"
+            "class KV(Schema):\n"
+            "    key: int\n"
+            "    value: string\n"
+            "\n"
+            "def f(df: DataFrame[KV]) -> DataFrame:\n"
+            "    return df.filter(col(\"value\") > col(\"key\"))\n"
+        )
+        mutated = unmutated.replace("value: string", "value: int")
+        self.assertNotEqual(unmutated, mutated)
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            r1 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r1, "D0082"),
+                "D0082 must fire under cross-type comparison value:string vs key:int",
+            )
+            r2 = self._check(mutated, d)
+            self.assertFalse(
+                self._has_code(r2, "D0082"),
+                "mutation value:string->int must silence D0082 (same-family comparison)",
+            )
+            r3 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r3, "D0082"),
+                "reverting the mutation must restore D0082 firing",
+            )
+
+    def test_d0080_falsifiable_via_return_type_mismatch(self):
+        # D0080 fires when a function's declared return schema disagrees
+        # with the inferred output. Under `scores: string` in Out, the
+        # body produces array<int> via collect_list and D0080 fires.
+        # Under the mutation `scores: Array[int]`, the declared and
+        # inferred types align and D0080 stops firing.
+        unmutated = (
+            "from pyspark.sql import DataFrame\n"
+            "from pyspark.sql import functions as F\n"
+            "\n"
+            "class In(Schema):\n"
+            "    name: string\n"
+            "    score: int\n"
+            "\n"
+            "class Out(Schema):\n"
+            "    name: string\n"
+            "    scores: string\n"
+            "\n"
+            "def f(d: DataFrame[In]) -> DataFrame[Out]:\n"
+            "    return d.groupBy(\"name\").agg(F.collect_list(\"score\").alias(\"scores\"))\n"
+        )
+        mutated = unmutated.replace("scores: string", "scores: Array[int]")
+        self.assertNotEqual(unmutated, mutated)
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            r1 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r1, "D0080"),
+                "D0080 must fire when Out.scores:string but body produces array<int>",
+            )
+            r2 = self._check(mutated, d)
+            self.assertFalse(
+                self._has_code(r2, "D0080"),
+                "mutation Out.scores->Array[int] must silence D0080 (schemas align)",
+            )
+            r3 = self._check(unmutated, d)
+            self.assertTrue(
+                self._has_code(r3, "D0080"),
+                "reverting the mutation must restore D0080 firing",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Reflective coverage guard. Per the v1.2 spec amendment "Per-D-code coverage"
+# (`docs/design/schema-tracking-probes.md`): the suite MUST contain at least
+# one falsifiable test per D-code in {D0080, D0081, D0082}. This guard fails
+# CI if a future refactor silently deletes one — closing the gap the spec
+# text alone cannot enforce.
+# ---------------------------------------------------------------------------
+
+
+EXPECTED_FALSIFIABLE_DCODES = frozenset({"D0080", "D0081", "D0082"})
+
+
+class V12FalsifiabilityCoverageGuard(unittest.TestCase):
+    """Fail CI if any expected D-code lacks a falsifiability test."""
+
+    def test_each_expected_dcode_has_falsifiability_test(self):
+        method_names = [
+            name for name in dir(V12PerDCodeFalsifiabilityTests)
+            if name.startswith("test_")
+        ]
+        for code in EXPECTED_FALSIFIABLE_DCODES:
+            token = code.lower()  # "d0081"
+            matches = [n for n in method_names if token in n]
+            self.assertTrue(
+                matches,
+                f"V12PerDCodeFalsifiabilityTests is missing a falsifiability "
+                f"test method for {code}; expected at least one test_* method "
+                f"containing {token!r}. Found methods: {method_names!r}",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Per-cross-codebase-fixture mutation tests. Spec "Falsifiability requirement
+# (per-fixture)": every PROBE-TYPE-IS probe added to the cross-codebase suite
+# must come with a schema-flip mutation test. The 3 v1.2 markers (quinn /
+# single_space_demo / s, mlflow / load_run_table / run_id, deequ /
+# select_input_row_demo / a) share the synth shape and are covered
+# transitively by `test_d0081_falsifiable_via_probe_type_is`, but per-fixture
+# mutation pairs make the contract individually auditable: each fixture's
+# PROBE-TYPE-IS probe is proven to track *its* schema, not the fixture text.
+# ---------------------------------------------------------------------------
+
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+@unittest.skipUnless(
+    _pykrete_available(),
+    "PYKRETE_BIN not set / pykrete not on PATH; skipping mutation tests",
+)
+class V12CrossCodebaseMarkerMutationTests(unittest.TestCase):
+    """Per-fixture schema-flip mutation tests for v1.2 cross-codebase markers.
+
+    Each test mirrors the D0081 falsifiability pattern: copy the donor
+    fixture into a tempdir, snap probes through `probes.verify()` under the
+    original schema (PROBE-TYPE-IS passes — D0081 fires in the synth),
+    schema-mutate the relevant column from `string` to `int` (synth becomes
+    valid numeric arithmetic — D0081 stops firing — the PROBE-TYPE-IS probe
+    must FAIL), revert and re-snap (probe passes again).
+
+    Note that we do NOT touch the donor fixture in-tree — only a tempdir
+    copy is mutated. This keeps `git diff main -- cross-codebase/` clean
+    (donor-faithful: only the PROBE-TYPE-IS comment lines, no schema edits).
+    """
+
+    def _snap_via_verify(
+        self,
+        tmpdir: Path,
+        fixture_rel: str,
+        source: str,
+    ) -> list:
+        path = tmpdir / Path(fixture_rel).name
+        path.write_text(source, encoding="utf-8")
+        _, failures = probes.verify(path, fixture_relpath=fixture_rel)
+        return failures
+
+    def _run_mutation_cycle(
+        self,
+        fixture_rel_path: str,
+        schema_before: str,
+        schema_after: str,
+    ) -> None:
+        donor = _REPO_ROOT / fixture_rel_path
+        unmutated = donor.read_text(encoding="utf-8")
+        self.assertIn(
+            schema_before, unmutated,
+            f"fixture {fixture_rel_path!r} missing expected schema text "
+            f"{schema_before!r}; cross-codebase donor drift?",
+        )
+        mutated = unmutated.replace(schema_before, schema_after, 1)
+        self.assertNotEqual(
+            unmutated, mutated,
+            f"mutation {schema_before!r} -> {schema_after!r} produced "
+            f"identical source; check the schema text",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            t = Path(tmp)
+            # 1. Original schema -> PROBE-TYPE-IS passes (D0081 fires in synth).
+            f1 = self._snap_via_verify(t, fixture_rel_path, unmutated)
+            self.assertEqual(
+                f1, [],
+                f"original {fixture_rel_path}: PROBE-TYPE-IS should pass "
+                f"(D0081 fires under {schema_before!r}); got failures: {f1!r}",
+            )
+            # 2. Mutated schema -> PROBE-TYPE-IS fails (D0081 no longer fires).
+            f2 = self._snap_via_verify(t, fixture_rel_path, mutated)
+            self.assertTrue(
+                f2,
+                f"mutated {fixture_rel_path} ({schema_before!r} -> "
+                f"{schema_after!r}): PROBE-TYPE-IS should fail because D0081 "
+                f"no longer fires under same-family arithmetic; got no failures",
+            )
+            # 3. Revert -> probe passes again.
+            f3 = self._snap_via_verify(t, fixture_rel_path, unmutated)
+            self.assertEqual(
+                f3, [],
+                f"reverted {fixture_rel_path}: PROBE-TYPE-IS should pass "
+                f"again; got failures: {f3!r}",
+            )
+
+    def test_quinn_single_space_demo_s_falsifiable(self):
+        self._run_mutation_cycle(
+            "cross-codebase/quinn/annotated/quinn/functions.pyk",
+            "    s: string",
+            "    s: int",
+        )
+
+    def test_mlflow_load_run_table_run_id_falsifiable(self):
+        self._run_mutation_cycle(
+            "cross-codebase/mlflow/annotated/mlflow/data/run_status_enum.pyk",
+            "    run_id: string",
+            "    run_id: int",
+        )
+
+    def test_deequ_select_input_row_demo_a_falsifiable(self):
+        self._run_mutation_cycle(
+            "cross-codebase/python-deequ/annotated/tests/test_analyzers.pyk",
+            "    a: string",
+            "    a: int",
         )
 
 

@@ -100,6 +100,11 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit $rc
 
+      - name: Run probes unit tests
+        env:
+          PYKRETE_BIN: ${{ github.workspace }}/pykrete-src/target/release/pykrete
+        run: python -m unittest scripts.test_probes -v
+
       - name: Upload probes report
         if: always()
         uses: actions/upload-artifact@v4
