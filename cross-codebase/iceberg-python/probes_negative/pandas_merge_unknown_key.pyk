@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the ScoreRow shape in sibling
+# annotated/tests/integration/test_writes/pandas_score_dataset.pyk
+# (distilled from iceberg-python's tests/integration/test_writes/
+# test_writes.py L1875-L1885). The annotated sibling uses `id` as
+# the merge key; this fixture replaces it with `idd` (typo) to
+# force D0030 on the .merge dispatch row from §5.
+#
+# Failure mode exercised: pandas `.merge(other, on=key)` join
+# dispatch fires D0030 when `key` is not a column in the receiver
+# schema.
+
+from pykrete import PandasFrame
+
+
+class ScoreRowNeg(Schema):
+    id: long
+    relevancy_score: double
+
+
+def merge_unknown_key(df: PandasFrame[ScoreRowNeg], other: PandasFrame[ScoreRowNeg]) -> None:
+# PROBE-EXPECTS: D0060 match /left side/ id=iceberg-pandas-neg-merge-unknown-key-left -- .merge(on="idd") fires D0060 on the left side (missingJoinKey) — idd is not in ScoreRowNeg
+# PROBE-EXPECTS: D0060 match /right side/ id=iceberg-pandas-neg-merge-unknown-key-right -- .merge(on="idd") also fires D0060 on the right side
+    _ = df.merge(other, on="idd")
