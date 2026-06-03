@@ -1,9 +1,80 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 65,
+      "endColumn": 87,
+      "endLine": 39,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_hive_dataset.pyk",
+      "line": 39,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 11,
+      "endColumn": 33,
+      "endLine": 45,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_hive_dataset.pyk",
+      "line": 45,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 10,
+      "endColumn": 32,
+      "endLine": 46,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_hive_dataset.pyk",
+      "line": 46,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 34,
+      "endColumn": 56,
+      "endLine": 70,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_hive_dataset.pyk",
+      "line": 70,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 52,
+      "endLine": 77,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_hive_dataset.pyk",
+      "line": 77,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 5
   }
 }

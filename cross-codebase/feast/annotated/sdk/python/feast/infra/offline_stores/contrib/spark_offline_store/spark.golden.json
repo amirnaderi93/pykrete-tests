@@ -1,9 +1,108 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 58,
+      "endColumn": 79,
+      "endLine": 34,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 34,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 29,
+      "endColumn": 50,
+      "endLine": 42,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 42,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 9,
+      "endColumn": 30,
+      "endLine": 48,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 48,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 35,
+      "endColumn": 56,
+      "endLine": 60,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 60,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 51,
+      "endLine": 65,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 65,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 31,
+      "endColumn": 52,
+      "endLine": 76,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 76,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 51,
+      "endLine": 83,
+      "file": "feast/annotated/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/spark.pyk",
+      "line": 83,
+      "message": "'DataFrame[FeatureRow]' is a deprecated alias for 'SparkFrame[FeatureRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[FeatureRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 7
   }
 }

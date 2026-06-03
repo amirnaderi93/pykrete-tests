@@ -1,9 +1,24 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 28,
+      "endColumn": 45,
+      "endLine": 75,
+      "file": "iceberg-python/annotated/tests/integration/test_writes/test_writes.pyk",
+      "line": 75,
+      "message": "'DataFrame[Person]' is a deprecated alias for 'SparkFrame[Person]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Person]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Person]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 1
   }
 }

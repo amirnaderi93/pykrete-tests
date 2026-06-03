@@ -1,9 +1,38 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 59,
+      "endLine": 60,
+      "file": "spark/annotated/examples/src/main/python/sql/streaming/structured_network_wordcount_windowed.pyk",
+      "line": 60,
+      "message": "'DataFrame[LinesWithTimestamp]' is a deprecated alias for 'SparkFrame[LinesWithTimestamp]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[LinesWithTimestamp]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[LinesWithTimestamp]"
+    },
+    {
+      "code": "D0090",
+      "column": 32,
+      "endColumn": 61,
+      "endLine": 71,
+      "file": "spark/annotated/examples/src/main/python/sql/streaming/structured_network_wordcount_windowed.pyk",
+      "line": 71,
+      "message": "'DataFrame[LinesWithTimestamp]' is a deprecated alias for 'SparkFrame[LinesWithTimestamp]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[LinesWithTimestamp]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[LinesWithTimestamp]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 2
   }
 }

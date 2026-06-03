@@ -17,10 +17,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
-  # Pin the upstream pykrete ref the goldens are valid against.
-  # Bump to a release tag (e.g. v0.1.38) once goldens are
-  # regenerated against that release.
-  PYKRETE_REF: main
 
 jobs:
   goldens:
@@ -28,6 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read pinned pykrete source commit from catalog
+        id: catalog
+        run: |
+          sha=$(python3 -c "import json; print(json.load(open('scripts/diagnostic_catalog.json'))['pykreteSourceCommit'])")
+          echo "PYKRETE_REF=$sha" >> "$GITHUB_ENV"
+          echo "ref=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.95.0
@@ -39,7 +42,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             pykrete-src/target
-          key: pykrete-${{ env.PYKRETE_REF }}-${{ runner.os }}
+          key: pykrete-${{ steps.catalog.outputs.ref }}-${{ runner.os }}
 
       - name: Build pykrete from ${{ env.PYKRETE_REF }}
         run: |
@@ -64,7 +67,8 @@ jobs:
       - name: Diff fixtures against goldens
         shell: bash
         run: |
-          set -uo pipefail
+          set -o pipefail
+          set +e
           PYKRETE=./pykrete-src/target/release/pykrete
           bash scripts/golden.sh check "$PYKRETE" | tee /tmp/golden-output
           status=${PIPESTATUS[0]}

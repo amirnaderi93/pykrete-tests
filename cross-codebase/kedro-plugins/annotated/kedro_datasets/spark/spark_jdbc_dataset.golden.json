@@ -1,9 +1,52 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 66,
+      "endColumn": 83,
+      "endLine": 27,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_jdbc_dataset.pyk",
+      "line": 27,
+      "message": "'DataFrame[Orders]' is a deprecated alias for 'SparkFrame[Orders]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Orders]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Orders]"
+    },
+    {
+      "code": "D0090",
+      "column": 26,
+      "endColumn": 43,
+      "endLine": 32,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_jdbc_dataset.pyk",
+      "line": 32,
+      "message": "'DataFrame[Orders]' is a deprecated alias for 'SparkFrame[Orders]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Orders]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Orders]"
+    },
+    {
+      "code": "D0090",
+      "column": 28,
+      "endColumn": 45,
+      "endLine": 37,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_jdbc_dataset.pyk",
+      "line": 37,
+      "message": "'DataFrame[Orders]' is a deprecated alias for 'SparkFrame[Orders]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Orders]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Orders]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 3
   }
 }

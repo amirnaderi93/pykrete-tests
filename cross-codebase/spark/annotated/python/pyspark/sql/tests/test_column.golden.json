@@ -1,9 +1,38 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 28,
+      "endColumn": 41,
+      "endLine": 47,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_column.pyk",
+      "line": 47,
+      "message": "'DataFrame[KV]' is a deprecated alias for 'SparkFrame[KV]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KV]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[KV]"
+    },
+    {
+      "code": "D0090",
+      "column": 31,
+      "endColumn": 44,
+      "endLine": 57,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_column.pyk",
+      "line": 57,
+      "message": "'DataFrame[KV]' is a deprecated alias for 'SparkFrame[KV]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KV]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[KV]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 2
   }
 }

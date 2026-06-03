@@ -1,9 +1,38 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 33,
+      "endColumn": 51,
+      "endLine": 54,
+      "file": "delta/annotated/examples/python/streaming.pyk",
+      "line": 54,
+      "message": "'DataFrame[RateRow]' is a deprecated alias for 'SparkFrame[RateRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RateRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RateRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 48,
+      "endLine": 61,
+      "file": "delta/annotated/examples/python/streaming.pyk",
+      "line": 61,
+      "message": "'DataFrame[RateRow]' is a deprecated alias for 'SparkFrame[RateRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RateRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RateRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 2
   }
 }
