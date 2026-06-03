@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 15,
+      "endColumn": 28,
+      "endLine": 23,
+      "file": "feast/probes_negative/pandas_boolean_mask_unknown.pyk",
+      "line": 23,
+      "message": "Column 'costomer_id' does not exist on schema 'EntityRowNeg'. Did you mean 'customer_id'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "customer_id"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

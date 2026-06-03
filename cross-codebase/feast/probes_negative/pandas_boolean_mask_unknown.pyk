@@ -1,0 +1,23 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the same EntityRowNeg shape as
+# pandas_list_projection_unknown.pyk. Pandas boolean-mask filter
+# `df[df["col"] == value]` is one of the §5 dispatched shapes;
+# spec §9 says piece (b) "descends the inner subscript naturally".
+# This fixture writes a typo of an entity-key column inside the
+# boolean mask.
+#
+# Failure mode exercised: inner df[literal] inside a boolean-mask
+# Subscript fires D0030 (§5 boolean-mask row, piece (b) recursion).
+
+from pykrete import PandasFrame
+
+
+class EntityRowNeg(Schema):
+    driver_id: long
+    event_timestamp: timestamp
+    customer_id: string
+
+
+def filter_unknown_customer(df: PandasFrame[EntityRowNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"costomer_id\"" id=feast-pandas-neg-bool-mask-inner-unknown -- inner Subscript in boolean-mask must fire D0030 via piece (b) descent
+    _ = df[df["costomer_id"] == "abc"]
