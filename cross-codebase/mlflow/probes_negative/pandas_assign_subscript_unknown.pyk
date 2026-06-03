@@ -1,0 +1,23 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the same TrainRow shape as the sibling
+# annotated/mlflow/data/pandas_dataset.pyk. Exercises the §5
+# "Column add / replace" dispatch row, pandas form
+# `df["new"] = expr` (per docs/design/pandas-support.md §5).
+# The RHS column reference is a typo of `target`; piece (b)'s
+# col-ref check must fire D0030 on the RHS Subscript.
+#
+# Failure mode exercised: pandas assignment-Subscript dispatch row;
+# typo on RHS column lookup fires D0030 (unknownColumn).
+
+from pykrete import PandasFrame
+
+
+class TrainRowAssignNeg(Schema):
+    feature_a: double
+    feature_b: double
+    target: long
+
+
+def assign_unknown_source(df: PandasFrame[TrainRowAssignNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"targt\"" id=mlflow-pandas-neg-assign-subscript-unknown -- df["new"] = df["typo"] must fire D0030 on the RHS Subscript via piece (b)
+    df["new"] = df["targt"]
