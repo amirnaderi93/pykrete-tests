@@ -1,9 +1,11 @@
 # mlflow — probes_negative/
 
 Deliberately-corrupted fixtures derived from MLflow's Spark dataset
-surface (`mlflow/data/spark_dataset.py` and the eval-dataset shape).
-Each fixture mirrors a real upstream code shape, then injects exactly
-one regression so pykrete must fire a specific diagnostic.
+surface (`mlflow/data/spark_dataset.py`, the eval-dataset shape) plus
+v1.3 pandas additions distilled from `mlflow/data/pandas_dataset.py`'s
+`to_pyfunc()` shape. Each fixture mirrors a real upstream code shape,
+then injects exactly one regression so pykrete must fire a specific
+diagnostic.
 
 `withColumn_arith_on_string.pyk` runs under **strict mode** (sibling
 `pykrete.json` sets `typeCheckingMode: "strict"`);
@@ -29,3 +31,11 @@ a directory. See the "Strict-mode caveat" subsection of
   (typo of `target`) via bare `df["targt"]`, forcing D0030
   (`unknownColumn`) via the v1.3 piece-(b) bare-Subscript col-ref
   entry point.
+- `pandas_assign_subscript_unknown.pyk` — TrainRowAssignNeg shape;
+  exercises the §5 "Column add / replace" dispatch row in its pandas
+  form `df["new"] = df["typo"]`. The RHS Subscript references `targt`
+  (typo of `target`), forcing D0030 (`unknownColumn`) via piece (b).
+- `pandas_dataframe_alias_deprecated.pyk` — TrainRowDep shape; uses
+  the deprecated `DataFrame[X]` alias on a parameter slot, forcing
+  D0090 (`deprecatedDataFrameAlias`) per
+  `docs/design/pandas-support.md` §6.

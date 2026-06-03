@@ -15,3 +15,7 @@ v1.3 `PandasFrame[X]` check sites.
   the §5 boolean-mask Subscript row — the inner
   `df["relevancy_scor"]` Subscript fires D0030 (`unknownColumn`) via
   piece (b) descending into the mask expression.
+- `pandas_dataframe_alias_deprecated.pyk` — ScoreRowDep shape; uses
+  the deprecated `DataFrame[X]` alias on a parameter slot, forcing
+  D0090 (`deprecatedDataFrameAlias`) per
+  `docs/design/pandas-support.md` §6.

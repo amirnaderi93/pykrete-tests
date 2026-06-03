@@ -20,3 +20,7 @@ exactly one regression so pykrete must fire a specific diagnostic.
   §5 boolean-mask Subscript row — the inner `df["costomer_id"]`
   Subscript fires D0030 via piece (b) descending into the mask
   expression.
+- `pandas_dataframe_alias_deprecated.pyk` — EntityRowDep shape; uses
+  the deprecated `DataFrame[X]` alias on a parameter slot, forcing
+  D0090 (`deprecatedDataFrameAlias`) per
+  `docs/design/pandas-support.md` §6.
