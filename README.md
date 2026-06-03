@@ -55,7 +55,7 @@ files, and `examples/.../arrow.py` covering `pandas_udf` /
 `mlflow.pyfunc.spark_udf` examples,
 `tests/spark/autologging/datasource/test_spark_datasource_autologging.py`,
 the v1.1 `run_status_enum.pyk` covering MLflow run-status vocabulary
-on a Spark DataFrame surface, and the v1.3 `pandas_eval_dataset.pyk`
+on a Spark DataFrame surface, and the v1.3 `pandas_dataset.pyk`
 exercising the `PandasFrame[X]` dispatch on the six pandas
 operations); delta and hudi each contribute a v1.1 enum fixture
 (`cdc_change_type_enum.pyk` and `cdc_operation_enum.pyk`); feast and
@@ -124,9 +124,11 @@ See `scripts/update-pinned-commit.sh` for a starting harness.
 ## CI
 
 `cross-codebase.yml` runs on every push, PR, and nightly. It builds
-pykrete from `main` and diffs each fixture's live JSON diagnostic
-output against its committed `.golden.json`. Any drift fails the
-build — that's the release-blocking contract.
+pykrete from `scripts/diagnostic_catalog.json`'s
+`pykreteSourceCommit` pin (mirroring `probes.yml`) and diffs each
+fixture's live JSON diagnostic output against its committed
+`.golden.json`. Any drift fails the build — that's the
+release-blocking contract.
 
 ## Schema-tracking probes (v1.3)
 
