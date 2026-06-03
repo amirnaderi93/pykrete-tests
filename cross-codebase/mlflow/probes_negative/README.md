@@ -23,3 +23,9 @@ a directory. See the "Strict-mode caveat" subsection of
   is `enum["RUNNING", "FINISHED", "FAILED", "KILLED", "SCHEDULED"]`;
   this fixture writes `'UKNOWN'` via `.fillna({"status": ...})`,
   forcing D0084 (`enumValueMismatch`).
+- `pandas_bare_subscript_unknown.pyk` — TrainRowNeg shape from
+  `mlflow/data/pandas_dataset.py` `to_pyfunc()` (upstream L117-L126);
+  uses a `PandasFrame[TrainRowNeg]` receiver and references `targt`
+  (typo of `target`) via bare `df["targt"]`, forcing D0030
+  (`unknownColumn`) via the v1.3 piece-(b) bare-Subscript col-ref
+  entry point.
