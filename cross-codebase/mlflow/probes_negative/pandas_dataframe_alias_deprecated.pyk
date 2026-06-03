@@ -1,0 +1,23 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the same TrainRow shape as the sibling
+# annotated/mlflow/data/pandas_dataset.pyk. The annotated sibling uses
+# the canonical `SparkFrame[X]` / `PandasFrame[X]` v1.3 forms; this
+# fixture uses the deprecated `DataFrame[X]` alias to assert that
+# pykrete fires D0090 (deprecatedDataFrameAlias) per
+# docs/design/pandas-support.md §6.
+#
+# Failure mode exercised: D0090 fires once per `DataFrame[X]`
+# parameter annotation slot (v1.3 deprecation warning).
+
+from pykrete import DataFrame
+
+
+class TrainRowDep(Schema):
+    feature_a: double
+    feature_b: double
+    target: long
+
+
+# PROBE-EXPECTS: D0090 on "DataFrame[TrainRowDep]" id=mlflow-pandas-neg-dataframe-alias-deprecated -- DataFrame[X] alias on a parameter slot must fire D0090 per §6
+def to_pyfunc_demo(df: DataFrame[TrainRowDep]) -> None:
+    _ = df
