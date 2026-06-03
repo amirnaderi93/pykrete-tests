@@ -1,0 +1,56 @@
+# Apache License 2.0. Copyright Apache Software Foundation.
+#
+# Annotated for pykrete from
+# tests/integration/test_writes/test_writes.py at
+# apache/iceberg-python, pinned-commit 5da8186d.
+# Distilled from the per-test pandas-frame build path
+# (upstream L1875-L1885) where the test constructs a
+# `pd.DataFrame({"id":..., "created_at":..., "relevancy_score":...})`
+# and later treats it as the source for an iceberg-table append.
+#
+# Strategy: bind the same column shape (id, created_at,
+# relevancy_score) on a typed `PandasFrame[ScoreRow]`. Then exercise
+# piece (b) scalar Subscript, the bool-mask Subscript shape (§5),
+# and a `.merge(other, on=key)` to assert the pandas join dispatch.
+#
+# Schema dtypes (cited verbatim against upstream):
+#   - `id`: built from `random.randint(id_min, id_max)` — Python int,
+#     pandas defaults to int64 (test_writes.py L1871)
+#     → ColumnType::Long per pandas-support.md §4
+#   - `created_at`: built from `pd.date_range(...freq="D")` then
+#     `random.choice` (test_writes.py L1874-L1876) — pandas
+#     Timestamp / datetime64[ns]
+#     → ColumnType::Timestamp per pandas-support.md §4
+#   - `relevancy_score`: built from `random.betavariate(...)` —
+#     Python float (test_writes.py L1879)
+#     → ColumnType::Double per pandas-support.md §4 (pandas default
+#     for Python float)
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df["literal"] scalar Subscript (piece (b))
+#   - df[df["literal"] >= value] boolean-mask Subscript (§5 row 2;
+#     piece (b) descends inner Subscript naturally)
+#   - df.merge(other, on=key) pandas join dispatch row from §5
+
+from pykrete import PandasFrame
+
+
+class ScoreRow(Schema):
+    id: long
+    created_at: timestamp
+    relevancy_score: double
+
+
+def filter_below_threshold(df: PandasFrame[ScoreRow]) -> None:
+    """Mirrors the delete-condition shape (test_writes.py L1894-L1896)."""
+# PROBE-RESOLVES: id=iceberg-pandas-score-scalar-relevancy -- piece (b) scalar Subscript resolves relevancy_score on the typed receiver
+    _ = df["relevancy_score"]
+# PROBE-RESOLVES: id=iceberg-pandas-score-bool-mask-relevancy -- bool-mask Subscript: piece (b) descends the inner df["relevancy_score"] and resolves it under ScoreRow
+    _ = df[df["relevancy_score"] >= 0.1]
+
+
+def merge_with_delete_log(df: PandasFrame[ScoreRow], other: PandasFrame[ScoreRow]) -> None:
+    """pandas join dispatch row from §5."""
+# PROBE-RESOLVES: id=iceberg-pandas-score-merge-on-id -- piece (a) commits the pandas dialect tag; .merge(on=key) dispatches and `id` resolves on both sides under ScoreRow
+    _ = df.merge(other, on="id")

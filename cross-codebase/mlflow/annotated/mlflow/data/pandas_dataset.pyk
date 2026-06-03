@@ -1,0 +1,51 @@
+# Apache License 2.0. Copyright Databricks / MLflow.
+#
+# Annotated for pykrete from mlflow/data/pandas_dataset.py at
+# mlflow/mlflow, pinned-commit 8f942548.
+#
+# Strategy: the PandasDataset constructor accepts a `pd.DataFrame` and
+# `targets` / `predictions` column names. The `to_pyfunc()` method
+# (upstream L117-L126) does:
+#   inputs  = self._df.drop(columns=[self._targets])
+#   outputs = self._df[self._targets]
+# This fixture mirrors that shape against a typed PandasFrame[X] so
+# pykrete exercises the bare-Subscript col-ref path (piece (b)) and the
+# pandas .drop(columns=...) dispatch.
+#
+# Schema dtypes: upstream pandas_dataset.py doesn't pin column dtypes —
+# the class is generic over user-supplied frames. The condensed
+# TrainRow shape below uses pandas defaults per
+# https://pandas.pydata.org/docs/user_guide/basics.html#dtypes:
+#   - integer-typed Python ints default to int64  → ColumnType::Long
+#   - floating-point columns default to float64   → ColumnType::Double
+#   - string-typed `object` columns map to        → ColumnType::String
+# (See pykrete docs/design/pandas-support.md §4.)
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df[literal] scalar string-literal Subscript (piece (b))
+#   - df[[literal, literal]] list-of-literal Subscript (piece (b))
+#   - df.drop(columns=[...]) pandas dispatch row from §5
+
+from pykrete import PandasFrame
+
+
+class TrainRow(Schema):
+    feature_a: double
+    feature_b: double
+    target: long
+
+
+def to_pyfunc_demo(df: PandasFrame[TrainRow]) -> None:
+    """Mirrors PandasDataset.to_pyfunc (upstream L117-L126)."""
+# PROBE-RESOLVES: id=mlflow-pandas-dataset-drop-target -- target survives as a known column on the PandasFrame[TrainRow] receiver; a broken piece-(a) dialect tag would silently skip
+    inputs = df.drop(columns=["target"])
+# PROBE-RESOLVES: id=mlflow-pandas-dataset-select-target -- piece (b) scalar Subscript resolves target on the typed receiver; a broken receiver-shape gate would fire D0030
+    outputs = df["target"]
+    _ = (inputs, outputs)
+
+
+def feature_projection_demo(df: PandasFrame[TrainRow]) -> None:
+    """List-of-literal Subscript shape from §5: df[["a", "b"]]."""
+# PROBE-RESOLVES: id=mlflow-pandas-dataset-list-projection -- piece (b) iterates the list of literals against TrainRow; broken list-element walk would fire D0030 on feature_a
+    _ = df[["feature_a", "feature_b"]]

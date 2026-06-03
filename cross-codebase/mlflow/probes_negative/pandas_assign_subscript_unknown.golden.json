@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 20,
+      "endColumn": 27,
+      "endLine": 23,
+      "file": "mlflow/probes_negative/pandas_assign_subscript_unknown.pyk",
+      "line": 23,
+      "message": "Column 'targt' does not exist on schema 'TrainRowAssignNeg'. Did you mean 'target'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "target"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

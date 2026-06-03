@@ -1,0 +1,63 @@
+# Apache License 2.0. Copyright Feast Contributors.
+#
+# Annotated for pykrete from
+# sdk/python/feast/feature_store.py at feast-dev/feast,
+# pinned-commit 4203eb74. Distilled from FeatureStore's
+# OnDemand-feature-view materialization path (upstream L1949-L1965)
+# which builds an `entity_df` by projecting columns from a combined
+# source frame, dropping duplicates, and renaming the
+# event-timestamp column to feast's default name.
+#
+# Strategy: the upstream code uses bare pandas projection (`df[cols]`)
+# and `.rename(columns={...})`. This fixture mirrors those exact
+# shapes against `PandasFrame[EntityRow]` so pykrete exercises piece
+# (b)'s List-of-literal Subscript and the .rename(columns=...)
+# dispatch row from docs/design/pandas-support.md §5.
+#
+# Schema dtypes (cited verbatim against upstream):
+#   - `event_timestamp` is built from pandas datetime64[ns] columns
+#     (utils.make_df_tzaware uses `pd.api.types.is_datetime64_any_dtype`
+#     at upstream sdk/python/feast/utils.py L157-L162 to detect them)
+#     → ColumnType::Timestamp per pandas-support.md §4
+#   - `driver_id`/entity-keys are integer types — feast docs example
+#     uses Python int (default pandas int64) for entity_df entity-key
+#     columns (sdk/python/feast/feature_store.py L1625 docstring)
+#     → ColumnType::Long per pandas-support.md §4 (pandas default for
+#     Python int columns)
+#   - String entity-key alternatives like `customer_id` use object/
+#     string dtype → ColumnType::String per §4
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df[[literal, literal]] list-of-literal Subscript (piece (b)
+#     List-element entry)
+#   - df.rename(columns={...}) pandas dispatch row from §5
+#   - df["literal"] scalar Subscript on a typed pandas receiver
+
+from pykrete import PandasFrame
+
+
+class EntityRow(Schema):
+    driver_id: long
+    event_timestamp: timestamp
+    customer_id: string
+
+
+def build_entity_df_demo(combined: PandasFrame[EntityRow]) -> None:
+    """Mirrors feature_store.py L1951-L1959 (combined[entity_df_cols].drop_duplicates)."""
+# PROBE-RESOLVES: id=feast-pandas-entity-df-cols-projection -- piece (b) walks each literal in the list against EntityRow; broken list iteration would fire D0030 on driver_id
+    entity_df = combined[["driver_id", "event_timestamp"]]
+    _ = entity_df
+
+
+def rename_timestamp_col_demo(entity_df: PandasFrame[EntityRow]) -> None:
+    """Mirrors feature_store.py L1962-L1964 — rename event-timestamp col."""
+    renamed = entity_df.rename(columns={"event_timestamp": "event_time"})
+# PROBE-RESOLVES: id=feast-pandas-rename-event-timestamp -- non-vacuous: piece (a) commits the pandas dialect tag and .rename(columns=...) applies the schema mutation; if the schema mutation were skipped the Subscript would see EntityRow with `event_timestamp` (not `event_time`) and D0030 would fire on the renamed key
+    _ = renamed["event_time"]
+
+
+def entity_key_scalar_demo(entity_df: PandasFrame[EntityRow]) -> None:
+    """Scalar string-literal Subscript on a typed pandas receiver."""
+# PROBE-RESOLVES: id=feast-pandas-customer-id-scalar -- piece (b) scalar Subscript resolves customer_id; a missing piece-(a) dialect tag would skip the check entirely
+    _ = entity_df["customer_id"]

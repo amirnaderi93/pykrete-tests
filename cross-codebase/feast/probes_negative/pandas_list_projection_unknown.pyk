@@ -1,0 +1,22 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from sdk/python/feast/feature_store.py L1949-L1959's
+# `all_sources_combined_df[entity_df_cols]` projection. The real
+# upstream code projects valid entity-key columns; this fixture
+# replaces one of them with a typo not in EntityRowNeg.
+#
+# Failure mode exercised: list-of-literal Subscript on a typed
+# PandasFrame receiver with an unknown column inside the list
+# (D0030 via piece (b) List-element entry, §5 column-projection row).
+
+from pykrete import PandasFrame
+
+
+class EntityRowNeg(Schema):
+    driver_id: long
+    event_timestamp: timestamp
+    customer_id: string
+
+
+def project_unknown_entity_col(df: PandasFrame[EntityRowNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"driverr_id\"" id=feast-pandas-neg-list-projection-unknown -- list-of-literal walk must fire D0030 on the typo
+    _ = df[["driverr_id", "event_timestamp"]]

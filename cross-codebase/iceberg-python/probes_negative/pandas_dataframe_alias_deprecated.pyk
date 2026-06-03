@@ -1,0 +1,28 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the same ScoreRow shape as the sibling
+# annotated/tests/integration/test_writes/pandas_score_dataset.pyk.
+# The annotated sibling uses the canonical `PandasFrame[X]` v1.3
+# form; this fixture uses the deprecated `DataFrame[X]` alias to
+# assert that pykrete fires D0090 (deprecatedDataFrameAlias) per
+# docs/design/pandas-support.md §6.
+#
+# Failure mode exercised: D0090 fires once per `DataFrame[X]`
+# parameter annotation slot (v1.3 deprecation warning).
+#
+# Naming note: this file lives next to the pandas additions because
+# v1.3 introduces D0090 alongside the PandasFrame[X] surface, but the
+# diagnostic itself is dialect-agnostic — DataFrame[X] is now the
+# generic alias regardless of pandas vs Spark routing, and the same
+# .pyk would fire under a Spark-typed receiver too.
+
+from pykrete import DataFrame
+
+
+class ScoreRowDep(Schema):
+    id: long
+    relevancy_score: double
+
+
+# PROBE-EXPECTS: D0090 on "DataFrame[ScoreRowDep]" id=iceberg-pandas-neg-dataframe-alias-deprecated -- DataFrame[X] alias on a parameter slot must fire D0090 per §6
+def score_demo(df: DataFrame[ScoreRowDep]) -> None:
+    _ = df

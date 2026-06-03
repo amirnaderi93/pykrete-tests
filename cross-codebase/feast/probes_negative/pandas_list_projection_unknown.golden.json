@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 13,
+      "endColumn": 25,
+      "endLine": 22,
+      "file": "feast/probes_negative/pandas_list_projection_unknown.pyk",
+      "line": 22,
+      "message": "Column 'driverr_id' does not exist on schema 'EntityRowNeg'. Did you mean 'driver_id'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "driver_id"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

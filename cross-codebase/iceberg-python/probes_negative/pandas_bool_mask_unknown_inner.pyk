@@ -1,0 +1,23 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the ScoreRow shape in sibling
+# annotated/tests/integration/test_writes/pandas_score_dataset.pyk
+# (distilled from iceberg-python's tests/integration/test_writes/
+# test_writes.py L1875-L1885 and the L1894 delete-condition shape).
+# The annotated sibling filters on `relevancy_score`; this fixture
+# replaces it with a typo to force D0030 on the inner Subscript of
+# the boolean-mask Subscript.
+#
+# Failure mode exercised: inner df[literal] inside a boolean-mask
+# Subscript fires D0030 (§5 boolean-mask row, piece (b) recursion).
+
+from pykrete import PandasFrame
+
+
+class ScoreRowNeg(Schema):
+    id: long
+    relevancy_score: double
+
+
+def filter_unknown_relevancy(df: PandasFrame[ScoreRowNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"relevancy_scor\"" id=iceberg-pandas-neg-bool-mask-inner-unknown -- inner Subscript in boolean-mask must fire D0030 via piece (b) descent
+    _ = df[df["relevancy_scor"] >= 0.1]

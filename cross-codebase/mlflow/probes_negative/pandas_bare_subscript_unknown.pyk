@@ -1,0 +1,23 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from mlflow/data/pandas_dataset.py's to_pyfunc shape
+# (upstream L117-L126) — same TrainRow schema as the sibling
+# annotated/mlflow/data/pandas_dataset.pyk. The real upstream code
+# selects `self._df[self._targets]` where `self._targets` is the
+# documented target column name; this fixture replaces it with a
+# bare-Subscript reference to a column not in the schema.
+#
+# Failure mode exercised: bare Expr::Subscript on a PandasFrame[X]
+# receiver against a column not in the schema (D0030 via piece (b)).
+
+from pykrete import PandasFrame
+
+
+class TrainRowNeg(Schema):
+    feature_a: double
+    feature_b: double
+    target: long
+
+
+def select_unknown_target(df: PandasFrame[TrainRowNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"targt\"" id=mlflow-pandas-neg-bare-subscript-unknown -- bare df[literal] on PandasFrame must fire D0030 via piece (b)
+    _ = df["targt"]

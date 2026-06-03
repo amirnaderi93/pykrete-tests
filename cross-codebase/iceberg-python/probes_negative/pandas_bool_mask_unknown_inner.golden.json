@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 15,
+      "endColumn": 31,
+      "endLine": 23,
+      "file": "iceberg-python/probes_negative/pandas_bool_mask_unknown_inner.pyk",
+      "line": 23,
+      "message": "Column 'relevancy_scor' does not exist on schema 'ScoreRowNeg'. Did you mean 'relevancy_score'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "relevancy_score"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
