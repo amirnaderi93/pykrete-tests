@@ -8,6 +8,12 @@
 #
 # Failure mode exercised: D0090 fires once per `DataFrame[X]`
 # parameter annotation slot (v1.3 deprecation warning).
+#
+# Naming note: this file lives next to the pandas additions because
+# v1.3 introduces D0090 alongside the PandasFrame[X] surface, but the
+# diagnostic itself is dialect-agnostic — DataFrame[X] is now the
+# generic alias regardless of pandas vs Spark routing, and the same
+# .pyk would fire under a Spark-typed receiver too.
 
 from pykrete import DataFrame
 

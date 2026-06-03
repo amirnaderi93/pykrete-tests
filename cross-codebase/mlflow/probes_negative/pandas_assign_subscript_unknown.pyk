@@ -19,5 +19,5 @@ class TrainRowAssignNeg(Schema):
 
 
 def assign_unknown_source(df: PandasFrame[TrainRowAssignNeg]) -> None:
-# PROBE-EXPECTS: D0030 on "\"targt\"" id=mlflow-pandas-neg-assign-subscript-unknown -- df["new"] = df["typo"] must fire D0030 on the RHS Subscript via piece (b)
+# PROBE-EXPECTS: D0030 on "\"targt\"" id=mlflow-pandas-neg-assign-subscript-unknown -- pandas assign-Subscript dispatch row from §5; the RHS df["typo"] is checked by piece (b)'s shared col-ref machinery (the same machinery a Spark receiver would route through), so this probe verifies col-ref reaches the RHS — it does not by itself prove the dispatch is pandas-specific. Pandas-routed assign coverage at the dispatch layer is gapped on the positive side (PROBE-TYPE-IS recognizer for PandasFrame[X] deferred to v1.4 — see follow-up).
     df["new"] = df["targt"]
