@@ -52,8 +52,9 @@ def build_entity_df_demo(combined: PandasFrame[EntityRow]) -> None:
 
 def rename_timestamp_col_demo(entity_df: PandasFrame[EntityRow]) -> None:
     """Mirrors feature_store.py L1962-L1964 — rename event-timestamp col."""
-# PROBE-RESOLVES: id=feast-pandas-rename-event-timestamp -- piece (a) commits the pandas dialect tag so .rename(columns=...) dispatches; both source and dest keys are valid
-    _ = entity_df.rename(columns={"event_timestamp": "event_timestamp"})
+    renamed = entity_df.rename(columns={"event_timestamp": "event_time"})
+# PROBE-RESOLVES: id=feast-pandas-rename-event-timestamp -- non-vacuous: piece (a) commits the pandas dialect tag and .rename(columns=...) applies the schema mutation; if the schema mutation were skipped the Subscript would see EntityRow with `event_timestamp` (not `event_time`) and D0030 would fire on the renamed key
+    _ = renamed["event_time"]
 
 
 def entity_key_scalar_demo(entity_df: PandasFrame[EntityRow]) -> None:
