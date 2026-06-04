@@ -650,6 +650,23 @@ class V12FirstDataFrameParamTests(unittest.TestCase):
         )
         self.assertIsNone(probes._enclosing_function(src, 2))
 
+    def test_recognizer_accepts_dataframe_x_alias(self):
+        # v1.4 widening regression guard: bare `DataFrame[X]` still matches.
+        src = "def f(df: DataFrame[A]) -> DataFrame: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_recognizer_accepts_pandasframe_x(self):
+        # v1.4 (pykrete-tests#14): `PandasFrame[X]` is now recognized as a
+        # frame-annotated parameter for PROBE-TYPE-IS synthesis.
+        src = "def f(df: PandasFrame[A]) -> PandasFrame[A]: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
+    def test_recognizer_accepts_sparkframe_x(self):
+        # v1.4 (pykrete-tests#14): `SparkFrame[X]` is now recognized as a
+        # frame-annotated parameter for PROBE-TYPE-IS synthesis.
+        src = "def f(df: SparkFrame[A]) -> SparkFrame[A]: ..."
+        self.assertEqual(probes._first_dataframe_param(self._func(src)), "df")
+
 
 class V12SynthRewriteTests(unittest.TestCase):
     """v1.2: synthesizer wraps in `{df_ident}.select(...)` and tags

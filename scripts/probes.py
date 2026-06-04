@@ -593,16 +593,24 @@ def _enclosing_function(
     return enclosing
 
 
-def _is_dataframe_schema_annotation(annotation: Optional[ast.expr]) -> bool:
-    """Return True iff the annotation is a bare `DataFrame[Schema]` subscript.
+_DATAFRAME_ANNOTATION_NAMES: frozenset[str] = frozenset(
+    {"DataFrame", "SparkFrame", "PandasFrame"}
+)
 
-    Matches `DataFrame[X]` and `pykrete.types.DataFrame[X]` (any
-    attribute chain ending in `DataFrame`). Rejects every wrapped or
-    non-literal shape per the v1.2 first-wins annotation-shape policy:
-    generic wrappers (`list[...]`, `Optional[...]`, `Union[..., None]`,
-    PEP 604 `... | None`), string forward refs, type aliases (not
-    inspected; the annotation must literally be a Subscript), and bare
-    `DataFrame` with no schema parameter.
+
+def _is_dataframe_schema_annotation(annotation: Optional[ast.expr]) -> bool:
+    """Return True iff the annotation is a bare `<Frame>[Schema]` subscript.
+
+    Matches `DataFrame[X]`, `SparkFrame[X]`, `PandasFrame[X]`, and any
+    attribute chain whose final segment is one of those names (e.g.
+    `pykrete.types.DataFrame[X]`, `pk.SparkFrame[X]`). Rejects every
+    wrapped or non-literal shape per the v1.2 first-wins annotation-shape
+    policy: generic wrappers (`list[...]`, `Optional[...]`,
+    `Union[..., None]`, PEP 604 `... | None`), string forward refs, type
+    aliases (not inspected; the annotation must literally be a Subscript),
+    and bare `DataFrame` / `SparkFrame` / `PandasFrame` with no schema
+    parameter. v1.4 (pykrete-tests#14) widens from `DataFrame[X]`-only to
+    match the v1.3 pandas split-dialect tags.
     """
     if annotation is None:
         return False
@@ -610,22 +618,24 @@ def _is_dataframe_schema_annotation(annotation: Optional[ast.expr]) -> bool:
         return False
     value = annotation.value
     if isinstance(value, ast.Name):
-        return value.id == "DataFrame"
+        return value.id in _DATAFRAME_ANNOTATION_NAMES
     if isinstance(value, ast.Attribute):
-        return value.attr == "DataFrame"
+        return value.attr in _DATAFRAME_ANNOTATION_NAMES
     return False
 
 
 def _first_dataframe_param(
     func: Union[ast.FunctionDef, ast.AsyncFunctionDef],
 ) -> Optional[str]:
-    """Return the identifier of the first `DataFrame[Schema]` parameter (v1.2).
+    """Return the identifier of the first frame-annotated parameter (v1.2; widened v1.4).
 
     Walks `func.args` in declaration order — positional-only, then
     positional-or-keyword, then keyword-only — and returns the first
-    parameter whose annotation is a bare `DataFrame[Schema]` subscript
-    per `_is_dataframe_schema_annotation`. Variadics (`*args`,
-    `**kwargs`) are never named scalar bindings and are skipped.
+    parameter whose annotation is a bare `DataFrame[Schema]`,
+    `SparkFrame[Schema]`, or `PandasFrame[Schema]` subscript per
+    `_is_dataframe_schema_annotation` (v1.4 widening, pykrete-tests#14).
+    Variadics (`*args`, `**kwargs`) are never named scalar bindings and
+    are skipped.
 
     Returns None if no parameter matches. The synthesizer treats None
     as the unsynthesizable fallthrough (no silent pass).
@@ -855,7 +865,7 @@ def _synthesize_type_probes(
             continue
         df_ident = _first_dataframe_param(enclosing)
         if df_ident is None:
-            # v1.2: no DataFrame[Schema] param in scope — synth cannot bind
+            # v1.2 / v1.4: no frame-annotated param in scope — synth cannot bind
             # col(...) to a typed receiver, so the probe is unsynthesizable.
             expectations.append((probe, "<unsynthesizable>", -1))
             continue
