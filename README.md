@@ -46,22 +46,25 @@ Each donor lives under `cross-codebase/<donor>/` with:
 | **dbt-spark** | [dbt-labs/dbt-spark](https://github.com/dbt-labs/dbt-spark) | `42700b5d` | dbt's Spark adapter. The Python-model convention (`def model(dbt, spark) -> DataFrame[X]`) is how dbt users write transformations in Python. |
 | **python-deequ** | [awslabs/python-deequ](https://github.com/awslabs/python-deequ) | `20693b81` | AWS-built data-quality framework. The `sc.parallelize([Row(...)]).toDF()` pattern + `spark.read.json(sc.parallelize([json_str]))` round-trip is unusual but common across DQ tools. |
 
-35 annotated fixtures total across the 10 donors. Spark contributes
+38 annotated fixtures total across the 10 donors. Spark contributes
 eight (basic, datasource, streaming wordcount, the four `tests/`
 files, and `examples/.../arrow.py` covering `pandas_udf` /
-`applyInPandas` / `mapInPandas`); mlflow contributes five (the three
+`applyInPandas` / `mapInPandas`); mlflow contributes six (the three
 `mlflow.pyfunc.spark_udf` examples,
 `tests/spark/autologging/datasource/test_spark_datasource_autologging.py`,
-and the v1.1 `run_status_enum.pyk` covering MLflow run-status vocabulary
-on a Spark DataFrame surface); delta and hudi each contribute a v1.1
-enum fixture (`cdc_change_type_enum.pyk` and `cdc_operation_enum.pyk`
-respectively) on top of their prior annotated set; the remaining seven
-donors contribute the rest.
+the v1.1 `run_status_enum.pyk` covering MLflow run-status vocabulary
+on a Spark DataFrame surface, and a v1.3 `PandasFrame[X]` fixture
+exercising the six dispatched pandas operations); delta and hudi each
+contribute a v1.1 enum fixture (`cdc_change_type_enum.pyk` and
+`cdc_operation_enum.pyk` respectively) on top of their prior annotated
+set; feast and iceberg-python each add a v1.3 `PandasFrame[X]` fixture
+on top of their prior Spark coverage; the remaining donors contribute
+the rest.
 
 ## What the goldens capture
 
 The golden snapshot for each annotated fixture is the JSON-formatted
-diagnostic output pykrete emits today. As of v0.1.39 all 35 annotated
+diagnostic output pykrete emits today. As of v1.3 all 38 annotated
 fixtures produce `"diagnostics": []` — pykrete checks every annotated
 donor file without complaint. The v0.1.37 baseline carried six
 fixtures with known false positives (`df.drop(missing)`, backtick-wrapped
@@ -69,7 +72,9 @@ column refs, the `Struct` placeholder, `Array[float]` vs
 `Array[double]`, explode-map `.alias` dual, multi-arg `select` after
 `explode`); v0.1.39 closed all of them. The v1.1 enum fixtures
 (`delta/cdc_change_type_enum.pyk`, `hudi/cdc_operation_enum.pyk`,
-`mlflow/run_status_enum.pyk`) ship clean against the same contract.
+`mlflow/run_status_enum.pyk`) and the v1.3 pandas-dialect fixtures
+(`mlflow/pandas_*.pyk`, `feast/pandas_*.pyk`,
+`iceberg-python/pandas_*.pyk`) ship clean against the same contract.
 
 The contract is "no diff against the committed golden". When pykrete
 behavior changes the contributor regenerates the affected goldens in
@@ -119,30 +124,31 @@ pykrete from `main` and diffs each fixture's live JSON diagnostic
 output against its committed `.golden.json`. Any drift fails the
 build — that's the release-blocking contract.
 
-## Schema-tracking probes (v1.1)
+## Schema-tracking probes (v1.3)
 
-Every pykrete release is regression-tested with **127
+Every pykrete release is regression-tested with **149
 schema-tracking probes** from 10 upstream codebases — Apache Spark,
 Delta Lake, Apache Iceberg (iceberg-python), Apache Hudi, MLflow,
 Feast, Kedro (kedro-plugins), quinn, dbt-spark, and python-deequ.
-The repo vendors **47 fixtures** on disk (35 annotated + 12 negative
-under `probes_negative/`); the **127 probes cover 46 of those** (34
-annotated + 12 negative — the feast `spark_kafka_processor` streaming
+The repo vendors **59 fixtures** on disk (38 annotated + 21 negative
+under `probes_negative/`); the **149 probes cover 58 of those** (37
+annotated + 21 negative — the feast `spark_kafka_processor` streaming
 fixture is annotated but probe-free because it has no typed-DataFrame
 slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
 markers in `.pyk` fixtures that the runner expands into synthetic
 checks against `pykrete check --format json`. Positive probes assert
 columns resolve cleanly after schema-changing operations (`.select`,
-`.filter`, `.withColumn`); negative probes assert specific diagnostics
-fire on deliberately-corrupted fixtures.
+`.filter`, `.withColumn`, and the pandas analogues `df[col_list]` /
+`df[mask]` / `df["new"] = expr`); negative probes assert specific
+diagnostics fire on deliberately-corrupted fixtures.
 
-- **110 positive probes** across 34 of the 35 annotated fixtures
+- **122 positive probes** across 37 of the 38 annotated fixtures
   verify column resolution and post-narrowing flow.
-- **17 negative probes** across all 12 deliberately-corrupted fixtures
+- **27 negative probes** across all 21 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing — D0030
-  `unknownColumn`, D0081 `nonNumericArithmetic`, D0082
-  `crossTypeComparison`, and **D0084 `enumValueMismatch`** (new in
-  v1.1).
+  `unknownColumn`, D0060 `missingJoinKey`, D0081 `nonNumericArithmetic`,
+  D0082 `crossTypeComparison`, D0084 `enumValueMismatch` (v1.1), and
+  **D0090 `deprecatedDataFrameAlias`** (new in v1.3).
 - **Enum value vocabulary verification** in 3 of 10 donors —
   Delta CDC `_change_type` (`{"insert", "update_preimage",
   "update_postimage", "delete"}`), Hudi `_hoodie_operation`
@@ -151,15 +157,37 @@ fire on deliberately-corrupted fixtures.
   Positive probes assert in-vocab literals stay clean in
   `==` / `.isin` / `withColumn` / `F.expr` / `groupBy` chains;
   negative probes assert D0084 fires on off-vocab typos.
+- **Spark type-tracking** (v1.2) via the `PROBE-TYPE-IS` synth in
+  3 of 10 donors — quinn, MLflow, and python-deequ. The synth wraps
+  `{df}.select(col("x") + 1)` around the typed marker so off-claim
+  numeric types fall through to D0081 `nonNumericArithmetic`. The
+  scope-binding work that v1.1 deferred shipped in v1.2; D0080 / D0082
+  remain raw-mutation-covered until their synth shapes ship.
+- **v1.3 pandas dialect** — 3 of 10 donors (mlflow, feast, iceberg-python)
+  carry annotated `PandasFrame[X]` fixtures exercising the six
+  dispatched check-site operations (`df[col_list]` /
+  `df[mask]` / `df["new"] = expr` / `df.drop` / `df.merge` /
+  `df.rename`), paired with `probes_negative/` counterparts asserting
+  D0030 fires on `df["typo"]` subscripts and D0090 fires on the
+  deprecated `DataFrame[X]` alias. Tracker issue
+  [#14](https://github.com/amirnaderi93/pykrete-tests/issues/14) follows
+  v1.4 pandas `PROBE-TYPE-IS` parity.
 - The `probes` workflow runs `scripts/probes_ci.sh` on every push
   and PR; CI fails if any probe asserts the wrong outcome. The
   combined structured JSON report uploads as the `probes-report`
   artifact for postmortem inspection.
 
-What we do **not** yet verify (deferred to v1.2):
+What we do **not** yet verify (deferred to v1.4):
 
-- Type-tracking through transformations (the `PROBE-TYPE-IS` marker
-  kind is reserved but scope-binding work lands in v1.2).
+- **Positive `PROBE-TYPE-IS` coverage on `PandasFrame[X]`.** v1.3 ships
+  pandas check-site coverage; positive type-tracking probes for pandas
+  (asserting dtype propagation through `df[col_list]` / `df.merge` /
+  `df.rename` chains) follow in v1.4 — parallel to how v1.2 added
+  Spark type-tracking after v1.1 introduced Spark column tracking.
+  Tracker: [#14](https://github.com/amirnaderi93/pykrete-tests/issues/14).
+- `PROBE-TYPE-IS` synth-shape coverage beyond D0081 on the Spark side
+  (D0080 / D0082 keep falsifiability via raw-mutation fixtures until
+  their synth shapes ship).
 - Numeric-subtype distinguishability (e.g. `int` vs `long` vs
   `double` arithmetic narrowing).
 - withColumn output enum-constraint preservation — v1.1 checks the
