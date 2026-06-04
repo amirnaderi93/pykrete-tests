@@ -1,9 +1,136 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 19,
+      "endColumn": 43,
+      "endLine": 76,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 76,
+      "message": "'DataFrame[NameAgeActive]' is a deprecated alias for 'SparkFrame[NameAgeActive]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActive]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[NameAgeActive]"
+    },
+    {
+      "code": "D0090",
+      "column": 14,
+      "endColumn": 38,
+      "endLine": 88,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 88,
+      "message": "'DataFrame[JoinKeyValue1]' is a deprecated alias for 'SparkFrame[JoinKeyValue1]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[JoinKeyValue1]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[JoinKeyValue1]"
+    },
+    {
+      "code": "D0090",
+      "column": 50,
+      "endColumn": 74,
+      "endLine": 88,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 88,
+      "message": "'DataFrame[JoinKeyValue2]' is a deprecated alias for 'SparkFrame[JoinKeyValue2]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[JoinKeyValue2]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[JoinKeyValue2]"
+    },
+    {
+      "code": "D0090",
+      "column": 35,
+      "endColumn": 59,
+      "endLine": 104,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 104,
+      "message": "'DataFrame[NameAgeActive]' is a deprecated alias for 'SparkFrame[NameAgeActive]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActive]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[NameAgeActive]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 54,
+      "endLine": 111,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 111,
+      "message": "'DataFrame[NameAgeActive]' is a deprecated alias for 'SparkFrame[NameAgeActive]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActive]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[NameAgeActive]"
+    },
+    {
+      "code": "D0090",
+      "column": 27,
+      "endColumn": 40,
+      "endLine": 119,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 119,
+      "message": "'DataFrame[KV]' is a deprecated alias for 'SparkFrame[KV]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KV]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[KV]"
+    },
+    {
+      "code": "D0090",
+      "column": 29,
+      "endColumn": 42,
+      "endLine": 128,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 128,
+      "message": "'DataFrame[KV]' is a deprecated alias for 'SparkFrame[KV]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KV]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[KV]"
+    },
+    {
+      "code": "D0090",
+      "column": 49,
+      "endColumn": 62,
+      "endLine": 128,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 128,
+      "message": "'DataFrame[KV]' is a deprecated alias for 'SparkFrame[KV]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KV]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[KV]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 43,
+      "endLine": 137,
+      "file": "spark/annotated/python/pyspark/sql/tests/test_dataframe.pyk",
+      "line": 137,
+      "message": "'DataFrame[KV]' is a deprecated alias for 'SparkFrame[KV]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KV]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[KV]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 9
   }
 }

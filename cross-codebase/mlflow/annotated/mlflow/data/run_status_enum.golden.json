@@ -1,9 +1,122 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 55,
+      "endColumn": 73,
+      "endLine": 33,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 33,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 25,
+      "endColumn": 43,
+      "endLine": 37,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 37,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 48,
+      "endColumn": 66,
+      "endLine": 37,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 37,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 21,
+      "endColumn": 39,
+      "endLine": 43,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 43,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 44,
+      "endColumn": 62,
+      "endLine": 43,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 43,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 28,
+      "endColumn": 46,
+      "endLine": 48,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 48,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 38,
+      "endColumn": 56,
+      "endLine": 53,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 53,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    },
+    {
+      "code": "D0090",
+      "column": 61,
+      "endColumn": 79,
+      "endLine": 53,
+      "file": "mlflow/annotated/mlflow/data/run_status_enum.pyk",
+      "line": 53,
+      "message": "'DataFrame[RunInfo]' is a deprecated alias for 'SparkFrame[RunInfo]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfo]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RunInfo]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 8
   }
 }

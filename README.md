@@ -4,15 +4,17 @@
 
 ## Why cross-codebase testing
 
-pykrete is a strict-superset type checker for PySpark. To trust it,
-you need confidence it doesn't choke on the patterns real Spark code
-actually uses — not just the ones we thought to write tests for.
+pykrete is a strict-superset type checker for PySpark and (as of
+v1.3) pandas. To trust it, you need confidence it doesn't choke on
+the patterns real Spark and pandas code actually use — not just the
+ones we thought to write tests for.
 
 So we test pykrete against real upstream code from 10 codebases that
-together represent the dominant PySpark stack. Every release runs
-pykrete over the fixtures in `cross-codebase/` and the diagnostic
-output is JSON-compared against a golden snapshot. A regression in
-any donor blocks the release.
+together represent the dominant PySpark stack and (in 3 of them, as
+of v1.3) typical pandas usage in the same projects. Every release
+runs pykrete over the fixtures in `cross-codebase/` and the
+diagnostic output is JSON-compared against a golden snapshot. A
+regression in any donor blocks the release.
 
 ## The donors
 
@@ -53,28 +55,32 @@ files, and `examples/.../arrow.py` covering `pandas_udf` /
 `mlflow.pyfunc.spark_udf` examples,
 `tests/spark/autologging/datasource/test_spark_datasource_autologging.py`,
 the v1.1 `run_status_enum.pyk` covering MLflow run-status vocabulary
-on a Spark DataFrame surface, and a v1.3 `PandasFrame[X]` fixture
-exercising the six dispatched pandas operations); delta and hudi each
-contribute a v1.1 enum fixture (`cdc_change_type_enum.pyk` and
-`cdc_operation_enum.pyk` respectively) on top of their prior annotated
-set; feast and iceberg-python each add a v1.3 `PandasFrame[X]` fixture
+on a Spark DataFrame surface, and the v1.3 `pandas_dataset.pyk`
+exercising the `PandasFrame[X]` dispatch on the six pandas
+operations); delta and hudi each contribute a v1.1 enum fixture
+(`cdc_change_type_enum.pyk` and `cdc_operation_enum.pyk`); feast and
+iceberg-python each add a v1.3 `PandasFrame[X]` fixture
+(`feast/pandas_entity_df.pyk`, `iceberg-python/pandas_score_dataset.pyk`)
 on top of their prior Spark coverage; the remaining donors contribute
 the rest.
 
 ## What the goldens capture
 
 The golden snapshot for each annotated fixture is the JSON-formatted
-diagnostic output pykrete emits today. As of v1.3 all 38 annotated
-fixtures produce `"diagnostics": []` — pykrete checks every annotated
-donor file without complaint. The v0.1.37 baseline carried six
-fixtures with known false positives (`df.drop(missing)`, backtick-wrapped
-column refs, the `Struct` placeholder, `Array[float]` vs
-`Array[double]`, explode-map `.alias` dual, multi-arg `select` after
-`explode`); v0.1.39 closed all of them. The v1.1 enum fixtures
+diagnostic output pykrete emits today. As of v1.3 the annotated
+fixtures that use the canonical `SparkFrame[X]` / `PandasFrame[X]`
+forms produce `"diagnostics": []`; fixtures that still use the v1.2
+`DataFrame[X]` alias emit one `D0090 deprecatedDataFrameAlias`
+warning per annotation, captured in the golden. The v1.3 mass
+golden refresh absorbed 48 fixtures' worth of new D0090 warnings;
+non-D0090 diagnostics on the same fixtures were preserved. The v1.0
+goldens carried six fixtures with v0.1.37 false positives, all
+closed by v0.1.39. The v1.1 enum fixtures
 (`delta/cdc_change_type_enum.pyk`, `hudi/cdc_operation_enum.pyk`,
-`mlflow/run_status_enum.pyk`) and the v1.3 pandas-dialect fixtures
-(`mlflow/pandas_*.pyk`, `feast/pandas_*.pyk`,
-`iceberg-python/pandas_*.pyk`) ship clean against the same contract.
+`mlflow/run_status_enum.pyk`) and the v1.3 pandas fixtures
+(`mlflow/pandas_dataset.pyk`, `feast/pandas_entity_df.pyk`,
+`iceberg-python/pandas_score_dataset.pyk`) ship against the same
+contract.
 
 The contract is "no diff against the committed golden". When pykrete
 behavior changes the contributor regenerates the affected goldens in
@@ -120,9 +126,11 @@ See `scripts/update-pinned-commit.sh` for a starting harness.
 ## CI
 
 `cross-codebase.yml` runs on every push, PR, and nightly. It builds
-pykrete from `main` and diffs each fixture's live JSON diagnostic
-output against its committed `.golden.json`. Any drift fails the
-build — that's the release-blocking contract.
+pykrete from `scripts/diagnostic_catalog.json`'s
+`pykreteSourceCommit` pin (mirroring `probes.yml`) and diffs each
+fixture's live JSON diagnostic output against its committed
+`.golden.json`. Any drift fails the build — that's the
+release-blocking contract.
 
 ## Schema-tracking probes (v1.3)
 
@@ -138,17 +146,18 @@ slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
 markers in `.pyk` fixtures that the runner expands into synthetic
 checks against `pykrete check --format json`. Positive probes assert
 columns resolve cleanly after schema-changing operations (`.select`,
-`.filter`, `.withColumn`, and the pandas analogues `df[col_list]` /
-`df[mask]` / `df["new"] = expr`); negative probes assert specific
-diagnostics fire on deliberately-corrupted fixtures.
+`.filter`, `.withColumn`, plus the v1.3 pandas analogues
+`df[col_list]`, `df[mask]`, `df["new"] = expr`); negative probes
+assert specific diagnostics fire on deliberately-corrupted fixtures.
 
 - **122 positive probes** across 37 of the 38 annotated fixtures
   verify column resolution and post-narrowing flow.
-- **27 negative probes** across all 21 deliberately-corrupted fixtures
-  under `probes_negative/` verify diagnostic firing — D0030
-  `unknownColumn`, D0060 `missingJoinKey`, D0081 `nonNumericArithmetic`,
-  D0082 `crossTypeComparison`, D0084 `enumValueMismatch` (v1.1), and
-  **D0090 `deprecatedDataFrameAlias`** (new in v1.3).
+- **27 negative probes** across all 21 deliberately-corrupted
+  fixtures under `probes_negative/` verify diagnostic firing —
+  D0030 `unknownColumn`, D0060 `missingJoinKey` (v1.3), D0081
+  `nonNumericArithmetic`, D0082 `crossTypeComparison`, D0084
+  `enumValueMismatch` (v1.1), and **D0090 `deprecatedDataFrameAlias`**
+  (new in v1.3 — warns on `DataFrame[X]`, removed in v2.0).
 - **Enum value vocabulary verification** in 3 of 10 donors —
   Delta CDC `_change_type` (`{"insert", "update_preimage",
   "update_postimage", "delete"}`), Hudi `_hoodie_operation`
@@ -185,14 +194,15 @@ What we do **not** yet verify (deferred to v1.4):
   `df.rename` chains) follow in v1.4 — parallel to how v1.2 added
   Spark type-tracking after v1.1 introduced Spark column tracking.
   Tracker: [#14](https://github.com/amirnaderi93/pykrete-tests/issues/14).
-- `PROBE-TYPE-IS` synth-shape coverage beyond D0081 on the Spark side
-  (D0080 / D0082 keep falsifiability via raw-mutation fixtures until
-  their synth shapes ship).
+- **`PROBE-TYPE-IS` synth-shape coverage beyond D0081 (Spark side).**
+  D0080 (`returnTypeMismatch`) and D0082 (`crossTypeComparison`)
+  need their own synth shapes; raw-mutation fixtures cover them
+  in the interim.
 - Numeric-subtype distinguishability (e.g. `int` vs `long` vs
   `double` arithmetic narrowing).
-- withColumn output enum-constraint preservation — v1.1 checks the
-  literal against the sink's enum vocabulary, but the constraint
-  drops on the output column. Tracker in pykrete's
+- withColumn output enum-constraint preservation — pykrete checks
+  the literal against the sink's enum vocabulary, but the
+  constraint drops on the output column. Tracker in pykrete's
   `docs/design/literal-value-vocabulary.md` polish backlog.
 
 A weekly `catalog-drift-watch` workflow polls pykrete-core's `main`

@@ -1,9 +1,24 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 24,
+      "endColumn": 40,
+      "endLine": 53,
+      "file": "delta/annotated/examples/python/quickstart.pyk",
+      "line": 53,
+      "message": "'DataFrame[IdRow]' is a deprecated alias for 'SparkFrame[IdRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[IdRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[IdRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 1
   }
 }

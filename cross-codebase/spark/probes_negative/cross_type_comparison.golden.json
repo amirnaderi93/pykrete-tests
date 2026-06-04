@@ -1,24 +1,38 @@
 {
   "diagnostics": [
     {
-      "code": "D0082",
-      "column": 22,
-      "endColumn": 47,
-      "endLine": 21,
+      "code": "D0090",
+      "column": 35,
+      "endColumn": 51,
+      "endLine": 19,
       "file": "spark/probes_negative/cross_type_comparison.pyk",
-      "line": 21,
-      "message": "Comparison between unrelated types String and Int. Spark coerces them; cast explicitly if intended.",
+      "line": 19,
+      "message": "'DataFrame[KVNeg]' is a deprecated alias for 'SparkFrame[KVNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KVNeg]'.",
       "relatedInformation": [],
-      "ruleName": "crossTypeComparison",
+      "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",
       "source": "pykrete",
-      "suggestion": null
+      "suggestion": "SparkFrame[KVNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 56,
+      "endColumn": 65,
+      "endLine": 19,
+      "file": "spark/probes_negative/cross_type_comparison.pyk",
+      "line": 19,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
     }
   ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 1
+    "warningCount": 2
   }
 }

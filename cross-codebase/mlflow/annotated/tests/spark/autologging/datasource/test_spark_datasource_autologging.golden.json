@@ -1,9 +1,38 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 42,
+      "endColumn": 60,
+      "endLine": 46,
+      "file": "mlflow/annotated/tests/spark/autologging/datasource/test_spark_datasource_autologging.pyk",
+      "line": 46,
+      "message": "'DataFrame[Numbers]' is a deprecated alias for 'SparkFrame[Numbers]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Numbers]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Numbers]"
+    },
+    {
+      "code": "D0090",
+      "column": 31,
+      "endColumn": 49,
+      "endLine": 58,
+      "file": "mlflow/annotated/tests/spark/autologging/datasource/test_spark_datasource_autologging.pyk",
+      "line": 58,
+      "message": "'DataFrame[Numbers]' is a deprecated alias for 'SparkFrame[Numbers]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Numbers]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Numbers]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 2
   }
 }

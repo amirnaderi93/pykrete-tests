@@ -1,9 +1,66 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 31,
+      "endColumn": 50,
+      "endLine": 27,
+      "file": "mlflow/annotated/mlflow/data/spark_dataset.pyk",
+      "line": 27,
+      "message": "'DataFrame[TrainRow]' is a deprecated alias for 'SparkFrame[TrainRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TrainRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TrainRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 24,
+      "endColumn": 43,
+      "endLine": 37,
+      "file": "mlflow/annotated/mlflow/data/spark_dataset.pyk",
+      "line": 37,
+      "message": "'DataFrame[TrainRow]' is a deprecated alias for 'SparkFrame[TrainRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TrainRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TrainRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 49,
+      "endLine": 46,
+      "file": "mlflow/annotated/mlflow/data/spark_dataset.pyk",
+      "line": 46,
+      "message": "'DataFrame[TrainRow]' is a deprecated alias for 'SparkFrame[TrainRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TrainRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TrainRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 31,
+      "endColumn": 50,
+      "endLine": 51,
+      "file": "mlflow/annotated/mlflow/data/spark_dataset.pyk",
+      "line": 51,
+      "message": "'DataFrame[TrainRow]' is a deprecated alias for 'SparkFrame[TrainRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TrainRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TrainRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 4
   }
 }
