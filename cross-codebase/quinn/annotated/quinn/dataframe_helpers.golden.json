@@ -1,9 +1,52 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 29,
+      "endColumn": 49,
+      "endLine": 47,
+      "file": "quinn/annotated/quinn/dataframe_helpers.pyk",
+      "line": 47,
+      "message": "'DataFrame[PersonRow]' is a deprecated alias for 'SparkFrame[PersonRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[PersonRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[PersonRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 40,
+      "endColumn": 60,
+      "endLine": 56,
+      "file": "quinn/annotated/quinn/dataframe_helpers.pyk",
+      "line": 56,
+      "message": "'DataFrame[PersonRow]' is a deprecated alias for 'SparkFrame[PersonRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[PersonRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[PersonRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 38,
+      "endColumn": 58,
+      "endLine": 66,
+      "file": "quinn/annotated/quinn/dataframe_helpers.pyk",
+      "line": 66,
+      "message": "'DataFrame[PersonRow]' is a deprecated alias for 'SparkFrame[PersonRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[PersonRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[PersonRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 3
   }
 }

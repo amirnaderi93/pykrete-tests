@@ -1,9 +1,80 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 42,
+      "endColumn": 64,
+      "endLine": 32,
+      "file": "dbt-spark/annotated/dbt/adapters/spark/session.pyk",
+      "line": 32,
+      "message": "'DataFrame[QueryResult]' is a deprecated alias for 'SparkFrame[QueryResult]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[QueryResult]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[QueryResult]"
+    },
+    {
+      "code": "D0090",
+      "column": 23,
+      "endColumn": 45,
+      "endLine": 42,
+      "file": "dbt-spark/annotated/dbt/adapters/spark/session.pyk",
+      "line": 42,
+      "message": "'DataFrame[QueryResult]' is a deprecated alias for 'SparkFrame[QueryResult]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[QueryResult]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[QueryResult]"
+    },
+    {
+      "code": "D0090",
+      "column": 24,
+      "endColumn": 46,
+      "endLine": 48,
+      "file": "dbt-spark/annotated/dbt/adapters/spark/session.pyk",
+      "line": 48,
+      "message": "'DataFrame[QueryResult]' is a deprecated alias for 'SparkFrame[QueryResult]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[QueryResult]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[QueryResult]"
+    },
+    {
+      "code": "D0090",
+      "column": 23,
+      "endColumn": 45,
+      "endLine": 56,
+      "file": "dbt-spark/annotated/dbt/adapters/spark/session.pyk",
+      "line": 56,
+      "message": "'DataFrame[QueryResult]' is a deprecated alias for 'SparkFrame[QueryResult]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[QueryResult]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[QueryResult]"
+    },
+    {
+      "code": "D0090",
+      "column": 26,
+      "endColumn": 48,
+      "endLine": 62,
+      "file": "dbt-spark/annotated/dbt/adapters/spark/session.pyk",
+      "line": 62,
+      "message": "'DataFrame[QueryResult]' is a deprecated alias for 'SparkFrame[QueryResult]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[QueryResult]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[QueryResult]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 5
   }
 }

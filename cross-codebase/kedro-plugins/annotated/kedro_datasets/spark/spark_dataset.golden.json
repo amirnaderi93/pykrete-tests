@@ -1,9 +1,66 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 73,
+      "endColumn": 91,
+      "endLine": 32,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_dataset.pyk",
+      "line": 32,
+      "message": "'DataFrame[Weather]' is a deprecated alias for 'SparkFrame[Weather]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Weather]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Weather]"
+    },
+    {
+      "code": "D0090",
+      "column": 21,
+      "endColumn": 39,
+      "endLine": 39,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_dataset.pyk",
+      "line": 39,
+      "message": "'DataFrame[Weather]' is a deprecated alias for 'SparkFrame[Weather]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Weather]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Weather]"
+    },
+    {
+      "code": "D0090",
+      "column": 31,
+      "endColumn": 49,
+      "endLine": 58,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_dataset.pyk",
+      "line": 58,
+      "message": "'DataFrame[Weather]' is a deprecated alias for 'SparkFrame[Weather]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Weather]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Weather]"
+    },
+    {
+      "code": "D0090",
+      "column": 29,
+      "endColumn": 47,
+      "endLine": 63,
+      "file": "kedro-plugins/annotated/kedro_datasets/spark/spark_dataset.pyk",
+      "line": 63,
+      "message": "'DataFrame[Weather]' is a deprecated alias for 'SparkFrame[Weather]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Weather]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[Weather]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 4
   }
 }

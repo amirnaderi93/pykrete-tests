@@ -1,6 +1,20 @@
 {
   "diagnostics": [
     {
+      "code": "D0090",
+      "column": 81,
+      "endColumn": 90,
+      "endLine": 21,
+      "file": "kedro-plugins/probes_negative/unknown_after_cast.pyk",
+      "line": 21,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
       "code": "D0030",
       "column": 26,
       "endColumn": 40,
@@ -19,6 +33,6 @@
   "summary": {
     "errorCount": 1,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 1
   }
 }

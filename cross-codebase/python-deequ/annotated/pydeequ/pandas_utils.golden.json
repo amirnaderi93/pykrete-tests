@@ -1,9 +1,52 @@
 {
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 63,
+      "endColumn": 85,
+      "endLine": 30,
+      "file": "python-deequ/annotated/pydeequ/pandas_utils.pyk",
+      "line": 30,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 32,
+      "endColumn": 54,
+      "endLine": 41,
+      "file": "python-deequ/annotated/pydeequ/pandas_utils.pyk",
+      "line": 41,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    },
+    {
+      "code": "D0090",
+      "column": 30,
+      "endColumn": 52,
+      "endLine": 46,
+      "file": "python-deequ/annotated/pydeequ/pandas_utils.pyk",
+      "line": 46,
+      "message": "'DataFrame[CustomerRow]' is a deprecated alias for 'SparkFrame[CustomerRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRow]"
+    }
+  ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 0
+    "warningCount": 3
   }
 }
