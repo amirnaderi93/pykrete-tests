@@ -59,8 +59,10 @@ on a Spark DataFrame surface, and the v1.3 `pandas_dataset.pyk`
 exercising the `PandasFrame[X]` dispatch on the six pandas
 operations); delta and hudi each contribute a v1.1 enum fixture
 (`cdc_change_type_enum.pyk` and `cdc_operation_enum.pyk`); feast and
-iceberg-python each contribute a v1.3 `PandasFrame[X]` fixture;
-the remaining donors contribute the rest.
+iceberg-python each add a v1.3 `PandasFrame[X]` fixture
+(`feast/pandas_entity_df.pyk`, `iceberg-python/pandas_score_dataset.pyk`)
+on top of their prior Spark coverage; the remaining donors contribute
+the rest.
 
 ## What the goldens capture
 
@@ -152,10 +154,10 @@ assert specific diagnostics fire on deliberately-corrupted fixtures.
   verify column resolution and post-narrowing flow.
 - **27 negative probes** across all 21 deliberately-corrupted
   fixtures under `probes_negative/` verify diagnostic firing —
-  D0030 `unknownColumn`, D0081 `nonNumericArithmetic`, D0082
-  `crossTypeComparison`, D0084 `enumValueMismatch` (added v1.1),
-  and **D0090 `deprecatedDataFrameAlias`** (new in v1.3 — warns
-  on `DataFrame[X]`, removed in v2.0).
+  D0030 `unknownColumn`, D0060 `missingJoinKey` (v1.3), D0081
+  `nonNumericArithmetic`, D0082 `crossTypeComparison`, D0084
+  `enumValueMismatch` (v1.1), and **D0090 `deprecatedDataFrameAlias`**
+  (new in v1.3 — warns on `DataFrame[X]`, removed in v2.0).
 - **Enum value vocabulary verification** in 3 of 10 donors —
   Delta CDC `_change_type` (`{"insert", "update_preimage",
   "update_postimage", "delete"}`), Hudi `_hoodie_operation`
@@ -164,19 +166,21 @@ assert specific diagnostics fire on deliberately-corrupted fixtures.
   Positive probes assert in-vocab literals stay clean in
   `==` / `.isin` / `withColumn` / `F.expr` / `groupBy` chains;
   negative probes assert D0084 fires on off-vocab typos.
-- **Spark `PROBE-TYPE-IS` type-tracking** (shipped v1.2) in 3 of
-  10 donors — quinn, mlflow, and python-deequ — assert column
-  types propagate through `.select` / `.withColumn` / `.filter`
-  chains. Off-claim markers fire D0081 via the synth shape; a CI
-  gate mutates the claimed type on every marker and verifies the
-  diagnostic fires.
-- **Pandas check-site coverage** (new in v1.3) in 3 of 10 donors —
-  mlflow, feast, and iceberg-python — exercise the six dispatched
-  pandas operations (column selection, boolean-mask filtering,
-  assignment, drop, merge, rename) on `PandasFrame[X]` annotations,
-  paired with `probes_negative/` counterparts asserting D0030 on
-  bare `df["typo"]` and D0090 on the deprecated `DataFrame[X]`
-  alias.
+- **Spark type-tracking** (v1.2) via the `PROBE-TYPE-IS` synth in
+  3 of 10 donors — quinn, MLflow, and python-deequ. The synth wraps
+  `{df}.select(col("x") + 1)` around the typed marker so off-claim
+  numeric types fall through to D0081 `nonNumericArithmetic`. The
+  scope-binding work that v1.1 deferred shipped in v1.2; D0080 / D0082
+  remain raw-mutation-covered until their synth shapes ship.
+- **v1.3 pandas dialect** — 3 of 10 donors (mlflow, feast, iceberg-python)
+  carry annotated `PandasFrame[X]` fixtures exercising the six
+  dispatched check-site operations (`df[col_list]` /
+  `df[mask]` / `df["new"] = expr` / `df.drop` / `df.merge` /
+  `df.rename`), paired with `probes_negative/` counterparts asserting
+  D0030 fires on `df["typo"]` subscripts and D0090 fires on the
+  deprecated `DataFrame[X]` alias. Tracker issue
+  [#14](https://github.com/amirnaderi93/pykrete-tests/issues/14) follows
+  v1.4 pandas `PROBE-TYPE-IS` parity.
 - The `probes` workflow runs `scripts/probes_ci.sh` on every push
   and PR; CI fails if any probe asserts the wrong outcome. The
   combined structured JSON report uploads as the `probes-report`
@@ -184,10 +188,11 @@ assert specific diagnostics fire on deliberately-corrupted fixtures.
 
 What we do **not** yet verify (deferred to v1.4):
 
-- **Positive `PROBE-TYPE-IS` coverage on `PandasFrame[X]`.** v1.3
-  ships pandas check-site coverage; positive type-tracking probes
-  for pandas land in v1.4 — parallel to how v1.2 added Spark
-  type-tracking after v1.1 introduced Spark column tracking.
+- **Positive `PROBE-TYPE-IS` coverage on `PandasFrame[X]`.** v1.3 ships
+  pandas check-site coverage; positive type-tracking probes for pandas
+  (asserting dtype propagation through `df[col_list]` / `df.merge` /
+  `df.rename` chains) follow in v1.4 — parallel to how v1.2 added
+  Spark type-tracking after v1.1 introduced Spark column tracking.
   Tracker: [#14](https://github.com/amirnaderi93/pykrete-tests/issues/14).
 - **`PROBE-TYPE-IS` synth-shape coverage beyond D0081 (Spark side).**
   D0080 (`returnTypeMismatch`) and D0082 (`crossTypeComparison`)
