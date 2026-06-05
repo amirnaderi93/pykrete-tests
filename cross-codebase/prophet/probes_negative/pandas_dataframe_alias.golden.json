@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 26,
+      "endColumn": 52,
+      "endLine": 20,
+      "file": "prophet/probes_negative/pandas_dataframe_alias.pyk",
+      "line": 20,
+      "message": "'DataFrame[ProphetFrameDep]' is a deprecated alias for 'SparkFrame[ProphetFrameDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[ProphetFrameDep]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[ProphetFrameDep]"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

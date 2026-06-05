@@ -1,0 +1,123 @@
+# MIT License. Copyright (c) Facebook, Inc. and its affiliates.
+#
+# Annotated for pykrete from prophet/python/prophet/forecaster.py at
+# facebook/prophet, pinned-commit 82180bbc8e0831e511de62c371f9d13e54b36e51
+# (tag v1.1.6).
+#
+# Strategy: prophet's setup_dataframe + piecewise_linear_changepoints
+# stages exercise the `df["new"] = expr` subscript-assign shape
+# heavily — string-literal slices on the LHS, dispatched at
+# driver.rs:187-215. This is the v1.3 dispatched shape pykrete
+# recognizes (`pandas-support.md` §5).
+#
+# Upstream evidence (paste-from-source, v1.1.6):
+#   # python/prophet/forecaster.py @ v1.1.6, L282-287 (Prophet.setup_dataframe)
+#   if 'y' in df:  # 'y' will be in training data
+#       df['y'] = pd.to_numeric(df['y'])
+#       if np.isinf(df['y'].values).any():
+#           raise ValueError('Found infinity in column y.')
+#   if df['ds'].dtype == np.int64:
+#       df['ds'] = df['ds'].astype(str)
+#   df['ds'] = pd.to_datetime(df['ds'])
+#
+#   # python/prophet/forecaster.py @ v1.1.6, L346-353 (Prophet.setup_dataframe scaling)
+#   df['cap_scaled'] = (df['cap'] - df['floor']) / self.y_scale
+#
+#   df['t'] = (df['ds'] - self.start) / self.t_scale
+#   if 'y' in df:
+#       df['y_scaled'] = (df['y'] - df['floor']) / self.y_scale
+#
+#   for name, props in self.extra_regressors.items():
+#       df[name] = ((df[name] - props['mu']) / props['std'])
+#
+# All bracket-assign sites at L282, L287, L346, L348, L350 use a
+# string-literal slice (e.g. `df['cap_scaled']`) — exactly the shape
+# pykrete dispatches. (L353 uses a Name-slice `df[name]` and does NOT
+# match dispatch.)
+#
+# Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):
+#   - `cap`, `floor`, `y`, `y_scaled`, `cap_scaled`, `t` are float64
+#     measurement / scaled columns → ColumnType::Double per pandas
+#     numeric default.
+#   - `model_name` is a pandas object/str column carrying the human
+#     identifier for the Prophet model run (commonly attached
+#     alongside the canonical ds/y frame for multi-model fan-out per
+#     prophet user idiom) → ColumnType::String.
+#   - `serialized_model` is a pandas object column holding pickled
+#     model bytes — the canonical pandas shape for persisting a
+#     fitted Prophet model alongside its training frame (matches
+#     the prophet docs "serializing models" guidance using
+#     pickle/joblib). Maps to ColumnType::Binary per
+#     docs/design/pandas-support.md §4 "Other / structured". Binary
+#     is Collection-family in strict_operators.rs:57 — the TYPE-IS
+#     synth wrap (df.select(col(...) + lit(1))) fires D0081 on it.
+#   - `ds` is the canonical timestamp column (datetime64[ns] in
+#     prophet) → ColumnType::Timestamp. Used for col-ref resolution
+#     and post-subscript-assign survival; TYPE-IS on Temporal would
+#     NOT fire D0081 under the synth wrap (strict_operators.rs:59
+#     puts Temporal outside the Textual/Collection fire set), so
+#     it's covered only by RESOLVES, not TYPE-IS.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df["new"] = expr subscript-assign dispatch from §5 (verified
+#     shape via L282, L287, L346, L348, L350)
+#   - Post-subscript-assign col-ref resolution (cap_scaled / y_scaled
+#     / t / serialized_model)
+#   - Pandas dispatched op df.assign(new=expr) for one chained
+#     reference, mirroring the user-side prophet idiom of
+#     constructing the model-input frame fluently
+#   - PROBE-TYPE-IS dtype-retention on string + binary atomics
+#     (model_name + serialized_model) per spec §1 line 64 floor
+
+from pykrete import PandasFrame
+
+
+class ProphetFrame(Schema):
+    ds: timestamp
+    y: double
+    cap: double
+    floor: double
+    model_name: string
+    serialized_model: binary
+
+
+def scale_time_series(df: PandasFrame[ProphetFrame]) -> None:
+    """Mirrors prophet/forecaster.py:L346-350 — piecewise scaling that
+    materializes the scaled columns prophet's fit/predict paths depend
+    on. The bracket-assign sites are string-literal slices (matches
+    pykrete dispatch at driver.rs:187-215)."""
+    df["cap_scaled"] = df["cap"] - df["floor"]
+# PROBE-RESOLVES: id=prophet-cap-scaled-binds -- after the L346 subscript-assign the new column "cap_scaled" must be resolvable on df (piece (b) tracker); if subscript-assign weren't recognized D0030 would fire here
+    _ = df["cap_scaled"]
+    df["y_scaled"] = df["y"] - df["floor"]
+# PROBE-RESOLVES: id=prophet-y-scaled-binds -- mirror of L350: post-assign "y_scaled" must resolve; vacuity-falsifying because renaming the LHS literal would fire D0030
+    _ = df["y_scaled"]
+# PROBE-RESOLVES: id=prophet-floor-survives -- the original ProphetFrame column "floor" must survive both subscript-assigns; a buggy schema-mutation that wiped pre-existing cols would fire D0030
+    _ = df["floor"]
+
+
+def normalize_targets(df: PandasFrame[ProphetFrame]) -> None:
+    """Mirrors prophet/forecaster.py:L282 + L287 — the y/ds coercion
+    block. Both LHS literals are string-literal slices (matches
+    dispatch)."""
+    df["y"] = df["y"]
+# PROBE-RESOLVES: id=prophet-y-resolves -- post-coercion `y` resolves on df; tests that the subscript-assign didn't drop the original column from the schema view
+    _ = df["y"]
+# PROBE-TYPE-IS: string on "model_name" id=prophet-model-name-type -- model_name is string in ProphetFrame; synth wraps in df.select(col("model_name") + lit(1)) under strict mode and fires D0081 (arith on string Textual-family); vacuity-falsifying because flipping the dtype to double in the schema would clear the fire
+    _ = df["model_name"]
+
+
+def fluent_assign_chain(df: PandasFrame[ProphetFrame]) -> None:
+    """Mirrors the prophet user-side idiom of building the training
+    frame fluently with df.assign(...) for a derived target — keeps
+    the canonical bracket-assign pattern reachable from a dispatched
+    method form too. df.assign is the v1.3 dispatched op at
+    column_methods.rs:445-458."""
+    enriched = df.assign(model_signature=df["model_name"])
+# PROBE-RESOLVES: id=prophet-assign-signature-binds -- post-assign kwarg key "model_signature" must resolve on the new view; df.assign dispatch via apply_pandas_assign should bind it
+    _ = enriched["model_signature"]
+# PROBE-TYPE-IS: string on "model_name" id=prophet-assign-model-name-type -- model_name passes through the assign untouched and remains string; synth wraps in enriched.select(col("model_name") + lit(1)) under strict mode and fires D0081 (Textual family); flipping schema to double clears it
+    _ = enriched["model_name"]
+# PROBE-TYPE-IS: binary on "serialized_model" id=prophet-serialized-model-type -- serialized_model is binary in ProphetFrame and passes through df.assign unchanged; synth wraps in enriched.select(col("serialized_model") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:57); vacuity-falsifying because flipping to double clears it
+    _ = enriched["serialized_model"]

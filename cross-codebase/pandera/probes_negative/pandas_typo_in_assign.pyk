@@ -1,0 +1,25 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera user-side df.assign idiom (sibling
+# annotated/canonical/user_validation.pyk add_validation_result);
+# the assign kwarg VALUE references a column literal that doesn't
+# exist on the receiver schema, so col-ref-existence checking inside
+# the assign value position fires D0030.
+#
+# Failure mode exercised: pandas df.assign(...) dispatch row from §5;
+# the kwarg-value walker at column_methods.rs:353 surfaces D0030 on
+# the unresolved column literal.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrameNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+def assign_typo(df: PandasFrame[ValidatedFrameNeg]) -> None:
+    # `row_cuont` is a transposition of `row_count` — col-ref-existence
+    # check on the kwarg value position must fire D0030.
+# PROBE-EXPECTS: D0030 on "\"row_cuont\"" id=pandera-pandas-neg-assign-typo -- pandas df.assign(...) kwarg value position routes through column-existence checking; the literal "row_cuont" is unbound on ValidatedFrameNeg and must fire D0030
+    validated = df.assign(is_valid=df["row_cuont"])
+    _ = validated

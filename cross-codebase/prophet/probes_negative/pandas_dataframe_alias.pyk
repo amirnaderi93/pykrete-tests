@@ -1,0 +1,21 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the prophet ProphetFrame schema (sibling
+# annotated/prophet/forecaster.pyk); the annotated sibling uses the
+# canonical `PandasFrame[X]` v1.3 form, this fixture uses the
+# deprecated `DataFrame[X]` alias to assert pykrete fires D0090 per
+# docs/design/pandas-support.md §6.
+#
+# Failure mode exercised: D0090 fires once per `DataFrame[X]`
+# parameter annotation slot (v1.3 deprecation warning).
+
+from pykrete import DataFrame
+
+
+class ProphetFrameDep(Schema):
+    ds: timestamp
+    y: double
+
+
+# PROBE-EXPECTS: D0090 on "DataFrame[ProphetFrameDep]" id=prophet-pandas-neg-dataframe-alias -- DataFrame[X] alias on a parameter slot must fire D0090 per §6
+def setup_with_alias(df: DataFrame[ProphetFrameDep]) -> None:
+    _ = df
