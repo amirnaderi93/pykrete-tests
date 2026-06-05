@@ -28,6 +28,16 @@
 #   - Categorical plot axis columns are numeric measurement values
 #     (`x`, `y` are passed through to matplotlib ax.{bar,box,strip} which
 #     coerces to numeric) → ColumnType::Double per pandas defaults.
+#   - `marker_image` is a pandas `bytes`-object column carrying per-row
+#     PNG bytes — the canonical pandas shape for image-marker scatter
+#     overlays (matplotlib `OffsetImage`-based custom markers commonly
+#     written alongside seaborn categorical plots); maps to
+#     ColumnType::Binary per docs/design/pandas-support.md §4 "Other /
+#     structured". Picked over timestamp because the strict-operator
+#     checker (strict_operators.rs:31-67) only fires D0081 on Textual /
+#     Collection families — Binary is Collection ("non-combining
+#     atomic") so the synth wrap fires; Timestamp is Temporal and would
+#     not fire.
 #   - The wide-orient swap rebinds x/y but preserves dtype on the swap;
 #     the post-swap fixture verifies post-rename col-ref resolution.
 #
@@ -36,6 +46,8 @@
 #   - df.rename(columns={...}) dispatch row with the verified
 #     in-library shape from categorical.py:L79
 #   - Post-rename col-ref resolution on swapped axis names
+#   - PROBE-TYPE-IS dtype-retention on a binary atomic (Collection
+#     family; dispatches to D0081 under the synth wrap)
 
 from pykrete import PandasFrame
 
@@ -43,6 +55,7 @@ from pykrete import PandasFrame
 class PlotData(Schema):
     x: double
     y: double
+    marker_image: binary
 
 
 def wide_orient_axis_swap(plot_data: PandasFrame[PlotData]) -> None:
@@ -53,3 +66,11 @@ def wide_orient_axis_swap(plot_data: PandasFrame[PlotData]) -> None:
     _ = swapped["y"]
 # PROBE-RESOLVES: id=seaborn-categorical-wide-swap-x -- mirror of the above; post-swap `x` resolves
     _ = swapped["x"]
+
+
+def marker_image_typed_probe(plot_data: PandasFrame[PlotData]) -> None:
+    """TYPE-IS probe on a non-numeric atomic (binary). Adds substrate
+    diversity beyond the string-only TYPE-IS markers in relational.pyk;
+    closes the spec §1 line 64 floor (≥3 PROBE-TYPE-IS per donor)."""
+# PROBE-TYPE-IS: binary on "marker_image" id=seaborn-categorical-marker-image-type -- marker_image is binary in PlotData; synth wraps in plot_data.select(col("marker_image") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:58); flipping the dtype to double in the schema clears the fire — vacuity-falsifying
+    _ = plot_data["marker_image"]
