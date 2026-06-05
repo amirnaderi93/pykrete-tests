@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 18,
+      "endColumn": 24,
+      "endLine": 24,
+      "file": "yfinance/probes_negative/pandas_typo_in_rename.pyk",
+      "line": 24,
+      "message": "Column 'Open' does not exist on inferred schema [AdjOpen, High, Close].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

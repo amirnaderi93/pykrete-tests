@@ -1,0 +1,28 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the seaborn relational merge idiom (sibling
+# annotated/seaborn/relational.pyk merge_metadata_then_select); the
+# on= kwarg references a join key absent from one side, so the v1.3
+# join-key check must fire D0060 (missingJoinKey) via the
+# .merge(...) dispatch at expr.rs:1049.
+#
+# Failure mode exercised: pandas .merge(...) method-form dispatch row
+# from §5; `on=` join key absent from a side fires D0060.
+
+from pykrete import PandasFrame
+
+
+class TidyDataMergeNeg(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+class MetaFrameMergeNeg(Schema):
+    treatment: string
+
+
+def merge_unknown_join_key(df: PandasFrame[TidyDataMergeNeg], meta: PandasFrame[MetaFrameMergeNeg]) -> None:
+# PROBE-EXPECTS: D0060 on "\"unit_id\"" id=seaborn-pandas-neg-merge-unknown-key -- pandas .merge(...) dispatch row from §5; `unit_id` is on the left frame but absent from MetaFrameMergeNeg, so the v1.3 join-key check fires D0060
+    merged = df.merge(meta, on="unit_id")
+    _ = merged

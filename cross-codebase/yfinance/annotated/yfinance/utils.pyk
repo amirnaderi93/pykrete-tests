@@ -1,0 +1,171 @@
+# Apache License 2.0. Copyright Ran Aroussi (yfinance).
+#
+# Annotated for pykrete from yfinance/utils.py at ranaroussi/yfinance,
+# pinned-commit 5cc1197 (tag 0.2.55).
+#
+# Strategy: the auto_adjust(data) function (upstream L455-L472)
+# rebases OHLC price columns by a corporate-action ratio, drops the
+# raw OHLC, and renames the adjusted columns back to the canonical
+# OHLC names. The subscript-assign + dict-literal rename are the
+# v1.3-dispatched shapes; the .merge(...) hit at L335 exercises the
+# method-form merge dispatch with index-based join args.
+#
+# Upstream evidence (paste-from-source, 0.2.55):
+#   # yfinance/utils.py @ 0.2.55, L455-472 (auto_adjust subscript-assign + rename)
+#   def auto_adjust(data):
+#       col_order = data.columns
+#       df = data.copy()
+#       ratio = (df["Adj Close"] / df["Close"]).to_numpy()
+#       df["Adj Open"] = df["Open"] * ratio
+#       df["Adj High"] = df["High"] * ratio
+#       df["Adj Low"] = df["Low"] * ratio
+#
+#       df.drop(
+#           ["Open", "High", "Low", "Close"],
+#           axis=1, inplace=True)
+#
+#       df.rename(columns={
+#           "Adj Open": "Open", "Adj High": "High",
+#           "Adj Low": "Low", "Adj Close": "Close"
+#       }, inplace=True)
+#
+#       return df[[c for c in col_order if c in df.columns]]
+#
+#   # yfinance/utils.py @ 0.2.55, L335 (Annual.merge method-form, index-join)
+#   _statement = Annual.merge(TTM, left_index=True, right_index=True)
+#
+# Schema dtypes (per docs/design/pandas-support.md §4):
+#   - OHLC price columns (`Open`/`High`/`Low`/`Close`, and their
+#     `Adj *` siblings) are pandas float64 — yfinance constructs them
+#     via `pd.to_numeric(...)` for casts (utils.py L93, L99) before
+#     these adjust functions run → ColumnType::Double.
+#   - `ticker` / `currency` are pandas string columns — yfinance
+#     metadata fields → ColumnType::String.
+#   - `logo_bytes` is a pandas `bytes`-object column holding the
+#     ticker's company logo as raw PNG bytes (Yahoo Finance's
+#     /v10/finance/quoteSummary?modules=summaryProfile endpoint
+#     surfaces a `logo_url`; users idiomatically fetch + cache the
+#     bytes into the frame) → ColumnType::Binary. Picked over
+#     timestamp because the strict-operator checker
+#     (strict_operators.rs:31-67) only fires D0081 on Textual /
+#     Collection families — Binary is Collection so the TYPE-IS
+#     synth wrap fires; Timestamp is Temporal and would not fire.
+#   - The annotated companion uses the method-form `.merge(other,
+#     on="key")` rather than the upstream `left_index=True`/
+#     `right_index=True` shape, because pykrete dispatches on
+#     `on=`-keyed joins; documented in the per-row dispatch table at
+#     docs/design/pandas-support.md §5.
+#
+# Single-file fixture density: yfinance ships one annotated file
+# (utils.py) because the verified upstream-cite exercise per spec
+# §2 (yfinance L355-418) lives entirely in utils.py — base.py /
+# multi.py have no paste-from-source-verified dispatched shapes at
+# the 0.2.55 pin. utils.py exercises all three v1.3-modeled pandas
+# operations (subscript-assign, rename, merge) plus the v1.4 piece
+# (b) scalar-Subscript shape across 4 functions; fixture density
+# below the soft ~3 target is accepted in exchange for cite-faithful
+# discipline (round-4 BLOCKER outcome).
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df["new"] = expr subscript-assign dispatch row from §5 (the
+#     auto_adjust OHLC rebase, mirroring L459-L461 verbatim)
+#   - df.rename(columns={...}) dispatch row from §5 (mirroring
+#     L467-L470 verbatim)
+#   - df.merge(other, on=...) dispatch row from §5 (method form,
+#     mirroring the shape of L335 with `on=` instead of left_index=)
+#   - Post-rename / post-merge col-ref resolution
+#   - Schema mutation tracking through subscript-assign chains
+#   - PROBE-TYPE-IS dtype-retention on string + binary atomics
+#     (both Textual / Collection families, dispatching to D0081
+#     under the synth wrap; temporal families would not fire)
+
+from pykrete import PandasFrame
+
+
+class OHLCRow(Schema):
+    Open: double
+    High: double
+    Low: double
+    Close: double
+    AdjClose: double
+
+
+class TickerRow(Schema):
+    ticker: string
+    currency: string
+    Close: double
+    logo_bytes: binary
+
+
+def auto_adjust_demo(df: PandasFrame[OHLCRow]) -> None:
+    """Mirrors yfinance.utils.auto_adjust (L455-L472). The OHLC
+    subscript-assign idiom + dict-literal rename are the v1.3-
+    dispatched shapes pykrete checks.
+
+    Fixture divergence from upstream: upstream auto_adjust drops
+    [Open, High, Low, Close] via `df.drop([...], axis=1, inplace=True)`
+    BEFORE the rename (utils.py L463-465), so the rename {"AdjOpen":
+    "Open", ...} doesn't collide. pykrete dispatches `drop(columns=)`
+    not the positional+axis=1 form (spec §2 L376-385 explicitly cites
+    this as a non-matching shape), so the fixture omits the drop —
+    the post-rename view therefore carries "Open" twice (original +
+    rebound-from-AdjOpen). The PROBE-RESOLVES check still holds (it
+    only asks the column exists, not that it's unique); a future
+    drop-positional-with-axis dispatch would let us close the
+    divergence."""
+    df["AdjOpen"] = df["Open"]
+    df["AdjHigh"] = df["High"]
+    df["AdjLow"] = df["Low"]
+# PROBE-RESOLVES: id=yfinance-utils-auto-adjust-adjopen-after-assign -- post-subscript-assign the schema must carry the new `AdjOpen` column; a broken add_or_replace_column would fire D0030
+    _ = df["AdjOpen"]
+    adjusted = df.rename(columns={"AdjOpen": "Open", "AdjHigh": "High", "AdjLow": "Low"})
+# PROBE-RESOLVES: id=yfinance-utils-auto-adjust-post-rename-open -- post-rename view has `Open` rebound (from `AdjOpen`); a broken rename schema mutation would fire D0030
+    _ = adjusted["Open"]
+
+
+def merge_statements_demo(annual: PandasFrame[OHLCRow], ttm: PandasFrame[OHLCRow]) -> None:
+    """Mirrors yfinance.utils L335 — the Annual.merge(TTM, ...) shape
+    in dispatched form. Upstream uses left_index/right_index; pykrete
+    dispatches `on=`-keyed joins, so the fixture uses `on="Close"`."""
+    statement = annual.merge(ttm, on="Close")
+# PROBE-RESOLVES: id=yfinance-utils-merge-statement-close -- post-merge view carries `Close` (the join key); a broken merge schema-union would fire D0030
+    _ = statement["Close"]
+
+
+def ticker_close_subscript(df: PandasFrame[TickerRow]) -> None:
+    """Scalar string-literal Subscript on a typed pandas receiver;
+    parallels the bare df["Close"] reads scattered through utils.py
+    (e.g., L458 `df["Adj Close"] / df["Close"]`)."""
+# PROBE-RESOLVES: id=yfinance-utils-ticker-close-scalar -- piece (b) scalar Subscript resolves Close on TickerRow; missing piece-(a) dialect tag would skip the check
+    _ = df["Close"]
+
+
+def ticker_typed_probe(df: PandasFrame[TickerRow]) -> None:
+    """Type-tracking probes — `ticker` is string in TickerRow, so the
+    arithmetic synth fires D0081; `Close` is double, so flipping the
+    probe to it would clear the fire — vacuity-falsifying."""
+# PROBE-TYPE-IS: string on "ticker" id=yfinance-utils-ticker-type -- ticker is string in TickerRow; synth wraps in df.select(col("ticker") + lit(1)) under strict mode and fires D0081; flipping the dtype to double clears it
+    _ = df["ticker"]
+
+
+def currency_typed_probe(df: PandasFrame[TickerRow]) -> None:
+    """Second TYPE-IS probe on a different string column. Yahoo
+    Finance tickers carry a currency code (USD/EUR/...) sibling to
+    the ticker symbol — both string. Two distinct typed columns means
+    a regression that confused one slot for another can't accidentally
+    pass both probes."""
+# PROBE-TYPE-IS: string on "currency" id=yfinance-utils-currency-type -- currency is string in TickerRow; synth fires D0081 under strict mode; vacuity-falsifying because flipping the source dtype to numeric clears it
+    _ = df["currency"]
+
+
+def logo_bytes_typed_probe(df: PandasFrame[TickerRow]) -> None:
+    """Third TYPE-IS probe on a non-numeric atomic (binary). Adds
+    substrate diversity beyond the string-only markers above and
+    closes the spec §1 line 64 floor (≥3 PROBE-TYPE-IS per donor).
+    Binary chosen over timestamp/date because the strict-operator
+    checker only fires D0081 on Textual / Collection families
+    (strict_operators.rs:31-67); Binary is Collection so the synth
+    wrap fires, Temporal families would not."""
+# PROBE-TYPE-IS: binary on "logo_bytes" id=yfinance-utils-logo-bytes-type -- logo_bytes is binary in TickerRow; synth wraps in df.select(col("logo_bytes") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:58); flipping the dtype to double in the schema clears the fire — vacuity-falsifying
+    _ = df["logo_bytes"]

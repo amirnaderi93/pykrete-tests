@@ -1,0 +1,109 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from seaborn/relational.py at mwaskom/seaborn,
+# pinned-commit 9521ea1 (tag v0.13.2).
+#
+# Strategy: seaborn's library code (relational.py) uses variable-kwarg
+# .rename(columns=<var>) at L825 + L886 and top-level pd.merge(...) at
+# L890-895 — none of which match the v1.3 pandas dispatch shapes
+# pykrete recognizes (which require dict-literal kwargs and method-form
+# .merge). This fixture mirrors the SAME shape of work users write
+# AROUND the seaborn API: build a tidy `data` frame, rename axis
+# columns to seaborn's `x`/`y`/`hue` semantic slots, merge in metadata,
+# then reference the post-rename/post-merge columns.
+#
+# Upstream evidence (paste-from-source, v0.13.2):
+#   # seaborn/relational.py @ v0.13.2, L820-825 — rename axis columns
+#   grid_kws = {v: p.variables.get(v) for v in ["row", "col"]}
+#   # Rename the columns of the plot_data structure appropriately
+#   new_cols = plot_variables.copy()
+#   new_cols.update(grid_kws)
+#   full_data = p.plot_data.rename(columns=new_cols)
+#
+#   # seaborn/relational.py @ v0.13.2, L881-895 — rename + merge
+#   # Rename the columns of the FacetGrid's `data` attribute
+#   # to match the original column names
+#   orig_cols = {
+#       f"_{k}": f"_{k}_" if v is None else v for k, v in variables.items()
+#   }
+#   grid_data = g.data.rename(columns=orig_cols)
+#   if data is not None and (x is not None or y is not None):
+#       if not isinstance(data, pd.DataFrame):
+#           data = pd.DataFrame(data)
+#       g.data = pd.merge(
+#           data,
+#           grid_data[grid_data.columns.difference(data.columns)],
+#           left_index=True,
+#           right_index=True,
+#       )
+#
+# Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):
+#   - measurement axis columns (`x_raw`, `y_raw`) are float64
+#     → ColumnType::Double; this is what seaborn users idiomatically
+#     pass for scatter/line numeric inputs (the relational plotters
+#     coerce to numeric for ax.plot/ax.scatter).
+#   - `hue_raw` categorical/string label → ColumnType::String.
+#   - `unit_id` integer grouping key → ColumnType::Long.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df.rename(columns={...}) dispatch row from §5
+#   - df.merge(...) dispatch row from §5 (method form, on= kwarg)
+#   - df["literal"] scalar Subscript on post-rename / post-merge views
+#   - Schema mutation tracking through rename + merge chains
+
+from pykrete import PandasFrame
+
+
+class TidyData(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+class MetaFrame(Schema):
+    unit_id: long
+    treatment: string
+
+
+def axis_rename_then_select(df: PandasFrame[TidyData]) -> None:
+    """Mirrors the seaborn API-user idiom: rename `x_raw`/`y_raw` to
+    the seaborn semantic slots `x`/`y`, then reference the renamed
+    columns. Parallels relational.py L820-825 (axis rename) without
+    seaborn's variable-kwarg form, since pykrete dispatches the dict-
+    literal kwarg form."""
+    plot_data = df.rename(columns={"x_raw": "x", "y_raw": "y"})
+# PROBE-RESOLVES: id=seaborn-relational-axis-rename-x -- post-rename `x` resolves on the renamed view; if .rename schema mutation were skipped the Subscript would see TidyData and D0030 would fire on `x`
+    _ = plot_data["x"]
+# PROBE-RESOLVES: id=seaborn-relational-axis-rename-y -- post-rename `y` resolves on the renamed view; same vacuity argument as `x`
+    _ = plot_data["y"]
+# PROBE-RESOLVES: id=seaborn-relational-axis-rename-hue-survives -- `hue_raw` was NOT in the rename dict so it must survive on the renamed view; a buggy rename that wiped the schema would fire D0030
+    _ = plot_data["hue_raw"]
+
+
+def axis_rename_typed_probe(df: PandasFrame[TidyData]) -> None:
+    """Type-tracking probe: float64 measurement column retains
+    ColumnType::Double after the dict-literal rename. Seaborn
+    relational plots care a lot about numeric vs. categorical for the
+    axis variables (estimator + ci paths assume numeric); a checker
+    that loses dtype on rename would silently let arithmetic on a
+    rebound string column slip through."""
+    plot_data = df.rename(columns={"x_raw": "x", "y_raw": "y"})
+# PROBE-TYPE-IS: string on "hue_raw" id=seaborn-relational-hue-raw-type -- hue_raw was string in TidyData and is not renamed; synth wraps in df.select(col("hue_raw") + lit(1)) under strict mode and fires D0081 (arith on string); flipping the dtype to long/double in the schema would clear the fire — vacuity-falsifying
+    _ = plot_data["hue_raw"]
+
+
+def merge_metadata_then_select(df: PandasFrame[TidyData], meta: PandasFrame[MetaFrame]) -> None:
+    """Mirrors the seaborn API-user idiom: merge measurement frame
+    with treatment-metadata frame on a shared key, then reference
+    post-merge columns. Parallels relational.py L890-895 (g.data =
+    pd.merge(data, grid_data, ...)) but uses the method form
+    df.merge(...) pykrete dispatches at expr.rs:1049."""
+    merged = df.merge(meta, on="unit_id")
+# PROBE-RESOLVES: id=seaborn-relational-merge-treatment -- `treatment` is from MetaFrame and resolves on the post-merge view; if .merge schema-union were skipped the Subscript would see only TidyData and D0030 would fire
+    _ = merged["treatment"]
+# PROBE-RESOLVES: id=seaborn-relational-merge-x-raw-survives -- `x_raw` is from the left frame and must survive the merge; a broken merge that dropped left-frame cols would fire D0030
+    _ = merged["x_raw"]
+# PROBE-TYPE-IS: string on "hue_raw" id=seaborn-relational-merge-hue-raw-type -- `hue_raw` is from the left TidyData frame (the function's first frame-annotated param, which is what the TYPE-IS synth binds to) and must survive the .merge; synth fires D0081 (arith on string) under strict mode; vacuity-falsifying because flipping the source dtype to numeric clears it
+    _ = merged["hue_raw"]

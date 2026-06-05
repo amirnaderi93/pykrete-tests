@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0060",
+      "column": 26,
+      "endColumn": 33,
+      "endLine": 24,
+      "file": "yfinance/probes_negative/pandas_merge_unknown_key.pyk",
+      "line": 24,
+      "message": "Join key 'Close' does not exist on the right side (schema 'TTMRowMergeNeg').",
+      "relatedInformation": [],
+      "ruleName": "missingJoinKey",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

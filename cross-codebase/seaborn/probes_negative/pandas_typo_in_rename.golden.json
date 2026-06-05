@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 19,
+      "endColumn": 22,
+      "endLine": 27,
+      "file": "seaborn/probes_negative/pandas_typo_in_rename.pyk",
+      "line": 27,
+      "message": "Column 'x' does not exist on inferred schema [x_raw, y, hue_raw, unit_id]. Did you mean 'y'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "y"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
