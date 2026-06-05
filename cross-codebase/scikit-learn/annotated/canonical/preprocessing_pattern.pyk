@@ -1,0 +1,123 @@
+# BSD-3-Clause. Copyright (c) 2007-2024 The scikit-learn developers.
+#
+# Canonical example inspired by the scikit-learn preprocessing API
+# (e.g., StandardScaler, ColumnTransformer, MinMaxScaler at
+# sklearn/preprocessing/_data.py); NOT extracted verbatim from
+# sklearn internal code.
+#
+# Why canonical-fixture-only: the v1.4 spec §2 round-4 paste-from-
+# source audit of sklearn/preprocessing/_data.py + sklearn/utils/
+# validation.py @ tag 1.7.0 found ZERO direct `df.rename / .merge /
+# .drop(columns=…) / .assign / df["x"] =` sites; both files are
+# numpy-typed throughout. Re-greps under the 1.7.2 pin across the
+# broader sklearn surface (sklearn/utils/_set_output.py,
+# sklearn/compose/) did not surface verifiable in-library
+# dispatched-shape sites either — sklearn's core targets numpy
+# array in/out. Per the spec sklearn entry, the donor therefore
+# enters as "canonical-fixture-only".
+#
+# So this fixture models the SAME shape of work that scikit-learn
+# USERS write AROUND the sklearn preprocessing API: build a tidy
+# pandas feature matrix, derive engineered features via df.assign,
+# project to the StandardScaler/ColumnTransformer-expected slot
+# list via df[[...]], and drop pre-engineered raw columns via
+# df.drop(columns=[...]). The scoping is documented in
+# cross-codebase/scikit-learn/README.md "Classification" and in the
+# v1.4 spec §2 scikit-learn entry ("canonical-fixture-only").
+#
+# Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):
+#   - `age` is a float64 measurement → ColumnType::Double. The
+#     canonical sklearn StandardScaler input is float64 (the scaler's
+#     fit_transform path emits numpy.float64 throughout).
+#   - `income` is float64 (continuous measurement) → ColumnType::Double.
+#   - `n_visits` is an int64 count → ColumnType::Long. sklearn's
+#     numeric transformers accept int64 and upcast to float64 at
+#     fit_transform time.
+#   - `category` is an object/str label → ColumnType::String. The
+#     canonical ColumnTransformer input pattern is mixing numeric +
+#     string columns and routing the strings to OneHotEncoder /
+#     OrdinalEncoder. Textual family → D0081 fires under the TYPE-IS
+#     synth wrap.
+#   - `region_code` is a string label → ColumnType::String. Second
+#     string-typed slot lets the TYPE-IS markers exercise two
+#     distinct schema slots so a regression that confused one slot
+#     for another can't accidentally pass both probes.
+#   - `feature_blob` is a bytes column holding the per-row serialized
+#     embedding (the canonical sklearn-USER shape for sidecar
+#     embedding bytes accompanying tabular features; e.g.,
+#     pre-computed sentence-transformer outputs persisted alongside
+#     the structured features for downstream pipelines). Binary is
+#     Collection-family in strict_operators.rs:57 — the TYPE-IS
+#     synth wrap (df.select(col(...) + lit(1))) fires D0081 on it.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df.assign(new=expr, …) dispatch row from §5 — the sklearn-USER
+#     idiom for adding engineered features before fit_transform
+#   - df[col_list] dispatch row from §5 — the canonical sklearn idiom
+#     for projecting to the ColumnTransformer-expected slot list
+#   - df.drop(columns=[…]) dispatch row from §5 — the canonical
+#     sklearn idiom for removing raw columns once engineered
+#     replacements are bound
+#   - Schema mutation tracking through assign + project + drop chains
+#   - PROBE-TYPE-IS dtype-retention on string + binary atomics
+#     (category + region_code + feature_blob) per spec §1 line 64
+#     floor (≥3 PROBE-TYPE-IS per donor, atomic-family diversity)
+
+from pykrete import PandasFrame
+
+
+class FeatureMatrix(Schema):
+    age: double
+    income: double
+    n_visits: long
+    category: string
+    region_code: string
+    feature_blob: binary
+
+
+def engineer_features(df: PandasFrame[FeatureMatrix]) -> None:
+    """Canonical sklearn-USER pattern: append engineered features via
+    df.assign — mirrors the user idiom of building a richer feature
+    matrix in-place before handing it to StandardScaler /
+    ColumnTransformer. Real sklearn pipelines very commonly chain
+    `frame.assign(...)` calls to surface ratios / log-scaled / lag
+    features before fit/transform."""
+    enriched = df.assign(income_per_visit=df["income"])
+# PROBE-RESOLVES: id=sklearn-assign-income-per-visit-binds -- post-assign "income_per_visit" must resolve on the enriched view; df.assign dispatch via apply_pandas_assign should bind it; vacuity-falsifying because if the assign schema-mutation were skipped the Subscript would see FeatureMatrix without the new column and D0030 would fire
+    _ = enriched["income_per_visit"]
+# PROBE-RESOLVES: id=sklearn-assign-category-survives -- `category` was not assigned (the kwarg key is "income_per_visit") so it must survive on the enriched view; a buggy assign that wiped the schema would fire D0030
+    _ = enriched["category"]
+# PROBE-TYPE-IS: string on "category" id=sklearn-category-type -- category is string in FeatureMatrix and passes through df.assign unchanged; synth wraps in enriched.select(col("category") + lit(1)) under strict mode and fires D0081 (Textual family per strict_operators.rs:51); vacuity-falsifying because flipping schema dtype to double clears it
+    _ = enriched["category"]
+
+
+def project_to_scaler_slots(df: PandasFrame[FeatureMatrix]) -> None:
+    """Canonical sklearn-USER pattern: project to the explicit slot
+    list a StandardScaler or ColumnTransformer expects. Mirrors the
+    user idiom of `numeric_features = ["age", "income", "n_visits"]`
+    then `ColumnTransformer([("num", StandardScaler(), numeric_features)])`
+    — but here we use the dispatched list-literal Subscript form
+    pykrete recognizes at expr.rs:222-253."""
+    projected = df[["age", "income", "n_visits", "region_code"]]
+# PROBE-RESOLVES: id=sklearn-project-age-binds -- post-projection `age` must remain on the projected view; if list-projection schema-mutation were skipped D0030 would fire
+    _ = projected["age"]
+# PROBE-RESOLVES: id=sklearn-project-region-code-binds -- post-projection `region_code` must remain; covers the string slot survival
+    _ = projected["region_code"]
+# PROBE-TYPE-IS: string on "region_code" id=sklearn-projected-region-code-type -- region_code is string in FeatureMatrix and survives the list projection; synth wraps in projected.select(col("region_code") + lit(1)) under strict mode and fires D0081 (Textual family); vacuity-falsifying because flipping the source dtype to double in the schema clears the fire
+    _ = projected["region_code"]
+
+
+def drop_raw_after_engineering(df: PandasFrame[FeatureMatrix]) -> None:
+    """Canonical sklearn-USER pattern: drop the raw measurement
+    columns once an engineered replacement is bound, before handing
+    the frame to the next pipeline stage. Real sklearn USERS write
+    `df = df.drop(columns=["raw_col"])` after `df["raw_col_scaled"]
+    = ...` exactly this way."""
+    trimmed = df.drop(columns=["n_visits"])
+# PROBE-RESOLVES: id=sklearn-drop-feature-blob-survives -- `feature_blob` was not in the drop list so it must survive on the trimmed view; a broken drop that wiped non-listed columns would fire D0030
+    _ = trimmed["feature_blob"]
+# PROBE-RESOLVES: id=sklearn-drop-category-survives -- `category` was not dropped and must survive; covers a second non-dropped column survival
+    _ = trimmed["category"]
+# PROBE-TYPE-IS: binary on "feature_blob" id=sklearn-trimmed-feature-blob-type -- feature_blob is binary in FeatureMatrix and survives the .drop(columns=…) mutation; synth wraps in trimmed.select(col("feature_blob") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:57); vacuity-falsifying because flipping the source dtype to double clears the fire
+    _ = trimmed["feature_blob"]

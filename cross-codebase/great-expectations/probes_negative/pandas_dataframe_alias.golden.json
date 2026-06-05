@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 29,
+      "endColumn": 59,
+      "endLine": 21,
+      "file": "great-expectations/probes_negative/pandas_dataframe_alias.pyk",
+      "line": 21,
+      "message": "'DataFrame[ValidatedDatasetDep]' is a deprecated alias for 'SparkFrame[ValidatedDatasetDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[ValidatedDatasetDep]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[ValidatedDatasetDep]"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

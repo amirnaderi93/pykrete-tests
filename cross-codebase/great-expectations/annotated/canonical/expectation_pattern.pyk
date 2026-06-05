@@ -1,0 +1,135 @@
+# Apache License 2.0. Copyright (c) 2024 Great Expectations Labs, Inc.
+#
+# Canonical example inspired by the Great Expectations data-quality
+# API (e.g., ExpectColumnValuesToBeInSet, ExpectColumnValuesToNotBeNull,
+# ExpectColumnValueLengthsToEqual against a PandasExecutionEngine);
+# NOT extracted verbatim from Great Expectations internal code.
+#
+# Why canonical-fixture-only: the v1.4 spec §2 round-4 paste-from-
+# source audit of
+# `great_expectations/execution_engine/pandas_execution_engine.py`
+# at tag 1.3.13 found ZERO dispatched-shape sites (the file
+# operates at the metric-domain abstraction layer, not raw pandas
+# ops). Re-greps under the 1.3.13 pin across `metrics/` and
+# `expectations/` did not surface verifiable in-library
+# dispatched-shape sites either — GE's execution engine pushes
+# row-level checks through a metric abstraction rather than raw
+# `.assign / .merge / .rename / .drop / df["x"] =` calls. Per the
+# spec GE entry, the donor therefore enters as
+# "canonical-fixture-only" per scikit-learn precedent.
+#
+# So this fixture models the SAME shape of work GE USERS write
+# AROUND the Great Expectations API: build a validated dataset,
+# filter to rows that violate a column-set expectation via boolean
+# mask, mark the passing rows with an `is_valid` flag via
+# df.assign, then reference the validation-result columns. The
+# scoping is documented in cross-codebase/great-expectations/
+# README.md "Classification" and in the v1.4 spec §2 GE entry
+# ("canonical-fixture-only").
+#
+# Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):
+#   - `row_count` (int64 expectation aggregation counter) →
+#     ColumnType::Long. Mirrors the canonical GE
+#     ExpectTableRowCountToEqual expectation surface.
+#   - `value` (float64 measurement under test) → ColumnType::Double.
+#     The canonical numeric column users assert against
+#     (ExpectColumnValuesToBeBetween).
+#   - `passes_check` (bool flag column carrying the per-row
+#     expectation outcome bit) → ColumnType::Bool. The pandas
+#     boolean-mask filter idiom uses a Bool column as the slice
+#     expression (pandas-support.md §5 row 2,
+#     "df[df["x"] == "y"]"); this fixture uses a bare bool slot
+#     `passes_check` so the user-side idiom
+#     `df[df["passes_check"]]` is exercised cleanly.
+#   - `category` (object/str label) → ColumnType::String. Real GE
+#     USERS commonly attach a categorical label column to the
+#     validated frame for expectation-by-category reporting.
+#     Textual family → D0081 fires under the TYPE-IS synth wrap.
+#   - `expectation_name` (object/str second categorical for the
+#     name of the expectation that produced the per-row outcome)
+#     → ColumnType::String. Two string slots give the TYPE-IS
+#     markers two distinct schema slots so a regression that
+#     confused one for another can't accidentally pass both probes.
+#   - `evidence_blob` (bytes column carrying per-row evidence
+#     payloads — e.g., the raw bytes the expectation was evaluated
+#     against, persisted for audit) → ColumnType::Binary. Mirrors
+#     the canonical GE-USER shape for keeping audit-trail bytes
+#     alongside validation rows; Binary is Collection-family per
+#     strict_operators.rs:57 — TYPE-IS synth wrap fires D0081 on it.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df[mask] dispatch row from §5 (boolean-mask Subscript;
+#     piece (b) descends inner df["passes_check"] naturally) — the
+#     GE-USER idiom for surfacing rows that fail / pass an
+#     expectation
+#   - df.assign(is_valid=…) dispatch row from §5 — the GE-USER
+#     idiom for marking rows with a validation-result flag
+#   - Schema mutation tracking through mask-filter + assign chains
+#   - PROBE-TYPE-IS dtype-retention on string + binary atomics
+#     (category + expectation_name + evidence_blob) per spec §1
+#     line 64 floor (≥3 PROBE-TYPE-IS per donor, atomic-family
+#     diversity)
+
+from pykrete import PandasFrame
+
+
+class ValidatedDataset(Schema):
+    row_count: long
+    value: double
+    passes_check: bool
+    category: string
+    expectation_name: string
+    evidence_blob: binary
+
+
+def filter_failing_rows(df: PandasFrame[ValidatedDataset]) -> None:
+    """Canonical GE-USER pattern: surface the rows that satisfy
+    (or violate) an expectation by boolean-mask Subscript on a
+    bool-typed column carrying the per-row expectation outcome.
+    Mirrors the user idiom of running
+    `result = ExpectColumnValuesToBeInSet(...).validate(batch)`,
+    surfacing the bool result series into the frame, then
+    `failing = df[df["passes_check"] == False]` for downstream
+    audit / re-processing. We use the bare-bool-column mask
+    `df[df["passes_check"]]` (pandas-support.md §5 row 2) since
+    pykrete dispatch descends the inner Subscript naturally."""
+    passing = df[df["passes_check"]]
+# PROBE-RESOLVES: id=ge-mask-passing-row-count -- piece (b) scalar Subscript on the post-mask view resolves `row_count` under ValidatedDataset; a broken mask-Subscript dispatch that wiped the schema would fire D0030
+    _ = passing["row_count"]
+# PROBE-RESOLVES: id=ge-mask-passing-category-survives -- `category` survives the boolean-mask filter (which is row-wise, not column-wise); a buggy schema-mutation on bool-mask Subscript would fire D0030
+    _ = passing["category"]
+# PROBE-RESOLVES: id=ge-mask-inner-passes-check -- piece (b) descends the inner df["passes_check"] (the bool-typed slice expression) and resolves it under ValidatedDataset; if piece (b) skipped Subscripts under a mask slice, D0030 would fire
+    _ = df[df["passes_check"]]
+
+
+def mark_validation_outcome(df: PandasFrame[ValidatedDataset]) -> None:
+    """Canonical GE-USER pattern: attach an `is_valid` outcome
+    column via df.assign — mirrors the user idiom of folding
+    per-expectation results into the validated frame for
+    downstream consumers (`reporting`, `data_docs`, etc.)."""
+    validated = df.assign(is_valid=df["passes_check"])
+# PROBE-RESOLVES: id=ge-assign-is-valid-binds -- post-assign "is_valid" must resolve on the validated view; df.assign dispatch via apply_pandas_assign should bind it; vacuity-falsifying because if the assign schema-mutation were skipped the Subscript would see only ValidatedDataset without is_valid and D0030 would fire
+    _ = validated["is_valid"]
+# PROBE-RESOLVES: id=ge-assign-expectation-name-survives -- `expectation_name` was not assigned (the kwarg key is "is_valid") so it must survive on the validated view
+    _ = validated["expectation_name"]
+# PROBE-TYPE-IS: string on "category" id=ge-category-type -- category is string in ValidatedDataset and passes through df.assign unchanged; synth wraps in validated.select(col("category") + lit(1)) under strict mode and fires D0081 (Textual family per strict_operators.rs:51); vacuity-falsifying because flipping schema dtype to double clears it
+    _ = validated["category"]
+
+
+def expectation_name_typed_probe(df: PandasFrame[ValidatedDataset]) -> None:
+    """Type-tracking probe: expectation_name (String, Textual
+    family) on a different schema slot than `category` so the two
+    string TYPE-IS markers exercise distinct slots and a
+    regression that confused one for another can't pass both."""
+# PROBE-TYPE-IS: string on "expectation_name" id=ge-expectation-name-type -- expectation_name is string in ValidatedDataset; synth wraps in df.select(col("expectation_name") + lit(1)) under strict mode and fires D0081 (Textual family); vacuity-falsifying because flipping schema dtype to double clears it
+    _ = df["expectation_name"]
+
+
+def evidence_blob_typed_probe(df: PandasFrame[ValidatedDataset]) -> None:
+    """Type-tracking probe: evidence_blob (Binary, Collection
+    family) — the third TYPE-IS satisfies the spec §1 line 64
+    floor (≥3 PROBE-TYPE-IS per donor) and contributes
+    atomic-family diversity (string + binary)."""
+# PROBE-TYPE-IS: binary on "evidence_blob" id=ge-evidence-blob-type -- evidence_blob is binary in ValidatedDataset; synth wraps in df.select(col("evidence_blob") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:57); vacuity-falsifying because flipping the source dtype to double clears the fire
+    _ = df["evidence_blob"]
