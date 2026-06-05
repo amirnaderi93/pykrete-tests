@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 39,
+      "endColumn": 50,
+      "endLine": 24,
+      "file": "pandera/probes_negative/pandas_typo_in_assign.pyk",
+      "line": 24,
+      "message": "Column 'row_cuont' does not exist on schema 'ValidatedFrameNeg'. Did you mean 'row_count'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "row_count"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

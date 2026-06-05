@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 45,
+      "endColumn": 57,
+      "endLine": 25,
+      "file": "prophet/probes_negative/pandas_typo_in_assign.pyk",
+      "line": 25,
+      "message": "Column 'model_nmae' does not exist on schema 'ProphetFrameNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

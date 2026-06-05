@@ -27,12 +27,26 @@
       "severity": "warning",
       "source": "pykrete",
       "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0081",
+      "column": 38,
+      "endColumn": 66,
+      "endLine": 21,
+      "file": "mlflow/probes_negative/withColumn_arith_on_string.pyk",
+      "line": 21,
+      "message": "Arithmetic operator applied to a non-numeric (String) column. Spark coerces or errors here; cast it explicitly if intended.",
+      "relatedInformation": [],
+      "ruleName": "nonNumericArithmetic",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
     }
   ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 2
+    "warningCount": 3
   }
 }

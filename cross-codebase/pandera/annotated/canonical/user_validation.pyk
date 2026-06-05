@@ -1,0 +1,104 @@
+# MIT License. Copyright (c) 2018 Niels Bantilan.
+#
+# Canonical example inspired by the pandera schema-validation API at
+# unionai-oss/pandera v0.23.1; NOT extracted verbatim from pandera
+# internal code.
+#
+# Why canonical-fixture-only: round-4 paste-from-source audit of
+# pandera's internal `pandera/backends/pandas/container.py:544-546`
+# (the file that actually exercises pandas .drop on validated
+# frames) shows the calls use `labels=...` + `axis=1` shapes which
+# are NOT in the v1.3 dispatched-shape set (pykrete dispatches the
+# `columns=` kwarg form at expr.rs:964-966, NOT positional + axis=1).
+# No verifiable in-library `df.rename(columns={...})` /
+# `df.drop(columns=[...])` / `df["new"] = expr` sites matching v1.3
+# dispatch were found in the audited pandera surface.
+#
+# So this fixture models the SAME shape of work that pandera USERS
+# write around the pandera API (build a validation-ready frame,
+# rename to schema-canonical names, project to expected columns,
+# add validation-result columns) rather than mirroring pandera's
+# own internal source. The scoping is documented in cross-codebase/
+# pandera/README.md "Classification" and in the v1.4 spec §2
+# pandera entry ("canonical-fixture-only if floor not met").
+#
+# Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):
+#   - `amount` is a float64 measurement → ColumnType::Double.
+#   - `row_count` is an int64 aggregation counter → ColumnType::Long.
+#   - `category` is a string label → ColumnType::String.
+#   - `checksum` is a bytes column carrying per-row content
+#     fingerprints (the canonical pandera-USER shape for tracking
+#     validated-row provenance, paralleling the
+#     `Series[pa.dtypes.Binary]` field shape pandera exposes via
+#     `pandera/dtypes/__init__.py`) → ColumnType::Binary.
+#     Binary is Collection-family in strict_operators.rs:57 — the
+#     TYPE-IS synth wrap (df.select(col(...) + lit(1))) fires
+#     D0081 on it.
+#   - `validated_at` is a timestamp column (pandera's canonical
+#     validation-time stamp) → ColumnType::Timestamp. Used for
+#     col-ref resolution; TYPE-IS on Temporal would NOT fire D0081
+#     under the synth wrap (Temporal is outside the Textual /
+#     Collection fire set), so it's covered only by RESOLVES, not
+#     TYPE-IS.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df.assign(new=expr, …) dispatch row from §5 — the pandera-USER
+#     idiom for adding validation-result columns
+#   - df.rename(columns={...}) dispatch row from §5 — the canonical
+#     pandera idiom for aligning user frames to the schema's
+#     expected column names
+#   - df[col_list] dispatch row from §5 — the canonical pandera
+#     idiom for projecting to the validated schema slot list
+#   - Schema mutation tracking through assign + rename + projection
+#     chains
+#   - PROBE-TYPE-IS dtype-retention on string + binary atomics
+#     (category + checksum) per spec §1 line 64 floor
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrame(Schema):
+    raw_amount: double
+    row_count: long
+    category: string
+    checksum: binary
+    validated_at: timestamp
+
+
+def align_to_schema(df: PandasFrame[ValidatedFrame]) -> None:
+    """Canonical pandera-USER pattern: rename incoming user-side
+    column names to the schema-canonical names. Mirrors how pandera
+    users align upstream frames to a DataFrameSchema's `columns`
+    layout before validation."""
+    aligned = df.rename(columns={"raw_amount": "amount"})
+# PROBE-RESOLVES: id=pandera-rename-amount-binds -- post-rename `amount` binds on the aligned view; vacuity-falsifying because if the rename schema-mutation were skipped the Subscript would see only ValidatedFrame and D0030 would fire
+    _ = aligned["amount"]
+# PROBE-RESOLVES: id=pandera-rename-category-survives -- `category` was not in the rename dict so it must survive on the aligned view
+    _ = aligned["category"]
+
+
+def add_validation_result(df: PandasFrame[ValidatedFrame]) -> None:
+    """Canonical pandera-USER pattern: append a validation-result
+    column via df.assign — mirrors the user idiom of attaching
+    pa.SchemaModel.validate(...) outcomes back onto the validated
+    frame for downstream consumers."""
+    validated = df.assign(is_valid=df["row_count"])
+# PROBE-RESOLVES: id=pandera-assign-is-valid-binds -- post-assign "is_valid" must resolve on validated; df.assign dispatch via apply_pandas_assign should bind it
+    _ = validated["is_valid"]
+# PROBE-TYPE-IS: string on "category" id=pandera-category-type -- category is string in ValidatedFrame and passes through df.assign unchanged; synth wraps in validated.select(col("category") + lit(1)) under strict mode and fires D0081 (Textual family); vacuity-falsifying because flipping schema dtype to double clears it
+    _ = validated["category"]
+
+
+def project_validated_slots(df: PandasFrame[ValidatedFrame]) -> None:
+    """Canonical pandera-USER pattern: project to the validated
+    schema's expected column slot list. Mirrors the DataFrameSchema
+    contract that only the declared columns are surfaced post-
+    validation."""
+    projected = df[["raw_amount", "row_count", "category", "checksum"]]
+# PROBE-RESOLVES: id=pandera-project-checksum-binds -- post-projection "checksum" must remain on the projected view; if list-projection schema-mutation were skipped D0030 would fire
+    _ = projected["checksum"]
+# PROBE-TYPE-IS: binary on "checksum" id=pandera-checksum-type -- checksum is binary in ValidatedFrame and survives the list projection; synth wraps in projected.select(col("checksum") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:57); vacuity-falsifying because flipping to double clears it
+    _ = projected["checksum"]
+# PROBE-TYPE-IS: string on "category" id=pandera-projected-category-type -- category survives the projection and remains string; synth fires D0081 under the same path; flipping schema dtype to double clears the fire
+    _ = projected["category"]

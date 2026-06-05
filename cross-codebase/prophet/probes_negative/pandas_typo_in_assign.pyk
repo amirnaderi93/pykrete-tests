@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the prophet user-side df.assign idiom (sibling
+# annotated/prophet/forecaster.pyk fluent_assign_chain); the kwarg
+# VALUE in the assign references a column literal that does not exist
+# on the receiver schema, so col-ref-existence checking inside the
+# assign value position fires D0030.
+#
+# Failure mode exercised: pandas df.assign(...) dispatch row from §5;
+# the kwarg-value walker at column_methods.rs:353 surfaces D0030 on
+# the unresolved column literal.
+
+from pykrete import PandasFrame
+
+
+class ProphetFrameNeg(Schema):
+    ds: timestamp
+    y: double
+
+
+def assign_typo(df: PandasFrame[ProphetFrameNeg]) -> None:
+    # `model_nmae` is a transposition of `model_name`, but `model_name`
+    # isn't on ProphetFrameNeg either — the col-ref-existence check on
+    # the kwarg value position must fire D0030.
+# PROBE-EXPECTS: D0030 on "\"model_nmae\"" id=prophet-pandas-neg-assign-typo -- pandas df.assign(...) kwarg value position routes through column-existence checking; the literal "model_nmae" is unbound on ProphetFrameNeg and must fire D0030
+    enriched = df.assign(model_signature=df["model_nmae"])
+    _ = enriched

@@ -27,12 +27,26 @@
       "severity": "warning",
       "source": "pykrete",
       "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0082",
+      "column": 22,
+      "endColumn": 47,
+      "endLine": 21,
+      "file": "spark/probes_negative/cross_type_comparison.pyk",
+      "line": 21,
+      "message": "Comparison between unrelated types String and Int. Spark coerces them; cast explicitly if intended.",
+      "relatedInformation": [],
+      "ruleName": "crossTypeComparison",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
     }
   ],
   "schemaVersion": "1",
   "summary": {
     "errorCount": 0,
     "filesChecked": 1,
-    "warningCount": 2
+    "warningCount": 3
   }
 }
