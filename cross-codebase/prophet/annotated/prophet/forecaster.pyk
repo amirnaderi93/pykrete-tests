@@ -32,7 +32,7 @@
 #
 # All bracket-assign sites at L282, L287, L346, L348, L350 use a
 # string-literal slice (e.g. `df['cap_scaled']`) — exactly the shape
-# pykrete dispatches. (L352 uses a Name-slice `df[name]` and does NOT
+# pykrete dispatches. (L353 uses a Name-slice `df[name]` and does NOT
 # match dispatch.)
 #
 # Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):

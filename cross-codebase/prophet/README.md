@@ -29,7 +29,7 @@ v1.3 dispatched shape pykrete recognizes at `driver.rs:187-215`.
 | ditto | L346 — `df['cap_scaled'] = (df['cap'] - df['floor']) / self.y_scale` — STRING LITERAL slice, matches | `annotated/prophet/forecaster.pyk::scale_time_series` mirrors the piecewise scaling |
 | ditto | L348 — `df['t'] = (df['ds'] - self.start) / self.t_scale` — STRING LITERAL slice, matches | covered in scaling block |
 | ditto | L350 — `df['y_scaled'] = (df['y'] - df['floor']) / self.y_scale` — STRING LITERAL slice, matches | covered in scaling block |
-| ditto | L352 — `df[name] = ((df[name] - props['mu']) / props['std'])` — NAME slice, does NOT match dispatch | not modeled here (v1.3 dispatches only string-literal slices) |
+| ditto | L353 — `df[name] = ((df[name] - props['mu']) / props['std'])` — NAME slice, does NOT match dispatch | not modeled here (v1.3 dispatches only string-literal slices) |
 | ditto | L544, L906 — `.drop(...)` with `axis=1` / `index=` shapes | not modeled (v1.3 dispatches `columns=` kwarg only) |
 
 In addition, `annotated/prophet/forecaster.pyk::fluent_assign_chain`
