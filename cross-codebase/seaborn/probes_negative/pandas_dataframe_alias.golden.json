@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 27,
+      "endColumn": 49,
+      "endLine": 21,
+      "file": "seaborn/probes_negative/pandas_dataframe_alias.pyk",
+      "line": 21,
+      "message": "'DataFrame[TidyDataDep]' is a deprecated alias for 'SparkFrame[TidyDataDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TidyDataDep]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TidyDataDep]"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

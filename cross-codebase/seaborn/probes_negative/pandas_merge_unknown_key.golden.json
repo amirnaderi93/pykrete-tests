@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0060",
+      "column": 32,
+      "endColumn": 41,
+      "endLine": 27,
+      "file": "seaborn/probes_negative/pandas_merge_unknown_key.pyk",
+      "line": 27,
+      "message": "Join key 'unit_id' does not exist on the right side (schema 'MetaFrameMergeNeg').",
+      "relatedInformation": [],
+      "ruleName": "missingJoinKey",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

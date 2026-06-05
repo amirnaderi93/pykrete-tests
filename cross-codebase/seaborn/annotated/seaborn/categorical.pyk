@@ -1,0 +1,55 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from seaborn/categorical.py at mwaskom/seaborn,
+# pinned-commit 9521ea1 (tag v0.13.2).
+#
+# Strategy: this is the one verified dispatched-shape exercise in
+# seaborn's own source — the wide-orient axis swap at L79 uses a
+# dict-literal kwarg, which IS what pykrete dispatches at
+# expr.rs:938 (apply_pandas_rename → apply_rename_dict).
+#
+# Upstream evidence (paste-from-source, v0.13.2):
+#   # seaborn/categorical.py @ v0.13.2, L75-90
+#   # For wide data, orient determines assignment to x/y differently from the
+#   # default VectorPlotter rules. If we do decide to make orient part of the
+#   # _base variable assignment, we'll want to figure out how to express that.
+#   if self.input_format == "wide" and orient in ["h", "y"]:
+#       self.plot_data = self.plot_data.rename(columns={"x": "y", "y": "x"})
+#       orig_variables = set(self.variables)
+#       orig_x = self.variables.pop("x", None)
+#       orig_y = self.variables.pop("y", None)
+#       orig_x_type = self.var_types.pop("x", None)
+#       orig_y_type = self.var_types.pop("y", None)
+#       if "x" in orig_variables:
+#           self.variables["y"] = orig_x
+#           ...
+#
+# Schema dtypes (per docs/design/pandas-support.md §4):
+#   - Categorical plot axis columns are numeric measurement values
+#     (`x`, `y` are passed through to matplotlib ax.{bar,box,strip} which
+#     coerces to numeric) → ColumnType::Double per pandas defaults.
+#   - The wide-orient swap rebinds x/y but preserves dtype on the swap;
+#     the post-swap fixture verifies post-rename col-ref resolution.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df.rename(columns={...}) dispatch row with the verified
+#     in-library shape from categorical.py:L79
+#   - Post-rename col-ref resolution on swapped axis names
+
+from pykrete import PandasFrame
+
+
+class PlotData(Schema):
+    x: double
+    y: double
+
+
+def wide_orient_axis_swap(plot_data: PandasFrame[PlotData]) -> None:
+    """Mirrors categorical.py:L79 verbatim — wide-orient axis swap via
+    dict-literal rename."""
+    swapped = plot_data.rename(columns={"x": "y", "y": "x"})
+# PROBE-RESOLVES: id=seaborn-categorical-wide-swap-y -- after the {"x":"y","y":"x"} swap the renamed view has both `x` and `y` keys (rename is two-way); both must resolve
+    _ = swapped["y"]
+# PROBE-RESOLVES: id=seaborn-categorical-wide-swap-x -- mirror of the above; post-swap `x` resolves
+    _ = swapped["x"]

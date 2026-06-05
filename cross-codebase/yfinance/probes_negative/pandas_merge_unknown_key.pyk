@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the merge_statements_demo (sibling
+# annotated/yfinance/utils.pyk); the .merge(on=...) references a
+# join key absent from one side. The v1.3 join-key check fires D0060
+# via the .merge(...) dispatch at expr.rs:1049.
+#
+# Failure mode exercised: pandas .merge(...) method-form dispatch row
+# from §5; `on=` join key absent from a side fires D0060.
+
+from pykrete import PandasFrame
+
+
+class OHLCRowMergeNeg(Schema):
+    Open: double
+    Close: double
+
+
+class TTMRowMergeNeg(Schema):
+    TTM_Open: double
+
+
+def merge_unknown_key(df: PandasFrame[OHLCRowMergeNeg], ttm: PandasFrame[TTMRowMergeNeg]) -> None:
+# PROBE-EXPECTS: D0060 match /right side/ id=yfinance-pandas-neg-merge-unknown-key -- pandas .merge(...) dispatch row from §5; `Close` is on the left frame but absent from TTMRowMergeNeg, so the v1.3 join-key check fires D0060 on the right side
+    _ = df.merge(ttm, on="Close")

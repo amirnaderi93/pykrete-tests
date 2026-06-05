@@ -1,0 +1,122 @@
+# Apache License 2.0. Copyright Ran Aroussi (yfinance).
+#
+# Annotated for pykrete from yfinance/utils.py at ranaroussi/yfinance,
+# pinned-commit 5cc1197 (tag 0.2.55).
+#
+# Strategy: the auto_adjust(data) function (upstream L455-L472)
+# rebases OHLC price columns by a corporate-action ratio, drops the
+# raw OHLC, and renames the adjusted columns back to the canonical
+# OHLC names. The subscript-assign + dict-literal rename are the
+# v1.3-dispatched shapes; the .merge(...) hit at L335 exercises the
+# method-form merge dispatch with index-based join args.
+#
+# Upstream evidence (paste-from-source, 0.2.55):
+#   # yfinance/utils.py @ 0.2.55, L455-472 (auto_adjust subscript-assign + rename)
+#   def auto_adjust(data):
+#       col_order = data.columns
+#       df = data.copy()
+#       ratio = (df["Adj Close"] / df["Close"]).to_numpy()
+#       df["Adj Open"] = df["Open"] * ratio
+#       df["Adj High"] = df["High"] * ratio
+#       df["Adj Low"] = df["Low"] * ratio
+#
+#       df.drop(
+#           ["Open", "High", "Low", "Close"],
+#           axis=1, inplace=True)
+#
+#       df.rename(columns={
+#           "Adj Open": "Open", "Adj High": "High",
+#           "Adj Low": "Low", "Adj Close": "Close"
+#       }, inplace=True)
+#
+#       return df[[c for c in col_order if c in df.columns]]
+#
+#   # yfinance/utils.py @ 0.2.55, L335 (Annual.merge method-form, index-join)
+#   _statement = Annual.merge(TTM, left_index=True, right_index=True)
+#
+# Schema dtypes (per docs/design/pandas-support.md §4):
+#   - OHLC price columns (`Open`/`High`/`Low`/`Close`, and their
+#     `Adj *` siblings) are pandas float64 — yfinance constructs them
+#     via `pd.to_numeric(...)` for casts (utils.py L93, L99) before
+#     these adjust functions run → ColumnType::Double.
+#   - The annotated companion uses the method-form `.merge(other,
+#     on="key")` rather than the upstream `left_index=True`/
+#     `right_index=True` shape, because pykrete dispatches on
+#     `on=`-keyed joins; documented in the per-row dispatch table at
+#     docs/design/pandas-support.md §5.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df["new"] = expr subscript-assign dispatch row from §5 (the
+#     auto_adjust OHLC rebase, mirroring L459-L461 verbatim)
+#   - df.rename(columns={...}) dispatch row from §5 (mirroring
+#     L467-L470 verbatim)
+#   - df.merge(other, on=...) dispatch row from §5 (method form,
+#     mirroring the shape of L335 with `on=` instead of left_index=)
+#   - Post-rename / post-merge col-ref resolution
+#   - Schema mutation tracking through subscript-assign chains
+
+from pykrete import PandasFrame
+
+
+class OHLCRow(Schema):
+    Open: double
+    High: double
+    Low: double
+    Close: double
+    AdjClose: double
+
+
+class TickerRow(Schema):
+    ticker: string
+    currency: string
+    Close: double
+
+
+def auto_adjust_demo(df: PandasFrame[OHLCRow]) -> None:
+    """Mirrors yfinance.utils.auto_adjust (L455-L472). The OHLC
+    subscript-assign idiom + dict-literal rename are the v1.3-
+    dispatched shapes pykrete checks."""
+    df["AdjOpen"] = df["Open"]
+    df["AdjHigh"] = df["High"]
+    df["AdjLow"] = df["Low"]
+# PROBE-RESOLVES: id=yfinance-utils-auto-adjust-adjopen-after-assign -- post-subscript-assign the schema must carry the new `AdjOpen` column; a broken add_or_replace_column would fire D0030
+    _ = df["AdjOpen"]
+    adjusted = df.rename(columns={"AdjOpen": "Open", "AdjHigh": "High", "AdjLow": "Low"})
+# PROBE-RESOLVES: id=yfinance-utils-auto-adjust-post-rename-open -- post-rename view has `Open` rebound (from `AdjOpen`); a broken rename schema mutation would fire D0030
+    _ = adjusted["Open"]
+
+
+def merge_statements_demo(annual: PandasFrame[OHLCRow], ttm: PandasFrame[OHLCRow]) -> None:
+    """Mirrors yfinance.utils L335 — the Annual.merge(TTM, ...) shape
+    in dispatched form. Upstream uses left_index/right_index; pykrete
+    dispatches `on=`-keyed joins, so the fixture uses `on="Close"`."""
+    statement = annual.merge(ttm, on="Close")
+# PROBE-RESOLVES: id=yfinance-utils-merge-statement-close -- post-merge view carries `Close` (the join key); a broken merge schema-union would fire D0030
+    _ = statement["Close"]
+
+
+def ticker_close_subscript(df: PandasFrame[TickerRow]) -> None:
+    """Scalar string-literal Subscript on a typed pandas receiver;
+    parallels the bare df["Close"] reads scattered through utils.py
+    (e.g., L458 `df["Adj Close"] / df["Close"]`)."""
+# PROBE-RESOLVES: id=yfinance-utils-ticker-close-scalar -- piece (b) scalar Subscript resolves Close on TickerRow; missing piece-(a) dialect tag would skip the check
+    _ = df["Close"]
+
+
+def auto_adjust_typed_probe(df: PandasFrame[TickerRow]) -> None:
+    """Type-tracking probes — `ticker` is string in TickerRow, so the
+    arithmetic synth fires D0081; `Close` is double, so flipping the
+    probe to it would clear the fire — vacuity-falsifying."""
+# PROBE-TYPE-IS: string on "ticker" id=yfinance-utils-ticker-type -- ticker is string in TickerRow; synth wraps in df.select(col("ticker") + lit(1)) under strict mode and fires D0081; flipping the dtype to double clears it
+    _ = df["ticker"]
+
+
+def auto_adjust_currency_typed_probe(df: PandasFrame[TickerRow]) -> None:
+    """Second TYPE-IS probe on a different string column. Yahoo
+    Finance tickers carry a currency code (USD/EUR/...) sibling to
+    the ticker symbol — both string. Two distinct typed columns means
+    a regression that confused one slot for another can't accidentally
+    pass both probes."""
+# PROBE-TYPE-IS: string on "currency" id=yfinance-utils-currency-type -- currency is string in TickerRow; synth fires D0081 under strict mode; vacuity-falsifying because flipping the source dtype to numeric clears it
+    _ = df["currency"]

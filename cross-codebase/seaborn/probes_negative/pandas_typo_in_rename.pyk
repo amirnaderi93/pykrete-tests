@@ -1,0 +1,27 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the seaborn relational rename idiom (sibling
+# annotated/seaborn/relational.pyk axis_rename_then_select); the
+# rename dict-literal source key is a typo, so the resulting renamed
+# view's schema doesn't carry the expected `x` column. Downstream
+# col-ref on the post-rename view fires D0030 via piece (b)'s
+# col-ref check on the renamed view's inferred schema.
+#
+# Failure mode exercised: pandas .rename(columns={...}) dispatch row
+# from §5; downstream Subscript on the rebound view fires D0030
+# because the rename source key never matched (so `x` was never
+# bound on the result).
+
+from pykrete import PandasFrame
+
+
+class TidyDataNeg(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+def axis_rename_typo(df: PandasFrame[TidyDataNeg]) -> None:
+    plot_data = df.rename(columns={"x_rwa": "x", "y_raw": "y"})
+# PROBE-EXPECTS: D0030 on "\"x\"" id=seaborn-pandas-neg-rename-typo -- pandas .rename(columns={...}) dispatch row from §5; the source key `x_rwa` (transposition of `x_raw`) didn't match the receiver schema so `x` was never bound on the renamed view, and the post-rename Subscript fires D0030
+    _ = plot_data["x"]

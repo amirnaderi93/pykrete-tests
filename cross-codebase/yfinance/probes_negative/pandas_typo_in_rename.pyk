@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the auto_adjust rename idiom (sibling
+# annotated/yfinance/utils.pyk auto_adjust_demo); the rename
+# dict-literal source key is a typo so the post-rename view never
+# binds the expected `Open` column, and the downstream Subscript
+# fires D0030.
+#
+# Failure mode exercised: pandas .rename(columns={...}) dispatch row
+# from §5; downstream Subscript on rebound view fires D0030 because
+# the rename source key never matched.
+
+from pykrete import PandasFrame
+
+
+class OHLCRowNeg(Schema):
+    AdjOpen: double
+    AdjHigh: double
+    Close: double
+
+
+def auto_adjust_rename_typo(df: PandasFrame[OHLCRowNeg]) -> None:
+    adjusted = df.rename(columns={"AdjOpn": "Open", "AdjHigh": "High"})
+# PROBE-EXPECTS: D0030 on "\"Open\"" id=yfinance-pandas-neg-rename-typo -- pandas .rename(columns={...}) dispatch row from §5; the source key `AdjOpn` (missing `e`) didn't match the receiver schema so `Open` was never bound on the renamed view; the post-rename Subscript on `Open` fires D0030
+    _ = adjusted["Open"]
