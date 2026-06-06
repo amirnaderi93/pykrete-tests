@@ -216,9 +216,10 @@ assert specific diagnostics fire on deliberately-corrupted fixtures.
   statsmodels, pandera, Great Expectations, prophet, seaborn, and
   yfinance. The synth wraps `{df}.assign(__probe={df}["x"] + 1)` around
   the typed marker (a dispatched pandas op) so off-claim numeric types
-  fall through to D0081 `nonNumericArithmetic`. **39 pandas TYPE-IS
-  markers** ship across the seven new donors (≥5 per donor; v1.4 spec
-  §1 floor was ≥3 per donor / ≥21 total). The three v1.3 hybrid pandas
+  fall through to D0081 `nonNumericArithmetic`. **21 pandas TYPE-IS
+  markers** ship across the seven new donors (3 per donor, exactly
+  meeting the v1.4 spec §1 floor of ≥3 per donor / ≥21 total). The
+  three v1.3 hybrid pandas
   donors (mlflow, feast, iceberg-python) carry zero pandas TYPE-IS
   markers in v1.4 — retrofitting them was deliberately out of scope
   per v1.4 spec §1.
