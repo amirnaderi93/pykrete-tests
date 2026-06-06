@@ -1,0 +1,27 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the GE-USER boolean-mask filter idiom (sibling
+# annotated/canonical/expectation_pattern.pyk filter_failing_rows);
+# the inner mask Subscript references a column literal that doesn't
+# exist on the receiver schema, so piece (b) descends the inner
+# Subscript and fires D0030 on the unresolved column.
+#
+# Failure mode exercised: pandas boolean-mask Subscript shape from
+# §5; piece (b) checks col-existence on the inner df["..."] inside
+# the mask slice and surfaces D0030 on the unbound literal.
+
+from pykrete import PandasFrame
+
+
+class ValidatedDatasetNeg(Schema):
+    row_count: long
+    value: double
+    passes_check: bool
+
+
+def filter_typo_mask(df: PandasFrame[ValidatedDatasetNeg]) -> None:
+    # `passes_chcek` is a transposition of `passes_check` —
+    # piece (b) descends the inner Subscript inside the mask slice
+    # and fires D0030 on the unbound literal.
+# PROBE-EXPECTS: D0030 on "\"passes_chcek\"" id=ge-pandas-neg-mask-typo -- pandas boolean-mask Subscript shape from §5; piece (b) descends inner df["..."] and the literal "passes_chcek" is unbound on ValidatedDatasetNeg, so D0030 fires
+    passing = df[df["passes_chcek"]]
+    _ = passing

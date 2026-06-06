@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 24,
+      "endColumn": 53,
+      "endLine": 21,
+      "file": "statsmodels/probes_negative/pandas_dataframe_alias.pyk",
+      "line": 21,
+      "message": "'DataFrame[RegressionInputDep]' is a deprecated alias for 'SparkFrame[RegressionInputDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RegressionInputDep]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RegressionInputDep]"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

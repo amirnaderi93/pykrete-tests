@@ -1,0 +1,142 @@
+# BSD-3-Clause. Copyright (C) 2006, Jonathan E. Taylor +
+# 2006-2008 Scipy Developers + 2009-2018 statsmodels Developers.
+#
+# Canonical example inspired by the statsmodels regression API
+# (e.g., OLS / GLM at statsmodels/regression/linear_model.py +
+# statsmodels/genmod/generalized_linear_model.py);
+# NOT extracted verbatim from statsmodels internal code.
+#
+# Why canonical-fixture-only: the v1.4 spec §2 round-4 paste-from-
+# source audit of statsmodels/regression/linear_model.py @ tag
+# v0.14.4 found ZERO `.rename / .merge / .drop / .assign / df["x"]`
+# sites in the file (numeric-array idioms predominate inside the
+# regression core); two adjacent files audited
+# (tsa/seasonal.py, iolib/foreign.py) similarly have zero matches.
+# Re-greps under the v0.14.6 pin across a wider statsmodels
+# surface (iolib/sql.py, tools/, genmod/) did not surface
+# verifiable in-library dispatched-shape sites either —
+# statsmodels' regression core targets numpy/scipy arrays for
+# performance. Per the spec statsmodels entry, the donor therefore
+# enters as "canonical-fixture-only" scoped per scikit-learn
+# precedent.
+#
+# So this fixture models the SAME shape of work statsmodels USERS
+# write AROUND the statsmodels regression API: rename incoming
+# user-side column names to the statsmodels-canonical regressor
+# slot names, merge in a covariate frame on a shared subject_id
+# key (a very common pattern when assembling the design matrix
+# from multiple data sources), then reference post-rename /
+# post-merge columns. The scoping is documented in
+# cross-codebase/statsmodels/README.md "Classification" and in
+# the v1.4 spec §2 statsmodels entry ("canonical-fixture-only").
+#
+# Schema dtypes (pandas defaults per docs/design/pandas-support.md §4):
+#   - `raw_y` (float64 response variable) → ColumnType::Double.
+#     The canonical statsmodels OLS endogenous input is float64.
+#   - `raw_x1`, `raw_x2` (float64 regressors) → ColumnType::Double.
+#     Numeric design-matrix columns for the right-hand side.
+#   - `subject_id` (int64 grouping key) → ColumnType::Long. Real
+#     statsmodels USERS join on subject / patient / panel IDs.
+#   - `condition` (object/str categorical label) → ColumnType::String.
+#     Mirrors the canonical "treatment group" / "study arm" string
+#     covariate users attach to regression frames. Textual family →
+#     D0081 fires under the TYPE-IS synth wrap.
+#   - `cohort` (object/str second categorical) → ColumnType::String.
+#     Mirrors the canonical "site" / "wave" label users add. Two
+#     string columns let the TYPE-IS markers exercise two distinct
+#     schema slots so a regression that confused one for another
+#     can't accidentally pass both probes.
+#   - `model_payload` (bytes serialization sidecar) →
+#     ColumnType::Binary. Mirrors the canonical statsmodels-USER
+#     shape of persisting pickled fitted-model bytes alongside the
+#     design-matrix rows for downstream consumers; Binary is
+#     Collection-family per strict_operators.rs:57 — TYPE-IS synth
+#     wrap fires D0081 on it.
+#
+# Features covered:
+#   - PandasFrame[X] annotation recognition (piece (a))
+#   - df.rename(columns={...}) dispatch row from §5 — the canonical
+#     statsmodels-USER idiom for aligning to the formula API's
+#     expected regressor names
+#   - df.merge(other, on=key) dispatch row from §5 — the canonical
+#     statsmodels-USER idiom for joining a covariate frame on a
+#     shared subject/panel ID
+#   - Schema mutation tracking through rename + merge chains
+#   - PROBE-TYPE-IS dtype-retention on string + binary atomics
+#     (condition + cohort + model_payload) per spec §1 line 64
+#     floor (≥3 PROBE-TYPE-IS per donor, atomic-family diversity)
+
+from pykrete import PandasFrame
+
+
+class RegressionInput(Schema):
+    raw_y: double
+    raw_x1: double
+    raw_x2: double
+    subject_id: long
+    condition: string
+    model_payload: binary
+
+
+class CovariateFrame(Schema):
+    subject_id: long
+    cohort: string
+    baseline_score: double
+
+
+def align_to_regressor_names(df: PandasFrame[RegressionInput]) -> None:
+    """Canonical statsmodels-USER pattern: rename incoming
+    user-side column names (`raw_y`, `raw_x1`, `raw_x2`) to the
+    statsmodels-canonical regressor slot names (`y`, `x1`, `x2`)
+    that the formula API expects (`smf.ols("y ~ x1 + x2", data=df)`).
+    Mirrors the shape of work users do to standardize an upstream
+    measurement frame before handing it to OLS / GLM."""
+    aligned = df.rename(columns={"raw_y": "y", "raw_x1": "x1", "raw_x2": "x2"})
+# PROBE-RESOLVES: id=statsmodels-rename-y-binds -- post-rename `y` binds on the aligned view; vacuity-falsifying because if the rename schema-mutation were skipped the Subscript would see only RegressionInput and D0030 would fire
+    _ = aligned["y"]
+# PROBE-RESOLVES: id=statsmodels-rename-x1-binds -- post-rename `x1` binds on the aligned view; second rename target survival
+    _ = aligned["x1"]
+# PROBE-RESOLVES: id=statsmodels-rename-condition-survives -- `condition` was not in the rename dict so it must survive on the aligned view; a buggy rename that wiped non-renamed columns would fire D0030
+    _ = aligned["condition"]
+# PROBE-TYPE-IS: string on "condition" id=statsmodels-condition-type -- condition is string in RegressionInput and passes through df.rename unchanged; synth wraps in aligned.select(col("condition") + lit(1)) under strict mode and fires D0081 (Textual family per strict_operators.rs:51); vacuity-falsifying because flipping schema dtype to double clears it
+    _ = aligned["condition"]
+
+
+def merge_covariates(df: PandasFrame[RegressionInput], cov: PandasFrame[CovariateFrame]) -> None:
+    """Canonical statsmodels-USER pattern: merge the measurement
+    frame with a covariate frame on a shared subject_id key.
+    Mirrors the shape of work users do to assemble the full design
+    matrix from a longitudinal-measurement frame + a per-subject
+    metadata frame before calling OLS / GLM."""
+    full = df.merge(cov, on="subject_id")
+# PROBE-RESOLVES: id=statsmodels-merge-cohort-binds -- `cohort` is from CovariateFrame and resolves on the post-merge view; if .merge schema-union were skipped the Subscript would see only RegressionInput and D0030 would fire
+    _ = full["cohort"]
+# PROBE-RESOLVES: id=statsmodels-merge-raw-y-survives -- `raw_y` is from the left frame and must survive the merge; a broken merge that dropped left-frame cols would fire D0030
+    _ = full["raw_y"]
+# PROBE-RESOLVES: id=statsmodels-merge-baseline-score-binds -- `baseline_score` is from CovariateFrame and must resolve on the merged view; covers a second right-side schema-union survivor
+    _ = full["baseline_score"]
+
+
+def merged_payload_typed_probe(df: PandasFrame[RegressionInput], cov: PandasFrame[CovariateFrame]) -> None:
+    """Type-tracking probe: model_payload (Binary, Collection family)
+    is on the left RegressionInput frame and must survive the .merge
+    schema-union. Synth binds to the first frame-annotated param
+    (RegressionInput per probes.py _first_dataframe_param), so the
+    probe targets model_payload on the un-merged receiver; the
+    .merge is exercised immediately above to keep this functionally
+    adjacent to the merge dispatch path."""
+    full = df.merge(cov, on="subject_id")
+    _ = full["raw_y"]
+# PROBE-TYPE-IS: binary on "model_payload" id=statsmodels-model-payload-type -- model_payload is binary in RegressionInput (the function's first frame-annotated param, which is what the TYPE-IS synth binds to); synth wraps in df.select(col("model_payload") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:57); vacuity-falsifying because flipping the source dtype to double clears the fire
+    _ = df["model_payload"]
+
+
+def cohort_typed_probe(cov: PandasFrame[CovariateFrame]) -> None:
+    """Type-tracking probe: cohort (String, Textual family) is on
+    the CovariateFrame schema. We expose CovariateFrame as the first
+    (and only) frame-annotated param so the TYPE-IS synth binds to
+    it; mirrors the statsmodels-USER pattern of reading the
+    covariate-side string label off the per-subject metadata frame
+    before joining."""
+# PROBE-TYPE-IS: string on "cohort" id=statsmodels-cohort-type -- cohort is string in CovariateFrame (the function's first and only frame-annotated param, which is what the TYPE-IS synth binds to); synth wraps in cov.select(col("cohort") + lit(1)) under strict mode and fires D0081 (Textual family per strict_operators.rs:51); vacuity-falsifying because flipping the source dtype to double clears the fire
+    _ = cov["cohort"]

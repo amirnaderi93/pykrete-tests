@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 21,
+      "endColumn": 35,
+      "endLine": 26,
+      "file": "great-expectations/probes_negative/pandas_mask_typo.pyk",
+      "line": 26,
+      "message": "Column 'passes_chcek' does not exist on schema 'ValidatedDatasetNeg'. Did you mean 'passes_check'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "passes_check"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

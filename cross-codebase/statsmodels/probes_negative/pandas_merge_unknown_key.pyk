@@ -1,0 +1,28 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the statsmodels-USER covariate-merge idiom (sibling
+# annotated/canonical/regression_pattern.pyk merge_covariates); the
+# on= kwarg references a join key absent from one side, so the v1.3
+# join-key check must fire D0060 (missingJoinKey) via the
+# .merge(...) dispatch at expr.rs:1049.
+#
+# Failure mode exercised: pandas .merge(...) method-form dispatch row
+# from §5; `on=` join key absent from a side fires D0060.
+
+from pykrete import PandasFrame
+
+
+class RegressionInputMergeNeg(Schema):
+    raw_y: double
+    raw_x1: double
+    subject_id: long
+
+
+class CovariateFrameMergeNeg(Schema):
+    cohort: string
+    baseline_score: double
+
+
+def merge_unknown_join_key(df: PandasFrame[RegressionInputMergeNeg], cov: PandasFrame[CovariateFrameMergeNeg]) -> None:
+# PROBE-EXPECTS: D0060 on "\"subject_id\"" id=statsmodels-pandas-neg-merge-unknown-key -- pandas .merge(...) dispatch row from §5; `subject_id` is on the left frame but absent from CovariateFrameMergeNeg, so the v1.3 join-key check fires D0060
+    full = df.merge(cov, on="subject_id")
+    _ = full

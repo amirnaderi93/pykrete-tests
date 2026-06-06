@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 32,
+      "endColumn": 42,
+      "endLine": 25,
+      "file": "scikit-learn/probes_negative/pandas_drop_typo.pyk",
+      "line": 25,
+      "message": "Column 'n_vistis' does not exist on schema 'FeatureMatrixNeg'. Did you mean 'n_visits'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "n_visits"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

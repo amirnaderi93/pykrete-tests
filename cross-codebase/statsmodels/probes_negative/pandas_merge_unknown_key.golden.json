@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0060",
+      "column": 29,
+      "endColumn": 41,
+      "endLine": 27,
+      "file": "statsmodels/probes_negative/pandas_merge_unknown_key.pyk",
+      "line": 27,
+      "message": "Join key 'subject_id' does not exist on the right side (schema 'CovariateFrameMergeNeg').",
+      "relatedInformation": [],
+      "ruleName": "missingJoinKey",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

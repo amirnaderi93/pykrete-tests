@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the sklearn-USER drop-after-engineering idiom (sibling
+# annotated/canonical/preprocessing_pattern.pyk
+# drop_raw_after_engineering); the columns= list element references
+# a column literal that doesn't exist on the receiver schema, so the
+# col-ref-existence check inside the drop list position fires D0030.
+#
+# Failure mode exercised: pandas df.drop(columns=[…]) dispatch row
+# from §5; the list-element walker surfaces D0030 on the unresolved
+# column literal.
+
+from pykrete import PandasFrame
+
+
+class FeatureMatrixNeg(Schema):
+    age: double
+    income: double
+    n_visits: long
+
+
+def drop_typo(df: PandasFrame[FeatureMatrixNeg]) -> None:
+    # `n_vistis` is a transposition of `n_visits` — col-ref-existence
+    # check on the drop list-element position must fire D0030.
+# PROBE-EXPECTS: D0030 on "\"n_vistis\"" id=sklearn-pandas-neg-drop-typo -- pandas df.drop(columns=[…]) dispatch row from §5; the literal "n_vistis" is unbound on FeatureMatrixNeg and must fire D0030
+    trimmed = df.drop(columns=["n_vistis"])
+    _ = trimmed

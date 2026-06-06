@@ -1,0 +1,22 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the sklearn-USER FeatureMatrix shape (sibling
+# annotated/canonical/preprocessing_pattern.pyk); the annotated
+# sibling uses the canonical `PandasFrame[X]` v1.3 form, this fixture
+# uses the deprecated `DataFrame[X]` alias to assert pykrete fires
+# D0090 per docs/design/pandas-support.md §6.
+#
+# Failure mode exercised: D0090 fires once per `DataFrame[X]`
+# parameter annotation slot (v1.3 deprecation warning).
+
+from pykrete import DataFrame
+
+
+class FeatureMatrixDep(Schema):
+    age: double
+    income: double
+    n_visits: long
+
+
+# PROBE-EXPECTS: D0090 on "DataFrame[FeatureMatrixDep]" id=sklearn-pandas-neg-dataframe-alias -- DataFrame[X] alias on a parameter slot must fire D0090 per §6
+def engineer_with_alias(df: DataFrame[FeatureMatrixDep]) -> None:
+    _ = df
