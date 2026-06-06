@@ -59,13 +59,18 @@ class PlotData(Schema):
 
 
 def wide_orient_axis_swap(plot_data: PandasFrame[PlotData]) -> None:
-    """Mirrors categorical.py:L79 verbatim — wide-orient axis swap via
-    dict-literal rename."""
-    swapped = plot_data.rename(columns={"x": "y", "y": "x"})
-# PROBE-RESOLVES: id=seaborn-categorical-wide-swap-y -- after the {"x":"y","y":"x"} swap the renamed view has both `x` and `y` keys (rename is two-way); both must resolve
+    """Mirrors categorical.py:L79 in spirit — dict-literal rename. The
+    upstream shape is a two-way swap `{"x":"y","y":"x"}`; we instead
+    rename to a NEW name (`x_renamed`) so post-rename col-ref
+    resolution actually requires the rename dispatch to fire. A
+    two-way swap leaves both `x` and `y` present on the original
+    schema and is vacuity-passable by a no-op rename
+    implementation."""
+    swapped = plot_data.rename(columns={"x": "x_renamed"})
+# PROBE-RESOLVES: id=seaborn-categorical-wide-swap-x-renamed -- after the {"x":"x_renamed"} rename the new name `x_renamed` only resolves if apply_rename_dict_inner actually fired; a no-op dispatch leaves only the original `x` resolvable
+    _ = swapped["x_renamed"]
+# PROBE-RESOLVES: id=seaborn-categorical-wide-swap-y-survives -- `y` was untouched and must still resolve (the rename must drop only the renamed key, not the whole schema)
     _ = swapped["y"]
-# PROBE-RESOLVES: id=seaborn-categorical-wide-swap-x -- mirror of the above; post-swap `x` resolves
-    _ = swapped["x"]
 
 
 def marker_image_typed_probe(plot_data: PandasFrame[PlotData]) -> None:
