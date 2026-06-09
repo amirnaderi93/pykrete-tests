@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 48,
+      "endColumn": 57,
+      "endLine": 25,
+      "file": "python-deequ/probes_negative/parallelize_then_unknown.pyk",
+      "line": 25,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 29,
+      "endLine": 32,
+      "file": "python-deequ/probes_negative/parallelize_then_unknown.pyk",
+      "line": 32,
+      "message": "Column 'e' does not exist on schema 'InputRowNeg'. Did you mean 'a'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "a"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

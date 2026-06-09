@@ -1,0 +1,27 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from pydeequ/pandas_utils.py's PandasConverter.
+# pysparkDF_to_pandasDF at awslabs/python-deequ pinned-commit
+# 20693b81 — `return spark_df.toPandas()`. PyDeequ's
+# ensure_pyspark_df function accepts either pandas or pyspark
+# DataFrames, so this is the donor's canonical cross-dialect surface.
+# Exercises the v1.5 PR-A1 Spark→pandas dialect handoff on
+# CustomerRow, then references a column not in the schema on the
+# pandas side.
+#
+# Failure mode exercised: column not in schema (D0030) AFTER the
+# Spark→pandas dialect handoff — verifies negative coverage carries
+# across the handoff on pydeequ's PandasConverter shape.
+
+from pyspark.sql import DataFrame
+
+
+class CustomerRowHandoffNeg(Schema):
+    customer_id: long
+    name: string
+    is_active: bool
+
+
+def to_pandas_then_unknown(df: DataFrame[CustomerRowHandoffNeg]):
+    pdf = df.toPandas()
+# PROBE-EXPECTS: D0030 on "\"email\"" id=deequ-neg-to-pandas-unknown -- email is not in CustomerRowHandoffNeg; checked on the pandas side after .toPandas()
+    return pdf[["email"]]

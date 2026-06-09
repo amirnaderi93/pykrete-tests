@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 59,
+      "endColumn": 68,
+      "endLine": 22,
+      "file": "dbt-spark/probes_negative/sql_then_unknown.pyk",
+      "line": 22,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 37,
+      "endLine": 25,
+      "file": "dbt-spark/probes_negative/sql_then_unknown.pyk",
+      "line": 25,
+      "message": "Column 'row_count' does not exist on schema 'QueryResultNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

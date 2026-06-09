@@ -1,0 +1,25 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from dbt/adapters/spark/session.py's Cursor.execute result
+# (QueryResult shape with id:int + msg:string) at dbt-labs/dbt-spark
+# pinned-commit 42700b5d. Real upstream code reads id and msg
+# separately; this fixture mixes the string `msg` column into
+# arithmetic with `id`, which dbt's strict-typed adapter helpers
+# never do. Requires strict mode — see the sibling pykrete.json.
+#
+# Failure mode exercised: arithmetic on a non-numeric (string) column
+# (D0081). Stresses dbt-spark's strictest typing surface (Cursor
+# result columns flow into downstream dbt model arithmetic; mixing the
+# string `msg` into a numeric op is the regression).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class QueryResultArithNeg(Schema):
+    id: int
+    msg: string
+
+
+def add_msg_to_id(df: DataFrame[QueryResultArithNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0081 on "col(\"msg\") + col(\"id\")" id=dbt-spark-neg-arith-on-msg -- msg:string mixed into arithmetic with id:int
+    return df.withColumn("combined", col("msg") + col("id"))

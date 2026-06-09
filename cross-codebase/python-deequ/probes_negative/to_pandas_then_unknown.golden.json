@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 32,
+      "endColumn": 64,
+      "endLine": 24,
+      "file": "python-deequ/probes_negative/to_pandas_then_unknown.pyk",
+      "line": 24,
+      "message": "'DataFrame[CustomerRowHandoffNeg]' is a deprecated alias for 'SparkFrame[CustomerRowHandoffNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRowHandoffNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CustomerRowHandoffNeg]"
+    },
+    {
+      "code": "D0030",
+      "column": 17,
+      "endColumn": 24,
+      "endLine": 27,
+      "file": "python-deequ/probes_negative/to_pandas_then_unknown.pyk",
+      "line": 27,
+      "message": "Column 'email' does not exist on schema 'CustomerRowHandoffNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 38,
+      "endColumn": 61,
+      "endLine": 24,
+      "file": "python-deequ/probes_negative/analyzer_metric_then_unknown.pyk",
+      "line": 24,
+      "message": "'DataFrame[MetricRowNeg]' is a deprecated alias for 'SparkFrame[MetricRowNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[MetricRowNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[MetricRowNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 66,
+      "endColumn": 75,
+      "endLine": 24,
+      "file": "python-deequ/probes_negative/analyzer_metric_then_unknown.pyk",
+      "line": 24,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0030",
+      "column": 33,
+      "endColumn": 43,
+      "endLine": 26,
+      "file": "python-deequ/probes_negative/analyzer_metric_then_unknown.pyk",
+      "line": 26,
+      "message": "Column 'variance' does not exist on schema 'MetricRowNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 2
+  }
+}
