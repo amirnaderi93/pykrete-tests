@@ -1,0 +1,32 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the OHLCRow shape in sibling annotated/yfinance/utils.pyk;
+# selects a column via `df.loc[:, "<typo>"]`. The v1.5 PR-C literal-form
+# .loc column-inference arm fires D0030 on the typo.
+#
+# Failure mode exercised: pandas `df.loc[:, "col"]` literal-form column
+# inference (v1.5 PR-C, expr.rs Subscript-on-Name arm); the column key
+# `Clse` (missing `o`) doesn't exist on the pandas-tagged receiver's
+# schema so D0030 fires with a "did you mean 'Close'?" suggestion.
+#
+# Shape divergence from upstream: yfinance/utils.py uses `df.loc[idx,
+# "col"]` (non-slice row indexer) extensively (L664-L683), never the
+# `df.loc[:, "col"]` slice-all-rows form. PR-C's spec arm is the literal
+# column-key shape that yfinance does NOT exercise verbatim; the fixture
+# carries the yfinance-style OHLC schema and reuses .loc to keep the
+# donor's idiom recognizable, but the row-indexer slice is synthetic for
+# coverage of the PR-C arm specifically. Pin keeps the existing 0.2.55
+# commit; no upstream/ change.
+
+from pykrete import PandasFrame
+
+
+class OHLCRowLocNeg(Schema):
+    Open: double
+    High: double
+    Low: double
+    Close: double
+
+
+def loc_literal_typo(df: PandasFrame[OHLCRowLocNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"Clse\"" id=yfinance-pandas-neg-loc-literal-typo -- pandas .loc[:, "col"] literal-form column inference (v1.5 PR-C); the column key `Clse` (missing `o`) is absent from OHLCRowLocNeg so D0030 fires; vacuity-falsifying because flipping the literal to `"Close"` clears the fire (the PR-C arm only fires on bound-pandas + literal-only shapes)
+    _ = df.loc[:, "Clse"]
