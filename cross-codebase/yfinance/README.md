@@ -31,18 +31,21 @@ file) are documented in the v1.4 spec and not exercised here.
 
 ## Probe inventory
 
-- **Annotated probes (positive)** — 6 total across the one fixture:
-  - `utils.pyk` — 4 RESOLVES (`-auto-adjust-adjopen-after-assign`,
+- **Annotated probes (positive)** — 8 total across the one fixture:
+  - `utils.pyk` — 5 RESOLVES (`-auto-adjust-adjopen-after-assign`,
     `-auto-adjust-post-rename-open`, `-merge-statement-close`,
-    `-ticker-close-scalar`) + 2 TYPE-IS
-    (`-ticker-type`, `-currency-type`).
-- **Negative probes (probes_negative/)** — 3 total:
+    `-ticker-close-scalar`, `-loc-literal-close-select`) + 3 TYPE-IS
+    (`-ticker-type`, `-currency-type`, `-logo-bytes-type`).
+- **Negative probes (probes_negative/)** — 4 total:
   - `pandas_typo_in_rename.pyk` — D0030 on `"Open"` (rename source
     key typo).
   - `pandas_merge_unknown_key.pyk` — D0060 on `"Close"` (right-side
     join key missing).
   - `pandas_dataframe_alias.pyk` — D0090 on `DataFrame[OHLCRowDep]`
     (deprecated alias per pandas-support.md §6).
+  - `pandas_loc_literal_typo.pyk` — D0030 on `"Clse"` (v1.5 PR-C
+    `.loc[:, "col"]` literal-form column inference; typo'd column
+    key against the pandas-tagged receiver fires unknownColumn).
 
 ## Schema dtype claims (pandas defaults per pandas-support.md §4)
 

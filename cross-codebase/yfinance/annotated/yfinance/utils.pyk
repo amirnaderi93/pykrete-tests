@@ -169,3 +169,16 @@ def logo_bytes_typed_probe(df: PandasFrame[TickerRow]) -> None:
     wrap fires, Temporal families would not."""
 # PROBE-TYPE-IS: binary on "logo_bytes" id=yfinance-utils-logo-bytes-type -- logo_bytes is binary in TickerRow; synth wraps in df.select(col("logo_bytes") + lit(1)) under strict mode and fires D0081 (Binary is Collection-family per strict_operators.rs:58); flipping the dtype to double in the schema clears the fire — vacuity-falsifying
     _ = df["logo_bytes"]
+
+
+def loc_literal_close_select(df: PandasFrame[OHLCRow]) -> None:
+    """v1.5 PR-C exercise — `df.loc[:, "Close"]` literal-form column
+    inference on a pandas-tagged receiver. Shape divergence from
+    upstream: yfinance/utils.py uses `df.loc[idx, "col"]` (non-slice
+    row indexer) at L664-L683; the `:` slice-all-rows form is the
+    PR-C spec arm that yfinance does not exercise verbatim. The
+    fixture reuses the donor's OHLC schema + `.loc` idiom so the
+    coverage stays recognizable as yfinance-shaped; the row-indexer
+    slice is synthetic for the PR-C arm specifically."""
+# PROBE-RESOLVES: id=yfinance-utils-loc-literal-close-select -- pandas `.loc[:, "Close"]` literal-form column inference (v1.5 PR-C, expr.rs Subscript-on-Name arm); the column literal resolves against the pandas-tagged receiver's OHLCRow schema; if PR-C's arm were disabled the literal would fall through unchecked and the sibling negative `pandas_loc_literal_typo.pyk` D0030 would vacuity-clear (load-bearing pair)
+    _ = df.loc[:, "Close"]

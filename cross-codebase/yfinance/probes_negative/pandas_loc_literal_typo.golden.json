@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 19,
+      "endColumn": 25,
+      "endLine": 32,
+      "file": "yfinance/probes_negative/pandas_loc_literal_typo.pyk",
+      "line": 32,
+      "message": "Column 'Clse' does not exist on schema 'OHLCRowLocNeg'. Did you mean 'Close'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "Close"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

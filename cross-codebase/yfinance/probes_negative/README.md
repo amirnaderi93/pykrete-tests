@@ -23,3 +23,13 @@ regression so pykrete must fire a specific diagnostic.
   annotated/yfinance/utils.pyk; uses the deprecated `DataFrame[X]`
   alias on a parameter slot, firing D0090
   (`deprecatedDataFrameAlias`) per pandas-support.md §6.
+- `pandas_loc_literal_typo.pyk` — OHLCRowLocNeg shape from the sibling
+  annotated `OHLCRow`. Selects via `df.loc[:, "Clse"]` (missing `o`)
+  against the pandas-tagged receiver; the v1.5 PR-C literal-form
+  `.loc` column-inference arm (expr.rs Subscript-on-Name) fires D0030
+  with a "did you mean 'Close'?" suggestion. Shape divergence from
+  upstream: yfinance/utils.py uses `df.loc[idx, "col"]` (non-slice row
+  indexer) at L664-L683; the `:` slice-all-rows form is the PR-C spec
+  arm yfinance does not exercise verbatim — the fixture reuses the
+  OHLC schema + `.loc` idiom to keep the donor's coverage recognizable
+  while exercising the literal-key shape specifically.
