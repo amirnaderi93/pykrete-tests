@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 48,
+      "endColumn": 57,
+      "endLine": 23,
+      "file": "dbt-spark/probes_negative/create_dataframe_then_unknown.pyk",
+      "line": 23,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0030",
+      "column": 26,
+      "endColumn": 33,
+      "endLine": 29,
+      "file": "dbt-spark/probes_negative/create_dataframe_then_unknown.pyk",
+      "line": 29,
+      "message": "Column 'test2' does not exist on schema 'TwoIntColsNeg'. Did you mean 'test1'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "test1"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

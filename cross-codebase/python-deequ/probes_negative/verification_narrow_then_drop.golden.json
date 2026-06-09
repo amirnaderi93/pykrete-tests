@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 26,
+      "endColumn": 51,
+      "endLine": 28,
+      "file": "python-deequ/probes_negative/verification_narrow_then_drop.pyk",
+      "line": 28,
+      "message": "'DataFrame[CheckResultNeg]' is a deprecated alias for 'SparkFrame[CheckResultNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CheckResultNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[CheckResultNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 56,
+      "endColumn": 65,
+      "endLine": 28,
+      "file": "python-deequ/probes_negative/verification_narrow_then_drop.pyk",
+      "line": 28,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0030",
+      "column": 32,
+      "endColumn": 52,
+      "endLine": 31,
+      "file": "python-deequ/probes_negative/verification_narrow_then_drop.pyk",
+      "line": 31,
+      "message": "Column 'constraint_message' does not exist on inferred schema [constraint_status]. Did you mean 'constraint_status'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "constraint_status"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 2
+  }
+}

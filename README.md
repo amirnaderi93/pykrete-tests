@@ -88,7 +88,7 @@ explicitly so the coverage claim stays honest:
 | **seaborn** | direct-dispatch | [mwaskom/seaborn](https://github.com/mwaskom/seaborn) | `v0.13.2` | Statistical visualization, pandas-first API. Direct-dispatch on `df.rename(columns={…})` dict-literal kwarg in `categorical.py`. |
 | **yfinance** | direct-dispatch | [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) | `0.2.55` | Financial market-data API → pandas DataFrames. Direct-dispatch on `df["new"] = expr`, `df.rename(columns={…})`, and `df.merge(...)` in `utils.py`. |
 
-83 fixtures total across the 17 donors (46 annotated + 37 negative
+93 fixtures total across the 17 donors (46 annotated + 47 negative
 under `probes_negative/`). Spark contributes eight annotated fixtures
 (basic, datasource, streaming wordcount, the four `tests/` files, and
 `examples/.../arrow.py` covering `pandas_udf` / `applyInPandas` /
@@ -175,11 +175,11 @@ release-blocking contract.
 
 ## Schema-tracking probes (v1.4)
 
-Every pykrete release is regression-tested with **223
+Every pykrete release is regression-tested with **233
 schema-tracking probes** from the 17 upstream codebases listed above.
-The repo vendors **83 fixtures** on disk (46 annotated + 37 negative
-under `probes_negative/`); the **223 probes cover 82 of those** (45
-annotated + 37 negative — the feast `spark_kafka_processor` streaming
+The repo vendors **93 fixtures** on disk (46 annotated + 47 negative
+under `probes_negative/`); the **233 probes cover 92 of those** (45
+annotated + 47 negative — the feast `spark_kafka_processor` streaming
 fixture is annotated but probe-free because it has no typed-DataFrame
 slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
 markers in `.pyk` fixtures that the runner expands into synthetic
@@ -192,13 +192,18 @@ assert specific diagnostics fire on deliberately-corrupted fixtures.
 - **180 positive probes** across 45 annotated fixtures verify column
   resolution, post-narrowing flow, and dtype propagation (`PROBE-RESOLVES`
   + `PROBE-TYPE-IS`).
-- **43 negative probes** across 37 deliberately-corrupted fixtures
+- **53 negative probes** across 47 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing —
   D0030 `unknownColumn`, D0060 `missingJoinKey` (v1.3), D0081
   `nonNumericArithmetic` (v1.4-widened to subscript-on-name receivers),
   D0082 `crossTypeComparison` (v1.4-widened correspondingly), D0084
   `enumValueMismatch` (v1.1), and D0090 `deprecatedDataFrameAlias`
-  (v1.3 — warns on `DataFrame[X]`, removed in v2.0).
+  (v1.3 — warns on `DataFrame[X]`, removed in v2.0). The v1.5 PR-G
+  expansion added 5 fixtures per donor under `dbt-spark/` and
+  `python-deequ/` covering the most-frequent API, schema-introspection,
+  DataFrame-output transformation, cross-dialect (`.toPandas()`
+  handoff per v1.5 PR-A1), and strict-mode arithmetic patterns each
+  donor exercises.
 - **Enum value vocabulary verification** in 3 of 17 donors —
   Delta CDC `_change_type` (`{"insert", "update_preimage",
   "update_postimage", "delete"}`), Hudi `_hoodie_operation`

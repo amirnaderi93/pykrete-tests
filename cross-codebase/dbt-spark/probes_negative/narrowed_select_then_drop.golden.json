@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 26,
+      "endColumn": 56,
+      "endLine": 21,
+      "file": "dbt-spark/probes_negative/narrowed_select_then_drop.pyk",
+      "line": 21,
+      "message": "'DataFrame[TwoIntColsNarrowNeg]' is a deprecated alias for 'SparkFrame[TwoIntColsNarrowNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TwoIntColsNarrowNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TwoIntColsNarrowNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 61,
+      "endColumn": 70,
+      "endLine": 21,
+      "file": "dbt-spark/probes_negative/narrowed_select_then_drop.pyk",
+      "line": 21,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0030",
+      "column": 30,
+      "endColumn": 37,
+      "endLine": 24,
+      "file": "dbt-spark/probes_negative/narrowed_select_then_drop.pyk",
+      "line": 24,
+      "message": "Column 'test3' does not exist on inferred schema [test1]. Did you mean 'test1'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "test1"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 2
+  }
+}

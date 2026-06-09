@@ -1,0 +1,28 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from tests/test_analyzers.py's MetricRow result shape at
+# awslabs/python-deequ pinned-commit 20693b81 — every Analyzer's
+# successMetricsAsDataFrame produces (entity, instance, name, value).
+# Real upstream code averages or sums `value` (a double) and treats
+# `name` as a string label. This fixture mixes the string `name`
+# into arithmetic with `value`. Requires strict mode — see the
+# sibling pykrete.json.
+#
+# Failure mode exercised: arithmetic on a non-numeric (string) column
+# (D0081) on deequ's MetricRow shape. Exercises the strictest typing
+# surface (the post-analyzer metric DataFrame is the boundary at
+# which downstream user code does numeric aggregations).
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class MetricRowArithNeg(Schema):
+    entity: string
+    instance: string
+    name: string
+    value: double
+
+
+def add_name_to_value(df: DataFrame[MetricRowArithNeg]) -> DataFrame:
+# PROBE-EXPECTS: D0081 on "col(\"name\") + col(\"value\")" id=deequ-neg-arith-on-name -- name:string mixed into arithmetic with value:double
+    return df.withColumn("combined", col("name") + col("value"))

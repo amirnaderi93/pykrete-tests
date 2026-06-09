@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 38,
+      "endColumn": 69,
+      "endLine": 23,
+      "file": "dbt-spark/probes_negative/to_pandas_then_unknown.pyk",
+      "line": 23,
+      "message": "'DataFrame[TwoIntColsHandoffNeg]' is a deprecated alias for 'SparkFrame[TwoIntColsHandoffNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TwoIntColsHandoffNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[TwoIntColsHandoffNeg]"
+    },
+    {
+      "code": "D0030",
+      "column": 17,
+      "endColumn": 24,
+      "endLine": 26,
+      "file": "dbt-spark/probes_negative/to_pandas_then_unknown.pyk",
+      "line": 26,
+      "message": "Column 'test2' does not exist on schema 'TwoIntColsHandoffNeg'. Did you mean 'test1'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "test1"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

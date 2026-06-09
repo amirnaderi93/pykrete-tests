@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 23,
+      "endColumn": 53,
+      "endLine": 23,
+      "file": "dbt-spark/probes_negative/withColumn_arith_on_string.pyk",
+      "line": 23,
+      "message": "'DataFrame[QueryResultArithNeg]' is a deprecated alias for 'SparkFrame[QueryResultArithNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[QueryResultArithNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[QueryResultArithNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 58,
+      "endColumn": 67,
+      "endLine": 23,
+      "file": "dbt-spark/probes_negative/withColumn_arith_on_string.pyk",
+      "line": 23,
+      "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame"
+    },
+    {
+      "code": "D0081",
+      "column": 38,
+      "endColumn": 60,
+      "endLine": 25,
+      "file": "dbt-spark/probes_negative/withColumn_arith_on_string.pyk",
+      "line": 25,
+      "message": "Arithmetic operator applied to a non-numeric (String) column. Spark coerces or errors here; cast it explicitly if intended.",
+      "relatedInformation": [],
+      "ruleName": "nonNumericArithmetic",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 3
+  }
+}

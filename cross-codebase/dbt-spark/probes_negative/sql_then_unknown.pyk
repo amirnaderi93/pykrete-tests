@@ -1,0 +1,25 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from dbt/adapters/spark/session.py's Cursor.execute pattern at
+# dbt-labs/dbt-spark pinned-commit 42700b5d. Real upstream calls
+# spark_session.sql(sql); pykrete treats sql() as opaque, so the
+# annotated/ companion re-anchors via .cast(DataFrame[QueryResult]).
+# This fixture mirrors that re-anchor, then references a column not
+# present on QueryResultNeg.
+#
+# Failure mode exercised: column not in schema (D0030) after the
+# spark.sql(...).cast(DataFrame[X]) re-anchor that dbt-spark's Cursor
+# wrapper produces.
+
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
+
+
+class QueryResultNeg(Schema):
+    id: int
+    msg: string
+
+
+def cursor_then_unknown(spark: SparkSession, sql: str) -> DataFrame:
+    df = spark.sql(sql).cast(DataFrame[QueryResultNeg])
+# PROBE-EXPECTS: D0030 on "\"row_count\"" id=dbt-spark-neg-sql-unknown -- row_count is not in QueryResultNeg
+    return df.select(col("row_count"))

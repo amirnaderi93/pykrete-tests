@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the cross-dialect pattern dbt's Python-model convention
+# accepts (per tests/functional/adapter/test_python_model.py at
+# dbt-labs/dbt-spark pinned-commit 42700b5d, BasePySparkTests.
+# test_different_dataframes — models can return pandas, pyspark, or
+# pyspark.pandas DataFrames). This fixture exercises the
+# Spark-to-pandas handoff via .toPandas() (v1.5 PR-A1) on the
+# TwoIntCols Python-model shape, then references a column not in the
+# schema on the pandas side.
+#
+# Failure mode exercised: column not in schema (D0030) AFTER the
+# Spark→pandas dialect handoff — verifies the handoff carries the
+# negative-coverage path, not just the positive one.
+
+from pyspark.sql import DataFrame
+
+
+class TwoIntColsHandoffNeg(Schema):
+    test1: int
+    test3: int
+
+
+def model_to_pandas_then_unknown(df: DataFrame[TwoIntColsHandoffNeg]):
+    pdf = df.toPandas()
+# PROBE-EXPECTS: D0030 on "\"test2\"" id=dbt-spark-neg-to-pandas-unknown -- test2 is not in TwoIntColsHandoffNeg; checked on the pandas side after .toPandas()
+    return pdf[["test2"]]

@@ -1,0 +1,29 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Python-model body of
+# tests/functional/adapter/test_python_model.py at dbt-labs/dbt-spark
+# pinned-commit 42700b5d (models__simple_python_model_v2 returning
+# spark.createDataFrame(data, schema=['test1','test3'])). The
+# annotated/ companion re-anchors that opaque createDataFrame via
+# .cast(DataFrame[TwoIntCols]); this fixture mirrors the same
+# re-anchor then references a column the schema doesn't declare.
+#
+# Failure mode exercised: column not in schema (D0030) after the
+# spark.createDataFrame(...).cast(DataFrame[X]) re-anchor that dbt's
+# python-model convention produces.
+
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
+
+
+class TwoIntColsNeg(Schema):
+    test1: int
+    test3: int
+
+
+def model_then_unknown(spark: SparkSession) -> DataFrame:
+    data = [[1, 2]] * 10
+    df = spark.createDataFrame(data, schema=['test1', 'test3']).cast(
+        DataFrame[TwoIntColsNeg]
+    )
+# PROBE-EXPECTS: D0030 on "\"test2\"" id=dbt-spark-neg-model-unknown -- test2 is not in TwoIntColsNeg (real v1 model had test2; v2 renamed to test3)
+    return df.select(col("test2"))

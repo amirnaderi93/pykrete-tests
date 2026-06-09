@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the same TwoIntCols Python-model shape at
+# dbt-labs/dbt-spark pinned-commit 42700b5d. The annotated/
+# select_test1_demo narrows via `.select("test1", "test3")` and reads
+# both back. This fixture narrows to test1 only and then references
+# test3, which has been dropped by the narrow.
+#
+# Failure mode exercised: column reference not in narrowed schema
+# (D0030) — the most common dbt-Python-model regression where a
+# follow-up call references a column the upstream .select dropped.
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+
+class TwoIntColsNarrowNeg(Schema):
+    test1: int
+    test3: int
+
+
+def narrow_then_drop(df: DataFrame[TwoIntColsNarrowNeg]) -> DataFrame:
+    inputs = df.select("test1")
+# PROBE-EXPECTS: D0030 on "\"test3\"" id=dbt-spark-neg-narrow-then-drop -- test3 was dropped by .select("test1")
+    return inputs.select(col("test3"))
