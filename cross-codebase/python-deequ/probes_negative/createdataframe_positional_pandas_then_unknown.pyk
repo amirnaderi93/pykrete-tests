@@ -1,0 +1,32 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from pydeequ/pandas_utils.py at awslabs/python-deequ
+# pinned-commit 20693b81; PandasConverter.pandasDF_to_pysparkDF at L44-52
+# ends with `return spark_session.createDataFrame(pandas_df, p_schema)` —
+# the positional pandas-DF handoff into Spark. This fixture exercises
+# v1.5 PR-A2 Gate (b) — the first-positional Pandas-tagged arg path —
+# at the `cross_dialect_handoff_gate::PandasPositional` arm
+# (`driver.rs:172/201` on pin 8b2555f); the result of the call is
+# tagged `SparkFrame[X]` carrying the source pandas schema. A
+# downstream `.select("<typo>")` on the result then fires D0030
+# against that schema.
+#
+# Failure mode exercised: v1.5 PR-A2 Gate (b) positional-Pandas
+# createDataFrame handoff carries the source schema forward; a
+# typo on the resulting Spark frame fires D0030 (negative-space
+# coverage missing from v1.5 PR-G).
+
+from pyspark.sql import SparkSession
+from pykrete import PandasFrame, SparkFrame
+
+
+class PandasInputNeg(Schema):
+    column: string
+    value: long
+
+
+def pandas_to_pyspark_then_unknown(
+    spark_session: SparkSession, pandas_df: PandasFrame[PandasInputNeg]
+) -> None:
+    sdf = spark_session.createDataFrame(pandas_df)
+# PROBE-EXPECTS: D0030 on "\"valuee\"" id=python-deequ-neg-createdataframe-positional-pandas-then-unknown -- v1.5 PR-A2 Gate (b) positional-Pandas handoff: spark.createDataFrame(pandas_df) tags sdf as SparkFrame[PandasInputNeg]; `valuee` is a typo of `value` so D0030 fires against PandasInputNeg
+    sdf.select("valuee")

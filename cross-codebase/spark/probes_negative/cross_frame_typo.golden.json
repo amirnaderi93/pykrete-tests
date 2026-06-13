@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 14,
+      "endColumn": 42,
+      "endLine": 40,
+      "file": "spark/probes_negative/cross_frame_typo.pyk",
+      "line": 40,
+      "message": "'DataFrame[LeftFrameCrossNeg]' is a deprecated alias for 'SparkFrame[LeftFrameCrossNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[LeftFrameCrossNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[LeftFrameCrossNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 54,
+      "endColumn": 83,
+      "endLine": 40,
+      "file": "spark/probes_negative/cross_frame_typo.pyk",
+      "line": 40,
+      "message": "'DataFrame[RightFrameCrossNeg]' is a deprecated alias for 'SparkFrame[RightFrameCrossNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RightFrameCrossNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[RightFrameCrossNeg]"
+    },
+    {
+      "code": "D0030",
+      "column": 29,
+      "endColumn": 41,
+      "endLine": 43,
+      "file": "spark/probes_negative/cross_frame_typo.pyk",
+      "line": 43,
+      "message": "Column 'rite_value' does not exist on schema 'RightFrameCrossNeg'. Did you mean 'right_value'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "right_value"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 2
+  }
+}

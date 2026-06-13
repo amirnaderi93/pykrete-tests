@@ -1,0 +1,35 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from test_group.py at apache/spark pinned-commit d004e0d8;
+# L28 `g = df.groupBy("key")` is the canonical literal-arg form.
+# This fixture mirrors the groupBy(...) site but passes a NON-
+# DataFrame value (a plain object's attribute access) as the arg —
+# the kind of false-positive surface v1.5 PR-B2 fixed.
+#
+# Failure mode exercised (REGRESSION-GUARD): v1.5 PR-B2 gated the
+# `column_name_arg` ungated arms on DataFrame binding (per spec §3.2
+# / commit 7d9c97e). Without that gate, `df.groupBy(bag.x)` where
+# `bag` is non-DataFrame would walk through the ungated col-ref
+# arm and emit a spurious D0030 against `df`'s schema (since `x`
+# isn't a column of NameAgeActive). With the PR-B2 gate, the
+# arm falls through silently — no D-code fires.
+#
+# This probe asserts the FILE-CLEAN-OF D0030 contract: NO D0030
+# anywhere in this file. Flipping the gate off in pykrete would
+# regress the check.
+
+from pyspark.sql import DataFrame
+
+
+class NameAgeActiveB2(Schema):
+    name: string
+    age: int
+    active: string
+
+
+class Bag:
+    x: int
+
+
+# PROBE-FILE-CLEAN-OF: D0030 -- v1.5 PR-B2 regression-guard: `df.groupBy(bag.x)` where `bag` is non-DataFrame falls through the column_name_arg DataFrame gate silently; no D0030 should fire because `bag.x` is not a DataFrame-bound Subscript so the col-ref arm doesn't run against df's schema
+def groupby_non_dataframe_arg(df: DataFrame[NameAgeActiveB2], bag: Bag) -> None:
+    df.groupBy(bag.x).count()

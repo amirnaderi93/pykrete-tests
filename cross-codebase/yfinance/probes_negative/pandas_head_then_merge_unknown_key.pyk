@@ -1,0 +1,42 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the merge_statements_demo pattern in sibling
+# annotated/yfinance/utils.pyk (real upstream:
+# yfinance/utils.py:335 `Annual.merge(TTM, left_index=True,
+# right_index=True)` at ranaroussi/yfinance pinned-commit 5cc1197c).
+# This fixture pre-chains a `.head(10)` before `.merge(...)` — the
+# upstream code never literally writes `Annual.head(10).merge(...)`,
+# but pandas users routinely sample with `.head()` for spot-checks
+# before downstream ops, so the chain shape is a frequent user idiom.
+#
+# Failure mode exercised: v1.5 PR-A3 chain-survival on pandas
+# receivers — `.head(n)` returns a row-sliced PandasFrame (NOT a
+# terminal `list[Row]` as on Spark, per `shapes.rs:103-105` on pin
+# 8b2555f). Without PR-A3 gating, `.head()` would treat the
+# receiver as terminal and the follow-up `.merge(...)` would
+# silently skip schema checks. With PR-A3 gating, the pandas tag
+# survives the `.head()` and the `.merge(on="<typo>")` D0060
+# join-key check still fires.
+#
+# Shape divergence from upstream: yfinance/utils.py uses
+# `Annual.merge(TTM, left_index=True, right_index=True)` without a
+# pre-chained `.head()`; the `.head(n).merge(...)` chain is the
+# user-side spot-check idiom (not verbatim in the donor source) we
+# use to exercise the v1.5 PR-A3 chain-survival arm specifically.
+
+from pykrete import PandasFrame
+
+
+class AnnualRowChainNeg(Schema):
+    Open: double
+    Close: double
+
+
+class TTMRowChainNeg(Schema):
+    TTM_Open: double
+
+
+def head_then_merge_unknown_key(
+    annual: PandasFrame[AnnualRowChainNeg], ttm: PandasFrame[TTMRowChainNeg]
+) -> None:
+# PROBE-EXPECTS: D0060 match /right side/ id=yfinance-pandas-neg-head-then-merge-unknown-key -- v1.5 PR-A3 chain-survival: `.head(10)` on a pandas receiver returns a row-sliced PandasFrame (not terminal); the dialect tag survives so the follow-up `.merge(on="Close")` still routes through the pandas .merge dispatch; `Close` is on the left frame but absent from TTMRowChainNeg, firing D0060 on the right side
+    _ = annual.head(10).merge(ttm, on="Close")

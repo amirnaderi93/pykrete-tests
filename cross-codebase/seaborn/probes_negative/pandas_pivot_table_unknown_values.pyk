@@ -1,0 +1,32 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the seaborn-USER pivot_table idiom in sibling
+# annotated/seaborn/pivot_table_demo.pyk. seaborn's library code at
+# v0.13.2 does not call DataFrame.pivot_table itself; this fixture
+# captures the seaborn-USER reshape idiom (tidy → wide before
+# sns.heatmap) on the same TidyData schema. The `values=` literal
+# is misspelled so the v1.6 PR-D1 arm fires D0030.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.pivot_table(...)`;
+# this fixture is the user-side idiom around the seaborn API, not a
+# verbatim donor cite. The schema (TidyData) IS faithful to the donor.
+#
+# Failure mode exercised: v1.6 PR-D1 — pandas pivot_table(index=,
+# columns=, values=, aggfunc=) literal-form check (per
+# `docs/design/v1.6-spec.md` §4); a literal name in `values=` not
+# present on the receiver schema fires D0030 on that literal's range
+# with a "did you mean" suggestion.
+
+from pykrete import PandasFrame
+
+
+class TidyDataPivotNeg(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+def pivot_table_values_typo(df: PandasFrame[TidyDataPivotNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"x_rwa\"" id=seaborn-pandas-neg-pivot-table-unknown-values -- v1.6 PR-D1 negative: `values="x_rwa"` is a transposition of `x_raw`; the literal is absent from TidyDataPivotNeg so the pivot_table literal-form arm fires D0030 against the donor schema (the v1.6 arm validates each literal name independently per spec §4)
+    _ = df.pivot_table(index="hue_raw", columns="unit_id", values="x_rwa")

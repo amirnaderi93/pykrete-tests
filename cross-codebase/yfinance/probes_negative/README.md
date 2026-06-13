@@ -33,3 +33,15 @@ regression so pykrete must fire a specific diagnostic.
   arm yfinance does not exercise verbatim — the fixture reuses the
   OHLC schema + `.loc` idiom to keep the donor's coverage recognizable
   while exercising the literal-key shape specifically.
+- `pandas_head_then_merge_unknown_key.pyk` — v1.5 PR-A3 chain-survival
+  negative-space probe. AnnualRowChainNeg + TTMRowChainNeg mirror the
+  `Annual.merge(TTM, ...)` shape from `yfinance/utils.py:L335`, but
+  pre-chain a `.head(10)` before the `.merge(on="Close")` — the v1.5
+  PR-A3 dialect-gating arm at `shapes.rs:103-105` (on pin 8b2555f)
+  keeps the pandas tag through `.head()` so the follow-up `.merge`
+  still routes through the pandas dispatch and the join-key check
+  fires D0060 on the right side. Without PR-A3 gating, `.head()`
+  would be treated as terminal and the `.merge` schema check would
+  silently skip. Shape divergence: yfinance/utils.py does not literally
+  chain `.head().merge()`; the chain is the user-side spot-check idiom
+  exercising the chain-survival arm.

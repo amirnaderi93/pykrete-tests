@@ -32,19 +32,29 @@ even though the library's own source uses variable forms").
 
 ## Probe inventory
 
-- **Annotated probes (positive)** — 9 total across the two fixtures:
+- **Annotated probes (positive)** — 10 total across three fixtures:
   - `categorical.pyk` — 2 RESOLVES (`-wide-swap-x`, `-wide-swap-y`).
   - `relational.pyk` — 5 RESOLVES (`-axis-rename-x`, `-axis-rename-y`,
     `-axis-rename-hue-survives`, `-merge-treatment`,
     `-merge-x-raw-survives`) + 2 TYPE-IS
     (`-hue-raw-type`, `-merge-hue-raw-type`).
-- **Negative probes (probes_negative/)** — 3 total:
+  - `pivot_table_demo.pyk` — 1 RESOLVES
+    (`seaborn-pivot-table-all-literals`) on the v1.6 PR-D1 pandas
+    `pivot_table(index=, columns=, values=, aggfunc=)` literal-form
+    arm. Shape divergence: seaborn library code does not call
+    `DataFrame.pivot_table` itself (grep returns 0 hits); the
+    fixture captures the seaborn-USER reshape idiom (tidy → wide
+    before sns.heatmap).
+- **Negative probes (probes_negative/)** — 4 total:
   - `pandas_typo_in_rename.pyk` — D0030 on `"x"` (the source key of
     the rename didn't match, so the target was never bound).
   - `pandas_merge_unknown_key.pyk` — D0060 on `"unit_id"`
     (right-side join key missing).
   - `pandas_dataframe_alias.pyk` — D0090 on `DataFrame[TidyDataDep]`
     (deprecated alias per pandas-support.md §6).
+  - `pandas_pivot_table_unknown_values.pyk` — D0030 on `"x_rwa"`
+    (v1.6 PR-D1 literal-form negative; the typo in `values=` is
+    absent from TidyDataPivotNeg).
 
 ## Schema dtype claims (pandas defaults per pandas-support.md §4)
 

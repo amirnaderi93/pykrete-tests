@@ -45,3 +45,14 @@ This directory is strict-mode (`pykrete.json` enables
   D0081 (nonNumericArithmetic) on deequ's strictest typing surface
   (the post-analyzer metric DataFrame is where downstream user code
   does numeric aggregations on `value`).
+- `createdataframe_positional_pandas_then_unknown.pyk` — v1.5 PR-A2
+  Gate (b) negative-space probe. Derived from
+  `pydeequ/pandas_utils.py:L52` —
+  `spark_session.createDataFrame(pandas_df, p_schema)` is deequ's
+  positional pandas-DF → Spark-DF handoff site. This fixture
+  annotates the pandas arg as `PandasFrame[X]`, then references a
+  column not in the schema on the resulting Spark frame. Forces
+  D0030 — confirms the v1.5 PR-A2 Gate (b) positional-Pandas arm
+  carries the source schema through the
+  `cross_dialect_handoff_gate::PandasPositional` path
+  (driver.rs:172/201 on pin 8b2555f).
