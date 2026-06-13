@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 16,
+      "endColumn": 24,
+      "endLine": 32,
+      "file": "python-deequ/probes_negative/createdataframe_positional_pandas_then_unknown.pyk",
+      "line": 32,
+      "message": "Column 'valuee' does not exist on schema 'PandasInputNeg'. Did you mean 'value'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "value"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 67,
+      "endColumn": 74,
+      "endLine": 32,
+      "file": "seaborn/probes_negative/pandas_pivot_table_unknown_values.pyk",
+      "line": 32,
+      "message": "Column 'x_rwa' does not exist on schema 'TidyDataPivotNeg'.",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

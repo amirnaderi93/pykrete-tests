@@ -1,0 +1,43 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from test_drop_join in
+# python/pyspark/sql/tests/test_dataframe.py at apache/spark
+# pinned-commit d004e0d8 — L54-55 `joined_df.drop(left_df["join_key"])`
+# / `joined_df.drop(right_df["join_key"])` are the canonical
+# cross-frame Subscript patterns where one DataFrame's `.drop(...)`
+# consumer accepts a Column object resolved against ANOTHER frame's
+# schema. This fixture mirrors the cross-frame Subscript surface
+# through `.select(other_df["col"])` instead of `.drop(...)`, then
+# injects a typo on the cross-frame literal.
+#
+# Failure mode exercised: v1.5 PR-B1 cross-frame Subscript col-ref —
+# `df.select(df_other["typo"])` resolves the literal against
+# df_other's schema (NOT df's), so the typo fires D0030 against
+# df_other's schema. Without PR-B1's cross-frame resolution,
+# `collect_col_refs` would resolve `"typo"` against the receiver
+# frame `df`'s schema and either miss the typo (if `df` happens
+# to have a column of that name) or report it against the wrong
+# schema.
+#
+# Shape divergence from upstream: upstream uses `.drop(left_df[...])`
+# / `.drop(right_df[...])`; this fixture uses `.select(right_df[...])`
+# to keep the cross-frame Subscript shape against `JoinKeyValue2`'s
+# schema while still routing through the PR-B1 col-ref path.
+
+from pyspark.sql import DataFrame
+
+
+class LeftFrameCrossNeg(Schema):
+    left_id: int
+    left_value: string
+
+
+class RightFrameCrossNeg(Schema):
+    right_id: int
+    right_value: string
+
+
+def cross_frame_select_typo(
+    left_df: DataFrame[LeftFrameCrossNeg], right_df: DataFrame[RightFrameCrossNeg]
+) -> None:
+# PROBE-EXPECTS: D0030 on "\"rite_value\"" id=spark-neg-cross-frame-typo -- v1.5 PR-B1 cross-frame Subscript col-ref: `left_df.select(right_df["rite_value"])` resolves the literal against right_df's RightFrameCrossNeg schema (NOT left_df's); `rite_value` is a typo of `right_value` so D0030 fires against RightFrameCrossNeg with the "did you mean 'right_value'?" suggestion
+    left_df.select(right_df["rite_value"])

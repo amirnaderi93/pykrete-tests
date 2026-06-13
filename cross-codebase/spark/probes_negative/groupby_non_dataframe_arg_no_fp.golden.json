@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 35,
+      "endColumn": 61,
+      "endLine": 34,
+      "file": "spark/probes_negative/groupby_non_dataframe_arg_no_fp.pyk",
+      "line": 34,
+      "message": "'DataFrame[NameAgeActiveB2]' is a deprecated alias for 'SparkFrame[NameAgeActiveB2]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActiveB2]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[NameAgeActiveB2]"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

@@ -23,3 +23,13 @@ regression so pykrete must fire a specific diagnostic.
   sibling annotated/seaborn/relational.pyk; uses the deprecated
   `DataFrame[X]` alias on a parameter slot, firing D0090
   (`deprecatedDataFrameAlias`) per pandas-support.md §6.
+- `pandas_pivot_table_unknown_values.pyk` — v1.6 PR-D1 negative-space
+  probe. TidyDataPivotNeg mirrors the relational TidyData schema;
+  `df.pivot_table(index="hue_raw", columns="unit_id", values="x_rwa")`
+  where `x_rwa` is a transposition of `x_raw`. The v1.6 PR-D1
+  pandas `pivot_table` literal-form arm validates each literal name
+  on the receiver schema and fires D0030 against TidyDataPivotNeg.
+  Shape divergence: seaborn's library source does not literally call
+  `DataFrame.pivot_table` (grep returns 0 hits); the fixture captures
+  the seaborn-USER reshape idiom (tidy → wide before sns.heatmap)
+  exercising the v1.6 PR-D1 arm specifically.

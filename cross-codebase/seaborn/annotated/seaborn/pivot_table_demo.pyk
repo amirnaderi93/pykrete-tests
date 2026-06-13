@@ -1,0 +1,42 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from the seaborn API-USER convention around
+# tidy → wide reshaping. seaborn's own library code at v0.13.2 does not
+# call DataFrame.pivot_table itself (a grep across upstream/seaborn at
+# pinned-commit 9521ea1 returns 0 hits), but seaborn USERS routinely
+# pre-aggregate their tidy frames with pdf.pivot_table(index=,
+# columns=, values=) before handing wide-format data to sns.heatmap
+# or feeding category-level summaries to sns.barplot. This fixture
+# mirrors that user-side idiom on the same TidyData schema the sibling
+# annotated/seaborn/relational.pyk uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.pivot_table(...)`; this
+# fixture is the user-side idiom around the seaborn API, not a
+# verbatim donor cite. The schema (TidyData) IS faithful to the donor.
+#
+# Features covered:
+#   - v1.6 PR-D1 pandas pivot_table(index=, columns=, values=, aggfunc=)
+#     literal-form schema check on a PandasFrame-tagged receiver.
+#   - All four arg slots populated with literals present in the schema.
+#   - The arm validates each literal name (D0030) but tags the result
+#     Unknown — a re-anchor via .cast(DataFrame[X]) is the v1.6 escape.
+
+from pykrete import PandasFrame
+
+
+class TidyDataPivot(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+def pivot_table_all_literals(df: PandasFrame[TidyDataPivot]) -> None:
+    """Mirrors the seaborn-USER idiom: tidy → wide reshape via
+    pdf.pivot_table(...) before handing the wide frame to
+    sns.heatmap. All names in `index`/`columns`/`values` resolve
+    against TidyDataPivot; the v1.6 PR-D1 arm validates the literal
+    names and tags the result Unknown."""
+# PROBE-RESOLVES: id=seaborn-pivot-table-all-literals -- v1.6 PR-D1 positive: every literal in index/columns/values is in TidyDataPivot; the arm validates and resolves cleanly with no D-code; vacuity-falsifying because typoing any of the three literals would fire D0030 against TidyDataPivot
+    _ = df.pivot_table(index="hue_raw", columns="unit_id", values="x_raw", aggfunc="sum")

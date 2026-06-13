@@ -88,7 +88,7 @@ explicitly so the coverage claim stays honest:
 | **seaborn** | direct-dispatch | [mwaskom/seaborn](https://github.com/mwaskom/seaborn) | `v0.13.2` | Statistical visualization, pandas-first API. Direct-dispatch on `df.rename(columns={…})` dict-literal kwarg in `categorical.py`. |
 | **yfinance** | direct-dispatch | [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) | `0.2.55` | Financial market-data API → pandas DataFrames. Direct-dispatch on `df["new"] = expr`, `df.rename(columns={…})`, and `df.merge(...)` in `utils.py`. |
 
-94 fixtures total across the 17 donors (46 annotated + 48 negative
+100 fixtures total across the 17 donors (47 annotated + 53 negative
 under `probes_negative/`). Spark contributes eight annotated fixtures
 (basic, datasource, streaming wordcount, the four `tests/` files, and
 `examples/.../arrow.py` covering `pandas_udf` / `applyInPandas` /
@@ -175,11 +175,11 @@ release-blocking contract.
 
 ## Schema-tracking probes (v1.4)
 
-Every pykrete release is regression-tested with **235
+Every pykrete release is regression-tested with **241
 schema-tracking probes** from the 17 upstream codebases listed above.
-The repo vendors **94 fixtures** on disk (46 annotated + 48 negative
-under `probes_negative/`); the **235 probes cover 93 of those** (45
-annotated + 48 negative — the feast `spark_kafka_processor` streaming
+The repo vendors **100 fixtures** on disk (47 annotated + 53 negative
+under `probes_negative/`); the **241 probes cover 99 of those** (46
+annotated + 53 negative — the feast `spark_kafka_processor` streaming
 fixture is annotated but probe-free because it has no typed-DataFrame
 slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
 markers in `.pyk` fixtures that the runner expands into synthetic
@@ -189,10 +189,10 @@ columns resolve cleanly after schema-changing operations (`.select`,
 `df[col_list]`, `df[mask]`, `df["new"] = expr`); negative probes
 assert specific diagnostics fire on deliberately-corrupted fixtures.
 
-- **181 positive probes** across 45 annotated fixtures verify column
+- **182 positive probes** across 46 annotated fixtures verify column
   resolution, post-narrowing flow, and dtype propagation (`PROBE-RESOLVES`
   + `PROBE-TYPE-IS`).
-- **54 negative probes** across 48 deliberately-corrupted fixtures
+- **59 negative probes** across 53 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing —
   D0030 `unknownColumn`, D0060 `missingJoinKey` (v1.3), D0081
   `nonNumericArithmetic` (v1.4-widened to subscript-on-name receivers),
@@ -209,7 +209,22 @@ assert specific diagnostics fire on deliberately-corrupted fixtures.
   RESOLVES (`-loc-literal-close-select`) on the existing
   `yfinance/annotated/yfinance/utils.pyk`, exercising the v1.5 PR-C
   `.loc[:, "col"]` literal-form column-inference arm against the
-  yfinance OHLC shape.
+  yfinance OHLC shape. The v1.6 PR-P1 cross-codebase coverage closure
+  added 6 probes: 4 negative-space probes filling v1.5 audit gaps —
+  `python-deequ/probes_negative/createdataframe_positional_pandas_then_unknown.pyk`
+  (D0030 on the v1.5 PR-A2 Gate (b) positional-pandas handoff arm),
+  `yfinance/probes_negative/pandas_head_then_merge_unknown_key.pyk`
+  (D0060 on the v1.5 PR-A3 `.head().merge()` chain-survival arm),
+  `spark/probes_negative/cross_frame_typo.pyk` (D0030 on the v1.5
+  PR-B1 cross-frame Subscript arm against the OTHER frame's schema),
+  `spark/probes_negative/groupby_non_dataframe_arg_no_fp.pyk`
+  (FILE-CLEAN-OF D0030 regression-guard on the v1.5 PR-B2
+  column_name_arg DataFrame-binding gate) — plus 2 probes for v1.6
+  PR-D1 pandas `pivot_table(index=, columns=, values=, aggfunc=)`
+  literal-form coverage: `seaborn/annotated/seaborn/pivot_table_demo.pyk`
+  (RESOLVES on the all-literals happy path) and
+  `seaborn/probes_negative/pandas_pivot_table_unknown_values.pyk`
+  (D0030 on a `values=` literal typo).
 - **Enum value vocabulary verification** in 3 of 17 donors —
   Delta CDC `_change_type` (`{"insert", "update_preimage",
   "update_postimage", "delete"}`), Hudi `_hoodie_operation`
@@ -250,8 +265,10 @@ What we do **not** yet verify (deferred to v1.5+):
   frames, not boundary recognition.
 - **`df.query("…")` / `df.eval("…")` mini-DSLs** — own design surface;
   parse string-fragment column refs separately.
-- **Broader pandas method modeling** (`pivot_table`, `groupby.agg`,
-  `melt`, `stack` / `unstack`, `reset_index`, `set_index`).
+- **Broader pandas reshape modeling** (`groupby.agg`, `melt`,
+  `stack` / `unstack`, `reset_index`, `set_index`, and full
+  `pivot_table` schema-tracking of the pivoted output layout —
+  v1.6 PR-D1 ships literal-form validation but outputs Unknown).
 - **`pd.read_csv(...)` + other I/O entry points** — schema inference
   from file headers / SQL / type-stubs is a separate design.
 - **`PROBE-TYPE-IS` synth-shape coverage beyond D0081 (Spark side).**
