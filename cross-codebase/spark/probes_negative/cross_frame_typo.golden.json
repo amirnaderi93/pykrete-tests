@@ -10,7 +10,7 @@
       "message": "'DataFrame[LeftFrameCrossNeg]' is a deprecated alias for 'SparkFrame[LeftFrameCrossNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[LeftFrameCrossNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[LeftFrameCrossNeg]"
     },
@@ -24,7 +24,7 @@
       "message": "'DataFrame[RightFrameCrossNeg]' is a deprecated alias for 'SparkFrame[RightFrameCrossNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RightFrameCrossNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[RightFrameCrossNeg]"
     },
@@ -45,8 +45,8 @@
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 1,
+    "errorCount": 3,
     "filesChecked": 1,
-    "warningCount": 2
+    "warningCount": 0
   }
 }

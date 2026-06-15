@@ -10,15 +10,15 @@
       "message": "'DataFrame[NameAgeActiveB2]' is a deprecated alias for 'SparkFrame[NameAgeActiveB2]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActiveB2]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[NameAgeActiveB2]"
     }
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 0,
+    "errorCount": 1,
     "filesChecked": 1,
-    "warningCount": 1
+    "warningCount": 0
   }
 }

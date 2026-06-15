@@ -10,7 +10,7 @@
       "message": "'DataFrame[KVNeg]' is a deprecated alias for 'SparkFrame[KVNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[KVNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[KVNeg]"
     },
@@ -24,7 +24,7 @@
       "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame"
     },
@@ -45,8 +45,8 @@
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 0,
+    "errorCount": 2,
     "filesChecked": 1,
-    "warningCount": 3
+    "warningCount": 1
   }
 }

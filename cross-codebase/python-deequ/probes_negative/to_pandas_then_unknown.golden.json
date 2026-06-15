@@ -10,7 +10,7 @@
       "message": "'DataFrame[CustomerRowHandoffNeg]' is a deprecated alias for 'SparkFrame[CustomerRowHandoffNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRowHandoffNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[CustomerRowHandoffNeg]"
     },
@@ -31,8 +31,8 @@
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 1,
+    "errorCount": 2,
     "filesChecked": 1,
-    "warningCount": 1
+    "warningCount": 0
   }
 }
