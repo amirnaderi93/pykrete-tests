@@ -1,0 +1,49 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from the seaborn API-USER convention around
+# wide → tidy reshaping. seaborn's own library code at v0.13.2 does not
+# call DataFrame.melt itself (a grep across upstream/seaborn at
+# pinned-commit 9521ea1 returns 0 hits in *.py source), but seaborn
+# USERS routinely reshape wide DataFrames with pdf.melt(id_vars=,
+# value_vars=) into the long/tidy format that sns.lineplot,
+# sns.barplot, sns.boxplot expect (hue= and y= take column names, and
+# the canonical "one row per observation" shape comes from melt).
+# This fixture mirrors that user-side idiom on the same TidyData
+# schema the sibling annotated/seaborn/pivot_table_demo.pyk uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.melt(...)`; this fixture
+# is the user-side idiom around the seaborn API, not a verbatim donor
+# cite. The schema (TidyDataMelt) IS faithful to the donor.
+#
+# Features covered:
+#   - v1.7 PR-D1 pandas melt(id_vars=, value_vars=, var_name=,
+#     value_name=) literal-form schema synthesis on a
+#     PandasFrame-tagged receiver.
+#   - Both required kwargs (id_vars + value_vars) populated with
+#     literals present in the schema.
+#   - Custom var_name= / value_name= literals propagate to the
+#     synthesized output schema, exercised by a chained .select on the
+#     melted columns.
+
+from pykrete import PandasFrame
+
+
+class TidyDataMelt(Schema):
+    unit_id: long
+    measure_a: double
+    measure_b: double
+    measure_c: double
+
+
+def melt_all_literals(df: PandasFrame[TidyDataMelt]) -> None:
+    """Mirrors the seaborn-USER idiom: wide → tidy reshape via
+    pdf.melt(...) before handing the long frame to sns.lineplot /
+    sns.barplot. Every name in id_vars/value_vars resolves against
+    TidyDataMelt; the v1.7 PR-D1 arm validates the literal names AND
+    synthesizes the [unit_id, metric, amount] output schema. The
+    chained .select on the new names exercises the synthesized
+    schema (a vacuity-falsifying probe — if the arm returned Unknown,
+    the chain would die, but it does not)."""
+# PROBE-RESOLVES: id=seaborn-melt-all-literals -- v1.7 PR-D1 positive: every literal in id_vars/value_vars is in TidyDataMelt; the arm validates and synthesizes [unit_id, metric, amount]; the chained .select on the synthesized names resolves cleanly with no D-code; vacuity-falsifying because typoing any of the literals OR selecting an unknown column post-melt would fire D0030 against the synthesized output schema
+    _ = df.melt(id_vars=["unit_id"], value_vars=["measure_a", "measure_b", "measure_c"], var_name="metric", value_name="amount").select("unit_id", "metric", "amount")

@@ -1,0 +1,34 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the seaborn-USER melt idiom in sibling
+# annotated/seaborn/melt_demo.pyk. seaborn's library code at v0.13.2
+# does not call DataFrame.melt itself; this fixture captures the
+# seaborn-USER reshape idiom (wide → tidy before sns.lineplot) on the
+# same TidyData schema. One of the `value_vars=` list entries is
+# misspelled so the v1.7 PR-D1 arm fires D0030.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.melt(...)`; this
+# fixture is the user-side idiom around the seaborn API, not a verbatim
+# donor cite. The schema (TidyDataMeltNeg) IS faithful to the donor.
+#
+# Failure mode exercised: v1.7 PR-D1 — pandas melt(id_vars=,
+# value_vars=, var_name=, value_name=) literal-form check (per
+# `docs/design/v1.7-spec.md` §4); a literal element in `value_vars=`
+# not present on the receiver schema fires D0030 on that element's
+# range with a "did you mean" suggestion. The sibling positive at
+# annotated/seaborn/melt_demo.pyk verifies the clean shape; this
+# fixture exercises the per-element D0030 in the list.
+
+from pykrete import PandasFrame
+
+
+class TidyDataMeltNeg(Schema):
+    unit_id: long
+    measure_a: double
+    measure_b: double
+    measure_c: double
+
+
+def melt_value_var_typo(df: PandasFrame[TidyDataMeltNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"measure_x\"" id=seaborn-pandas-neg-melt-unknown-value-var -- v1.7 PR-D1 negative: `value_vars=["measure_a", "measure_x"]` has a typo'd element; the literal is absent from TidyDataMeltNeg so the pandas melt literal-form arm fires D0030 on that element's range against the donor schema (the v1.7 arm validates each list element independently per spec §4)
+    _ = df.melt(id_vars=["unit_id"], value_vars=["measure_a", "measure_x"])
