@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0073",
+      "column": 12,
+      "endColumn": 14,
+      "endLine": 43,
+      "file": "great-expectations/probes_negative/transform_input_mismatch.pyk",
+      "line": 43,
+      "message": "transform('expect_value_in_range') expects a DataFrame matching schema 'ValidatedDatasetNegInput', but the receiver (schema 'RawCheckInputNeg') does not. Missing: [value]; extra: [raw_value].",
+      "relatedInformation": [],
+      "ruleName": "transformInputMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

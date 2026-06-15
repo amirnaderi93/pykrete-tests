@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 29,
+      "endColumn": 58,
+      "endLine": 42,
+      "file": "delta/probes_negative/write_nullable_after_cast/write_nullable_after_cast.pyk",
+      "line": 42,
+      "message": "'DataFrame[WriteStagingRowNeg]' is a deprecated alias for 'SparkFrame[WriteStagingRowNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[WriteStagingRowNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[WriteStagingRowNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 63,
+      "endColumn": 87,
+      "endLine": 42,
+      "file": "delta/probes_negative/write_nullable_after_cast/write_nullable_after_cast.pyk",
+      "line": 42,
+      "message": "'DataFrame[DeltaTableRow]' is a deprecated alias for 'SparkFrame[DeltaTableRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[DeltaTableRow]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[DeltaTableRow]"
+    },
+    {
+      "code": "D0083",
+      "column": 12,
+      "endColumn": 19,
+      "endLine": 44,
+      "file": "delta/probes_negative/write_nullable_after_cast/write_nullable_after_cast.pyk",
+      "line": 44,
+      "message": "Column 'value' is nullable in the body, but schema 'DeltaTableRow' declares it non-nullable.",
+      "relatedInformation": [],
+      "ruleName": "nullabilityMismatch",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 2,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

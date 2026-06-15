@@ -1,0 +1,44 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Delta write/read pattern in
+# delta/examples/python/quickstart.py (sibling annotated/examples/
+# python/quickstart.pyk IdRow voice). Delta USERS commonly stage a
+# write frame whose row shape carries Optional `value` slots while
+# the registered table contract declares `value` non-nullable. This
+# fixture's upstream WriteStagingRowNeg schema declares `value`
+# Optional (a nullable pre-write slot) but the declared return
+# schema DeltaTableRow declares it non-nullable — so v1.0 D0083
+# (nullabilityMismatch) fires under strict mode at operations/
+# driver.rs:854 on the return expression. Strict mode is supplied
+# by the sibling pykrete.json in this fixture's per-subdir scope
+# (delta/probes_negative/ itself is NOT strict; placing the fixture
+# in its own subdir per the PROBES.md "Strict-mode caveat" section
+# avoids leaking strict mode to the sibling D0030/D0084 fixtures).
+#
+# Failure mode exercised: a column nullable in the body but
+# non-nullable in the declared return type fires D0083 in strict
+# mode via the body-vs-declared per-column type check at
+# operations/driver.rs:850-864.
+#
+# Synthesis disclosure: Delta's library code doesn't expose a named
+# transform that surfaces this exact nullability transition; this
+# fixture mirrors the Delta-USER idiom (a write-staging pipeline
+# where the staging frame carries Optional values and the
+# registered table row contract declares them non-null) around the
+# Delta API, not a verbatim donor cite.
+
+from pyspark.sql import DataFrame
+
+
+class WriteStagingRowNeg(Schema):
+    id: long
+    value: Optional[double]
+
+
+class DeltaTableRow(Schema):
+    id: long
+    value: double
+
+
+def finalize_write(staging: DataFrame[WriteStagingRowNeg]) -> DataFrame[DeltaTableRow]:
+# PROBE-EXPECTS: D0083 on "staging" id=delta-neg-write-nullable-after-cast -- v1.0 D0083 nullabilityMismatch under strict mode: body produces `value: Optional[double]` from WriteStagingRowNeg but the declared return schema DeltaTableRow declares it non-nullable double; the body-vs-declared per-column type check at operations/driver.rs:850-864 fires D0083 on the return expression range; strict-mode supplied by per-subdir pykrete.json
+    return staging

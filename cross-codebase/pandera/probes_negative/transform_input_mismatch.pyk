@@ -1,0 +1,43 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera schema-validation idiom (sibling
+# annotated/canonical/user_validation.pyk). pandera USERS commonly
+# wrap a validator step as a callable and feed the input frame
+# through `df.transform(<validator>)` so the validator's expected
+# input columns are statically reachable. This fixture takes the
+# same shape but the upstream frame's schema (TransformReceiverFrameNeg)
+# does NOT match the validator's declared parameter schema
+# (ValidatedFrameNegInput) — so v1.0 D0073 (transformInputMismatch)
+# fires at the `.transform(...)` call site per the input-shape
+# check at operations/expr.rs:2133.
+#
+# Failure mode exercised: `df.transform(fn)` where `fn`'s first
+# parameter schema differs from the receiver schema by column-name
+# set; the input check fires D0073 with a missing/extra summary.
+#
+# Synthesis disclosure: pandera's library code doesn't expose a
+# named callable that takes `PandasFrame[X]` and feeds it through
+# `.transform`; this fixture mirrors the pandera-USER idiom (a
+# validator-shaped callable in a transform pipeline) around the
+# pandera API, not a verbatim donor cite. The schema (ValidatedFrame
+# derivative) IS faithful to the donor.
+
+from pykrete import PandasFrame
+
+
+class TransformReceiverFrameNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+class ValidatedFrameNegInput(Schema):
+    amount: double
+    row_count: long
+
+
+def validate(df: PandasFrame[ValidatedFrameNegInput]) -> PandasFrame[ValidatedFrameNegInput]:
+    return df
+
+
+def run_validation(df: PandasFrame[TransformReceiverFrameNeg]) -> PandasFrame[ValidatedFrameNegInput]:
+# PROBE-EXPECTS: D0073 on "df" id=pandera-pandas-neg-transform-input-mismatch -- v1.0 D0073 transformInputMismatch: validate() expects PandasFrame[ValidatedFrameNegInput{amount, row_count}] but the receiver is PandasFrame[TransformReceiverFrameNeg{raw_amount, row_count}]; the column-name sets differ (missing=[amount]; extra=[raw_amount]) so the input-shape check at operations/expr.rs:2054 fires D0073 with attr.value.range() — the receiver-token span "df" (line 43, columns 12-14)
+    return df.transform(validate)

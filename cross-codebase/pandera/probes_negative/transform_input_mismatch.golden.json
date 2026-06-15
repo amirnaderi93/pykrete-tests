@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0073",
+      "column": 12,
+      "endColumn": 14,
+      "endLine": 43,
+      "file": "pandera/probes_negative/transform_input_mismatch.pyk",
+      "line": 43,
+      "message": "transform('validate') expects a DataFrame matching schema 'ValidatedFrameNegInput', but the receiver (schema 'TransformReceiverFrameNeg') does not. Missing: [amount]; extra: [raw_amount].",
+      "relatedInformation": [],
+      "ruleName": "transformInputMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
