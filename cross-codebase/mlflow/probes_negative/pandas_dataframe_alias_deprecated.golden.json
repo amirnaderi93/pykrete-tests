@@ -10,15 +10,15 @@
       "message": "'DataFrame[TrainRowDep]' is a deprecated alias for 'SparkFrame[TrainRowDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TrainRowDep]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[TrainRowDep]"
     }
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 0,
+    "errorCount": 1,
     "filesChecked": 1,
-    "warningCount": 1
+    "warningCount": 0
   }
 }

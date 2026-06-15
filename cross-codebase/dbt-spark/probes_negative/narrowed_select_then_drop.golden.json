@@ -10,7 +10,7 @@
       "message": "'DataFrame[TwoIntColsNarrowNeg]' is a deprecated alias for 'SparkFrame[TwoIntColsNarrowNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TwoIntColsNarrowNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[TwoIntColsNarrowNeg]"
     },
@@ -24,7 +24,7 @@
       "message": "'DataFrame' is a deprecated alias for 'SparkFrame' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame"
     },
@@ -45,8 +45,8 @@
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 1,
+    "errorCount": 3,
     "filesChecked": 1,
-    "warningCount": 2
+    "warningCount": 0
   }
 }

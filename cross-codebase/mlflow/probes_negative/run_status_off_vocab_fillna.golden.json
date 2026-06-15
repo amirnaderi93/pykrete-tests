@@ -10,7 +10,7 @@
       "message": "'DataFrame[RunInfoNeg]' is a deprecated alias for 'SparkFrame[RunInfoNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfoNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[RunInfoNeg]"
     },
@@ -24,7 +24,7 @@
       "message": "'DataFrame[RunInfoNeg]' is a deprecated alias for 'SparkFrame[RunInfoNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[RunInfoNeg]'.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
-      "severity": "warning",
+      "severity": "error",
       "source": "pykrete",
       "suggestion": "SparkFrame[RunInfoNeg]"
     },
@@ -45,8 +45,8 @@
   ],
   "schemaVersion": "1",
   "summary": {
-    "errorCount": 1,
+    "errorCount": 3,
     "filesChecked": 1,
-    "warningCount": 2
+    "warningCount": 0
   }
 }
