@@ -1,0 +1,37 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera user-side align-to-schema idiom (sibling
+# annotated/canonical/user_validation.pyk align_to_schema); the
+# canonical pattern renames an incoming user-side column to the
+# schema's canonical name before validation. This fixture mirrors
+# the same `.rename(columns={...})` shape but the declared return
+# type doesn't match what the rename produces, so v1.0 D0050
+# (returnColumnsMismatch) fires via the body-vs-declared check at
+# operations/driver.rs:869.
+#
+# Failure mode exercised: function annotated `-> PandasFrame[X]`
+# returns a `.rename(columns=...)` chain whose tracked schema
+# disagrees with X. The driver's return-type body-vs-declared
+# check fires D0050 on the return expression range.
+#
+# Synthesis disclosure: pandera's library code doesn't return a
+# user-aligned frame from a named function; this fixture mirrors
+# the pandera-USER idiom around the pandera API (the same shape
+# the annotated companion uses), not a verbatim donor cite. The
+# schema (ValidatedFrame derivative) IS faithful to the donor.
+
+from pykrete import PandasFrame
+
+
+class RawValidationInputNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+class AlignedReturnDeclaredNeg(Schema):
+    amount: double
+    raw_count: long
+
+
+def align_then_return(df: PandasFrame[RawValidationInputNeg]) -> PandasFrame[AlignedReturnDeclaredNeg]:
+# PROBE-EXPECTS: D0050 on "df.rename(columns={\"raw_amount\": \"amount\"})" id=pandera-pandas-neg-return-schema-mismatch -- v1.0 D0050 returnColumnsMismatch: `.rename(columns={"raw_amount": "amount"})` produces `{amount, row_count}` but the declared return type is `AlignedReturnDeclaredNeg{amount, raw_count}` (typo: `raw_count` vs `row_count`); body-vs-declared check at operations/driver.rs:869 fires D0050 on the return expression range
+    return df.rename(columns={"raw_amount": "amount"})

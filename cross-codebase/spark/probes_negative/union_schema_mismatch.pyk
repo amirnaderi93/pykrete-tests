@@ -1,0 +1,35 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from test_drop_join in
+# python/pyspark/sql/tests/test_dataframe.py at apache/spark
+# pinned-commit d004e0d8 — L40-47 construct `left_df` and `right_df`
+# with overlapping `join_key` columns and disjoint value columns
+# (`value1` vs `value2`). Upstream uses them for a join demo; this
+# fixture instead unions them so the disjoint value columns trigger
+# v1.0 D0040 (unionSchemaMismatch) via the
+# `check_union_schemas` path in `operations/two_df.rs:160`.
+#
+# Failure mode exercised: `df1.union(df2)` where df1/df2 schemas
+# carry the same column count but disjoint names. Spark needs
+# schema-compatible unions OR
+# `.unionByName(other, allowMissingColumns=True)`; the
+# `check_union_schemas` arm fires D0040 on the bare `.union(...)`
+# argument range when `left_names != right_names`.
+
+from pyspark.sql import DataFrame
+
+
+class LeftFrameUnionNeg(Schema):
+    join_key: int
+    value1: string
+
+
+class RightFrameUnionNeg(Schema):
+    join_key: int
+    value2: string
+
+
+def union_disjoint_values(
+    left_df: DataFrame[LeftFrameUnionNeg], right_df: DataFrame[RightFrameUnionNeg]
+) -> None:
+# PROBE-EXPECTS: D0040 on "right_df" id=spark-neg-union-schema-mismatch -- v1.0 D0040 unionSchemaMismatch: `left_df.union(right_df)` where LeftFrameUnionNeg has `value1` and RightFrameUnionNeg has `value2`; `check_union_schemas` in operations/two_df.rs:160 fires D0040 anchored on the argument range when field-name sets differ
+    left_df.union(right_df)

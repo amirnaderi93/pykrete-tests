@@ -1,0 +1,44 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from tests/test_analyzers.py's InputRow + MetricRow schemas
+# at awslabs/python-deequ pinned-commit 20693b81 (sibling
+# annotated/tests/test_analyzers.pyk). deequ's AnalysisRunner.onData(df)
+# pattern feeds a typed input frame to a downstream analyzer; callers
+# routinely confuse the per-metric MetricRow output with the upstream
+# InputRow. This fixture mirrors that confusion: a function declared
+# to take `DataFrame[InputRow]` is called with a `DataFrame[MetricRow]`
+# binding, so v1.0 D0051 (argumentColumnsMismatch) fires via
+# `check_one_call_arg` in operations/expr.rs:2311.
+#
+# Failure mode exercised: callsite passes a frame whose schema doesn't
+# match the parameter's declared `DataFrame[X]` slot. The D0051 arm
+# at operations/expr.rs:2367 compares parameter vs argument
+# field-name sets and fires the diagnostic anchored on the argument
+# expression range.
+
+from pyspark.sql import DataFrame
+
+
+class InputRowArgNeg(Schema):
+    a: string
+    b: int
+    c: int
+    d: int
+
+
+class MetricRowArgNeg(Schema):
+    entity: string
+    instance: string
+    name: string
+    value: double
+
+
+def run_input_analysis(df: DataFrame[InputRowArgNeg]) -> None:
+    """Mirrors deequ's AnalysisRunner.onData consumer surface — the
+    callee expects the typed upstream InputRow, NOT a per-metric
+    result row."""
+    _ = df
+
+
+def caller_passes_metric_row(metric_df: DataFrame[MetricRowArgNeg]) -> None:
+# PROBE-EXPECTS: D0051 on "metric_df" id=deequ-neg-arg-schema-mismatch -- v1.0 D0051 argumentColumnsMismatch: `run_input_analysis(metric_df)` passes `DataFrame[MetricRowArgNeg]{entity,instance,name,value}` to a parameter declared `DataFrame[InputRowArgNeg]{a,b,c,d}`; field-name sets disjoint, `check_one_call_arg` at operations/expr.rs:2367 fires D0051 on the argument range
+    run_input_analysis(metric_df)

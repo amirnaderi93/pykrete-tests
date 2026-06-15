@@ -36,3 +36,10 @@ This directory is strict-mode (`pykrete.json` enables
   string `msg` into arithmetic with `id`. Forces D0081
   (nonNumericArithmetic) on dbt-spark's strictest typing surface
   (Cursor result columns flowing into downstream model arithmetic).
+- `union_after_cast_mismatch.pyk` — v1.7 PR-P1 shape-rule probe.
+  Mirrors dbt's incremental-strategy adapter pattern that unions
+  two cursor results (historical + delta) before materializing.
+  Two `DataFrame[X]` cursor-result frames declare incompatible
+  QueryResult shapes (revenue vs margin); `check_union_schemas`
+  at `operations/two_df.rs:160` fires D0040 (unionSchemaMismatch)
+  anchored on the `delta` argument range.

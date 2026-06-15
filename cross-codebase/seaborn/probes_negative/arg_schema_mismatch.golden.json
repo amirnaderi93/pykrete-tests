@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0051",
+      "column": 22,
+      "endColumn": 26,
+      "endLine": 45,
+      "file": "seaborn/probes_negative/arg_schema_mismatch.pyk",
+      "line": 45,
+      "message": "Argument schema mismatch for parameter 'df': expected PandasFrame[TidyDataArgNeg], got schema 'MetaFrameArgNeg'. Missing: [hue_raw, x_raw, y_raw]; extra: [treatment].",
+      "relatedInformation": [],
+      "ruleName": "argumentColumnsMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

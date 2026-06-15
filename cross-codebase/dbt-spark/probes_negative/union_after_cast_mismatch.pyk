@@ -1,0 +1,41 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from dbt-spark's Python-model + Cursor.execute pattern
+# (sibling annotated/dbt/adapters/spark/session.pyk QueryResult and
+# annotated/models/simple_python_model.pyk TwoIntCols at
+# pinned-commit 42700b5d). dbt's incremental-strategy adapter call
+# sites union two `DataFrame[X]` results (historical + delta) before
+# returning the materialization. This fixture mirrors that surface
+# directly via two `DataFrame[X]` parameters whose schemas disagree
+# on value columns, so v1.0 D0040 (unionSchemaMismatch) fires.
+#
+# Failure mode exercised: `historical.union(delta)` where the two
+# DataFrame[X] inputs declare incompatible QueryResult shapes
+# (revenue vs margin). dbt's incremental-model materialization
+# pattern would silently land a malformed table; pykrete catches
+# it edit-time via the `check_union_schemas` path in
+# operations/two_df.rs:160.
+#
+# Shape divergence from upstream: dbt's real adapter call sites
+# unify two schemas via SQL-level UNION ALL; this fixture lifts the
+# union into Python-side `df1.union(df2)` so the schema-mismatch
+# surface is the one pykrete checks.
+
+from pyspark.sql import DataFrame
+
+
+class HistoricalQueryResultNeg(Schema):
+    id: int
+    revenue: double
+
+
+class DeltaQueryResultNeg(Schema):
+    id: int
+    margin: double
+
+
+def union_two_cursor_results(
+    historical: DataFrame[HistoricalQueryResultNeg],
+    delta: DataFrame[DeltaQueryResultNeg],
+) -> None:
+# PROBE-EXPECTS: D0040 on "delta" id=dbt-spark-neg-union-after-cast -- v1.0 D0040 unionSchemaMismatch: two DataFrame[X] cursor results with incompatible QueryResult shapes (revenue vs margin); dbt's incremental-model union surface fires D0040 via `check_union_schemas` in operations/two_df.rs:160
+    historical.union(delta)

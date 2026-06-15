@@ -34,3 +34,15 @@ subsection of `scripts/PROBES.md` before adding new fixtures.
   arg. Asserts FILE-CLEAN-OF D0030. Without the v1.5 PR-B2 gate
   (commit 7d9c97e), the ungated col-ref arm would emit a false-positive
   D0030 against NameAgeActiveB2.
+- `union_schema_mismatch.pyk` — v1.7 PR-P1 shape-rule probe.
+  LeftFrameUnionNeg + RightFrameUnionNeg mirror the `test_drop_join`
+  upstream schemas (`join_key` + disjoint value columns) but the
+  fixture unions them instead of joining, so `check_union_schemas`
+  at `operations/two_df.rs:160` fires D0040 (unionSchemaMismatch)
+  anchored on the `right_df` argument range.
+- `return_schema_mismatch.pyk` — v1.7 PR-P1 shape-rule probe.
+  Mirrors the `test_with_columns_renamed` rename surface but the
+  function's declared return type doesn't match what
+  `.withColumnsRenamed({...})` produces, so the body-vs-declared
+  check at `operations/driver.rs:869` fires D0050
+  (returnColumnsMismatch) on the return expression range.

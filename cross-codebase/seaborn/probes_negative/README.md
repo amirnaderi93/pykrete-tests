@@ -33,3 +33,10 @@ regression so pykrete must fire a specific diagnostic.
   `DataFrame.pivot_table` (grep returns 0 hits); the fixture captures
   the seaborn-USER reshape idiom (tidy → wide before sns.heatmap)
   exercising the v1.6 PR-D1 arm specifically.
+- `arg_schema_mismatch.pyk` — v1.7 PR-P1 shape-rule probe. Mirrors
+  the seaborn-USER plot-input helper pattern where a function
+  expects a tidy axis frame `PandasFrame[TidyData]` but a caller
+  passes the `PandasFrame[MetaFrame]` metadata frame instead.
+  `check_one_call_arg` at `operations/expr.rs:2367` fires D0051
+  (argumentColumnsMismatch) on the argument range when parameter /
+  argument field-name sets disagree.

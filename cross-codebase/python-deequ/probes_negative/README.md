@@ -45,6 +45,13 @@ This directory is strict-mode (`pykrete.json` enables
   D0081 (nonNumericArithmetic) on deequ's strictest typing surface
   (the post-analyzer metric DataFrame is where downstream user code
   does numeric aggregations on `value`).
+- `arg_schema_mismatch.pyk` — v1.7 PR-P1 shape-rule probe.
+  Mirrors the deequ AnalysisRunner.onData consumer surface where a
+  helper expects the typed upstream InputRow but a caller passes
+  the per-metric MetricRow result instead. `check_one_call_arg`
+  at `operations/expr.rs:2367` fires D0051 (argumentColumnsMismatch)
+  on the argument range when parameter / argument field-name sets
+  disagree.
 - `createdataframe_positional_pandas_then_unknown.pyk` — v1.5 PR-A2
   Gate (b) negative-space probe. Derived from
   `pydeequ/pandas_utils.py:L52` —

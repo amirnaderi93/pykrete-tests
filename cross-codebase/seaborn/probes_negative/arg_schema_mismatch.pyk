@@ -1,0 +1,45 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the seaborn relational TidyData / MetaFrame schemas
+# (sibling annotated/seaborn/relational.pyk) at pinned-commit 9521ea1.
+# seaborn-USER code routinely defines plot-input helpers that expect
+# a tidy axis frame `PandasFrame[TidyData]`; this fixture mirrors
+# the canonical confusion where the caller passes the metadata frame
+# instead, so v1.0 D0051 (argumentColumnsMismatch) fires via
+# `check_one_call_arg` at operations/expr.rs:2311.
+#
+# Failure mode exercised: a function declared to take
+# `PandasFrame[TidyData]` is called with a `PandasFrame[MetaFrame]`
+# binding. The D0051 arm at operations/expr.rs:2367 compares
+# parameter vs argument field-name sets and fires the diagnostic
+# anchored on the argument expression range.
+#
+# Synthesis disclosure: seaborn's library source doesn't define
+# helpers with `PandasFrame[X]` annotations (it predates the v1.3
+# pandas type system); this fixture mirrors the seaborn-USER idiom
+# around the seaborn API. The schemas (TidyData / MetaFrame) ARE
+# faithful to the sibling annotated companion.
+
+from pykrete import PandasFrame
+
+
+class TidyDataArgNeg(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+class MetaFrameArgNeg(Schema):
+    unit_id: long
+    treatment: string
+
+
+def plot_axis_helper(df: PandasFrame[TidyDataArgNeg]) -> None:
+    """seaborn-USER plot-input helper — expects the tidy axis frame
+    with measurement + hue columns, NOT the metadata frame."""
+    _ = df
+
+
+def caller_passes_meta_frame(meta: PandasFrame[MetaFrameArgNeg]) -> None:
+# PROBE-EXPECTS: D0051 on "meta" id=seaborn-pandas-neg-arg-schema-mismatch -- v1.0 D0051 argumentColumnsMismatch: `plot_axis_helper(meta)` passes `PandasFrame[MetaFrameArgNeg]{unit_id,treatment}` to a parameter declared `PandasFrame[TidyDataArgNeg]{x_raw,y_raw,hue_raw,unit_id}`; field-name sets disjoint on the measurement+hue axis columns, `check_one_call_arg` at operations/expr.rs:2367 fires D0051 on the argument range
+    plot_axis_helper(meta)
