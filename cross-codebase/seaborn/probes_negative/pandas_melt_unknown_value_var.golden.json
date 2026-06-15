@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 63,
+      "endColumn": 74,
+      "endLine": 34,
+      "file": "seaborn/probes_negative/pandas_melt_unknown_value_var.pyk",
+      "line": 34,
+      "message": "Column 'measure_x' does not exist on schema 'TidyDataMeltNeg'. Did you mean 'measure_a'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "measure_a"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
