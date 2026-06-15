@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 28,
+      "endColumn": 53,
+      "endLine": 35,
+      "file": "python-deequ/probes_negative/arg_schema_mismatch.pyk",
+      "line": 35,
+      "message": "'DataFrame[InputRowArgNeg]' is a deprecated alias for 'SparkFrame[InputRowArgNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[InputRowArgNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[InputRowArgNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 41,
+      "endColumn": 67,
+      "endLine": 42,
+      "file": "python-deequ/probes_negative/arg_schema_mismatch.pyk",
+      "line": 42,
+      "message": "'DataFrame[MetricRowArgNeg]' is a deprecated alias for 'SparkFrame[MetricRowArgNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[MetricRowArgNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[MetricRowArgNeg]"
+    },
+    {
+      "code": "D0051",
+      "column": 24,
+      "endColumn": 33,
+      "endLine": 44,
+      "file": "python-deequ/probes_negative/arg_schema_mismatch.pyk",
+      "line": 44,
+      "message": "Argument schema mismatch for parameter 'df': expected DataFrame[InputRowArgNeg], got schema 'MetricRowArgNeg'. Missing: [a, b, c, d]; extra: [entity, instance, name, value].",
+      "relatedInformation": [],
+      "ruleName": "argumentColumnsMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 3,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

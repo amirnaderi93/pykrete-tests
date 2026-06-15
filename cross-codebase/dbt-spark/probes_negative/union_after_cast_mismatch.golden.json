@@ -1,0 +1,52 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0090",
+      "column": 17,
+      "endColumn": 52,
+      "endLine": 37,
+      "file": "dbt-spark/probes_negative/union_after_cast_mismatch.pyk",
+      "line": 37,
+      "message": "'DataFrame[HistoricalQueryResultNeg]' is a deprecated alias for 'SparkFrame[HistoricalQueryResultNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[HistoricalQueryResultNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[HistoricalQueryResultNeg]"
+    },
+    {
+      "code": "D0090",
+      "column": 12,
+      "endColumn": 42,
+      "endLine": 38,
+      "file": "dbt-spark/probes_negative/union_after_cast_mismatch.pyk",
+      "line": 38,
+      "message": "'DataFrame[DeltaQueryResultNeg]' is a deprecated alias for 'SparkFrame[DeltaQueryResultNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[DeltaQueryResultNeg]'.",
+      "relatedInformation": [],
+      "ruleName": "deprecatedDataFrameAlias",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "SparkFrame[DeltaQueryResultNeg]"
+    },
+    {
+      "code": "D0040",
+      "column": 22,
+      "endColumn": 27,
+      "endLine": 41,
+      "file": "dbt-spark/probes_negative/union_after_cast_mismatch.pyk",
+      "line": 41,
+      "message": "union between schema 'HistoricalQueryResultNeg' and schema 'DeltaQueryResultNeg': schemas differ. Missing in schema 'DeltaQueryResultNeg': [revenue]; missing in schema 'HistoricalQueryResultNeg': [margin].",
+      "relatedInformation": [],
+      "ruleName": "unionSchemaMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 3,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

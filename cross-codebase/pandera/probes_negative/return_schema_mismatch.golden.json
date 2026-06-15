@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0050",
+      "column": 12,
+      "endColumn": 55,
+      "endLine": 37,
+      "file": "pandera/probes_negative/return_schema_mismatch.pyk",
+      "line": 37,
+      "message": "Return type mismatch with declared schema 'AlignedReturnDeclaredNeg'. Missing in body: [raw_count]; extra in body: [row_count].",
+      "relatedInformation": [],
+      "ruleName": "returnColumnsMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

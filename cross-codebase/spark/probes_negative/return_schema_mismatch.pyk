@@ -1,0 +1,34 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from test_with_columns_renamed in
+# python/pyspark/sql/tests/test_dataframe.py at apache/spark
+# pinned-commit d004e0d8 — L57-60 build a DataFrame with `name`/`age`
+# then call `df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})`.
+# Upstream uses the result locally; this fixture annotates a function
+# return type that DOESN'T match the post-rename schema, so v1.0
+# D0050 (returnColumnsMismatch) fires via the body-vs-declared
+# check at operations/driver.rs:869.
+#
+# Failure mode exercised: function annotated `-> DataFrame[X]`
+# returns a frame whose tracked schema (after `.withColumnsRenamed`)
+# disagrees with X. The driver's return-type body-vs-declared check
+# at operations/driver.rs:869 fires D0050 anchored on the return
+# expression range.
+
+from pyspark.sql import DataFrame
+
+
+class NameAgeReturnNeg(Schema):
+    name: string
+    age: int
+
+
+class RenamedReturnDeclaredNeg(Schema):
+    naam: string
+    age: int
+
+
+def rename_returns_wrong_shape(
+    df: DataFrame[NameAgeReturnNeg],
+) -> DataFrame[RenamedReturnDeclaredNeg]:
+# PROBE-EXPECTS: D0050 on "df.withColumnsRenamed({\"name\": \"naam\", \"age\": \"leeftijd\"})" id=spark-neg-return-schema-mismatch -- v1.0 D0050 returnColumnsMismatch: `.withColumnsRenamed({...})` produces `{naam, leeftijd}` but the declared return type is `RenamedReturnDeclaredNeg{naam, age}`; the body-vs-declared check at operations/driver.rs:869 fires D0050 on the return expression range
+    return df.withColumnsRenamed({"name": "naam", "age": "leeftijd"})
