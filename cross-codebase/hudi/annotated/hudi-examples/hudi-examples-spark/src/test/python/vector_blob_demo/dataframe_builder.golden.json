@@ -7,7 +7,7 @@
       "endLine": 70,
       "file": "hudi/annotated/hudi-examples/hudi-examples-spark/src/test/python/vector_blob_demo/dataframe_builder.pyk",
       "line": 70,
-      "message": "'DataFrame[ImageEmbedding]' is a deprecated alias for 'SparkFrame[ImageEmbedding]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[ImageEmbedding]'.",
+      "message": "'DataFrame[ImageEmbedding]' is a deprecated alias for 'SparkFrame[ImageEmbedding]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[ImageEmbedding]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

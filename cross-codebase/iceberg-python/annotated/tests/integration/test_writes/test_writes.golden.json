@@ -7,7 +7,7 @@
       "endLine": 75,
       "file": "iceberg-python/annotated/tests/integration/test_writes/test_writes.pyk",
       "line": 75,
-      "message": "'DataFrame[Person]' is a deprecated alias for 'SparkFrame[Person]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Person]'.",
+      "message": "'DataFrame[Person]' is a deprecated alias for 'SparkFrame[Person]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[Person]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

@@ -7,7 +7,7 @@
       "endLine": 28,
       "file": "feast/probes_negative/pandas_dataframe_alias_deprecated.pyk",
       "line": 28,
-      "message": "'DataFrame[EntityRowDep]' is a deprecated alias for 'SparkFrame[EntityRowDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[EntityRowDep]'.",
+      "message": "'DataFrame[EntityRowDep]' is a deprecated alias for 'SparkFrame[EntityRowDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[EntityRowDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

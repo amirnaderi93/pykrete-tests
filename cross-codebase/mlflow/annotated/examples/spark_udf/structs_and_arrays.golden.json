@@ -7,7 +7,7 @@
       "endLine": 56,
       "file": "mlflow/annotated/examples/spark_udf/structs_and_arrays.pyk",
       "line": 56,
-      "message": "'DataFrame[StructsAndArrays]' is a deprecated alias for 'SparkFrame[StructsAndArrays]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[StructsAndArrays]'.",
+      "message": "'DataFrame[StructsAndArrays]' is a deprecated alias for 'SparkFrame[StructsAndArrays]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[StructsAndArrays]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

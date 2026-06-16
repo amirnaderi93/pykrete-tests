@@ -7,7 +7,7 @@
       "endLine": 28,
       "file": "mlflow/probes_negative/pandas_dataframe_alias_deprecated.pyk",
       "line": 28,
-      "message": "'DataFrame[TrainRowDep]' is a deprecated alias for 'SparkFrame[TrainRowDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TrainRowDep]'.",
+      "message": "'DataFrame[TrainRowDep]' is a deprecated alias for 'SparkFrame[TrainRowDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[TrainRowDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "error",

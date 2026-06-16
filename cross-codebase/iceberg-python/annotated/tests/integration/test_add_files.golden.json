@@ -7,7 +7,7 @@
       "endLine": 75,
       "file": "iceberg-python/annotated/tests/integration/test_add_files.pyk",
       "line": 75,
-      "message": "'DataFrame[AddFileRow]' is a deprecated alias for 'SparkFrame[AddFileRow]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[AddFileRow]'.",
+      "message": "'DataFrame[AddFileRow]' is a deprecated alias for 'SparkFrame[AddFileRow]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[AddFileRow]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

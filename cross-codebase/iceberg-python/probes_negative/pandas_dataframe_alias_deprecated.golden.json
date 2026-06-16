@@ -7,7 +7,7 @@
       "endLine": 27,
       "file": "iceberg-python/probes_negative/pandas_dataframe_alias_deprecated.pyk",
       "line": 27,
-      "message": "'DataFrame[ScoreRowDep]' is a deprecated alias for 'SparkFrame[ScoreRowDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[ScoreRowDep]'.",
+      "message": "'DataFrame[ScoreRowDep]' is a deprecated alias for 'SparkFrame[ScoreRowDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[ScoreRowDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

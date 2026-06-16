@@ -7,7 +7,7 @@
       "endLine": 34,
       "file": "spark/probes_negative/groupby_non_dataframe_arg_no_fp.pyk",
       "line": 34,
-      "message": "'DataFrame[NameAgeActiveB2]' is a deprecated alias for 'SparkFrame[NameAgeActiveB2]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActiveB2]'.",
+      "message": "'DataFrame[NameAgeActiveB2]' is a deprecated alias for 'SparkFrame[NameAgeActiveB2]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[NameAgeActiveB2]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "error",

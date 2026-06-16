@@ -7,7 +7,7 @@
       "endLine": 93,
       "file": "delta/annotated/examples/python/change_data_feed.pyk",
       "line": 93,
-      "message": "'DataFrame[Student]' is a deprecated alias for 'SparkFrame[Student]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[Student]'.",
+      "message": "'DataFrame[Student]' is a deprecated alias for 'SparkFrame[Student]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[Student]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",
