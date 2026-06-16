@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0091",
+      "column": 8,
+      "endColumn": 14,
+      "endLine": 25,
+      "file": "delta/probes_negative/spark_calling_pandas_method.pyk",
+      "line": 25,
+      "message": "'assign' is a pandas-only DataFrame method but the receiver is a SparkFrame. Use '.withColumn(...)' instead.",
+      "relatedInformation": [],
+      "ruleName": "crossDialectMethodMismatch",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": "withColumn"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}
