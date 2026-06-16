@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0091",
+      "column": 17,
+      "endColumn": 20,
+      "endLine": 23,
+      "file": "pandera/probes_negative/pandas_bare_attribute_spark_property.pyk",
+      "line": 23,
+      "message": "'rdd' is a Spark-only DataFrame attribute but the receiver is a PandasFrame.",
+      "relatedInformation": [],
+      "ruleName": "crossDialectMethodMismatch",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Exercises v1.9 PR-D2's D0091 firing site in the Expr::Attribute
+# arm (cross-dialect bare-attribute access, no call paren). The
+# receiver is adjudicated as PandasFrame[X]; the bare `.rdd`
+# attribute is in SPARK_DISCRIMINATOR_PROPERTIES — D0091 fires on
+# the attribute access itself.
+#
+# Failure mode exercised: v1.9 PR-D2 D0091 (crossDialectMethodMismatch)
+# warning on bare-attribute (no call paren) path. `rdd` is a Spark-
+# only DataFrame property; the receiver dialect is Pandas; the
+# Expr::Attribute dispatch arm fires D0091.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrameAttrNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+def grab_rdd(df: PandasFrame[ValidatedFrameAttrNeg]) -> None:
+# PROBE-EXPECTS: D0091 on "rdd" id=pandera-pandas-neg-bare-attr-spark-property -- v1.9 PR-D2 D0091 bare-attribute path: `rdd` is in SPARK_DISCRIMINATOR_PROPERTIES but the receiver `df: PandasFrame[X]` is Pandas; Expr::Attribute arm dispatches without call paren and fires D0091; vacuity-falsifying because swapping `rdd` for `values` (pandas-native) clears the fire
+    handle = df.rdd
+    _ = handle
