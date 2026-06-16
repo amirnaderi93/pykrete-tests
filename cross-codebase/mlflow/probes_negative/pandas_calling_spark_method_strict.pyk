@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Mirrors pandera/probes_negative/pandas_calling_spark_method.pyk but
+# lands in mlflow/probes_negative/ to exercise the v1.9 PR-D1 strict-
+# mode escalation path: D0091 fires as ERROR (not warning) when the
+# sibling pykrete.json sets typeCheckingMode: "strict".
+#
+# Failure mode exercised: v1.9 PR-D1 D0091 (crossDialectMethodMismatch)
+# escalated to error under strict mode. `withColumn` is in
+# SPARK_DISCRIMINATORS; the receiver `df: PandasFrame[X]` is dialect-
+# adjudicated as Pandas; under strict mode the cross-dialect check
+# emits severity=error.
+
+from pykrete import PandasFrame
+
+
+class MlflowRunMetricsStrictNeg(Schema):
+    run_id: string
+    metric_value: double
+
+
+def add_flag(df: PandasFrame[MlflowRunMetricsStrictNeg]) -> int:
+# PROBE-EXPECTS: D0091 on "withColumn" id=mlflow-pandas-neg-cross-dialect-spark-method-strict match /note arg shape differs/ -- v1.9 PR-D1 D0091 escalated to ERROR under strict mode: `withColumn` is in SPARK_DISCRIMINATORS but the receiver `df: PandasFrame[X]` is Pandas; sibling pykrete.json enables strict mode so cross_dialect_method_mismatch.rs emits severity=error; vacuity-falsifying because swapping `withColumn` for `assign` clears the fire
+    df.withColumn("is_valid", 1)
+    return 0

@@ -1,0 +1,24 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Mirrors delta/probes_negative/spark_calling_pandas_method.pyk but
+# lands in dbt-spark/probes_negative/ to exercise the v1.9 PR-D1
+# strict-mode escalation path: D0091 fires as ERROR (not warning)
+# when the sibling pykrete.json sets typeCheckingMode: "strict".
+#
+# Failure mode exercised: v1.9 PR-D1 D0091 (crossDialectMethodMismatch)
+# escalated to error under strict mode. `assign` is in
+# PANDAS_ONLY_SIGNALS; the receiver `df: SparkFrame[X]` is dialect-
+# adjudicated as Spark; under strict mode the cross-dialect check
+# emits severity=error.
+
+from pykrete import SparkFrame
+
+
+class DbtSparkAdapterRowStrictNeg(Schema):
+    id: long
+    msg: string
+
+
+def tag_row(df: SparkFrame[DbtSparkAdapterRowStrictNeg]) -> int:
+# PROBE-EXPECTS: D0091 on "assign" id=dbt-spark-spark-neg-cross-dialect-pandas-method-strict match /note arg shape differs/ -- v1.9 PR-D1 D0091 escalated to ERROR under strict mode: `assign` is in PANDAS_ONLY_SIGNALS but the receiver `df: SparkFrame[X]` is Spark; sibling pykrete.json enables strict mode so cross_dialect_method_mismatch.rs emits severity=error; vacuity-falsifying because swapping `assign` for `withColumn` clears the fire
+    df.assign(tagged=1)
+    return 0

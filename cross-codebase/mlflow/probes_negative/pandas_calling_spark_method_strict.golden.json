@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0091",
+      "column": 8,
+      "endColumn": 18,
+      "endLine": 23,
+      "file": "mlflow/probes_negative/pandas_calling_spark_method_strict.pyk",
+      "line": 23,
+      "message": "'withColumn' is a Spark-only DataFrame method but the receiver is a PandasFrame. Use '.assign(...)' instead — note arg shape differs.",
+      "relatedInformation": [],
+      "ruleName": "crossDialectMethodMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "assign"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
