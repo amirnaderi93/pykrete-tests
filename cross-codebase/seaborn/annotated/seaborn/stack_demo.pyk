@@ -1,0 +1,46 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from the seaborn API-USER convention around
+# wide → tidy reshaping via DataFrame.stack. seaborn's own library code
+# at v0.13.2 does not call DataFrame.stack itself (a grep across
+# upstream/seaborn at pinned-commit 9521ea1 returns 0 hits in *.py
+# source), but seaborn USERS routinely reshape wide DataFrames with
+# pdf.stack(level=...) into the long format that sns.lineplot,
+# sns.boxplot, sns.violinplot expect — the canonical "one row per
+# observation" tidy shape comes from stack (the dual of unstack).
+# This fixture mirrors that user-side idiom on the same TidyData
+# schema the sibling annotated/seaborn/melt_demo.pyk and
+# pivot_table_demo.pyk use.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.stack(...)`; this
+# fixture is the user-side idiom around the seaborn API, not a verbatim
+# donor cite. The schema (TidyDataStack) IS faithful to the donor.
+#
+# Features covered:
+#   - v1.10 PR-D2 pandas stack(level=, dropna=) literal-form arm on a
+#     PandasFrame-tagged receiver.
+#   - Single-string `level=` literal validated against the receiver
+#     schema (D0030 path); the column name is present so no diagnostic.
+#   - Result returns Unknown (Series isn't a PandasFrame schema in
+#     pykrete's model; full MultiIndex tracking deferred to v1.11+).
+#     The chain dies gracefully on no follow-up.
+
+from pykrete import PandasFrame
+
+
+class TidyDataStack(Schema):
+    unit_id: long
+    measure_a: double
+    measure_b: double
+    measure_c: double
+
+
+def stack_literal_level(df: PandasFrame[TidyDataStack]) -> None:
+    """Mirrors the seaborn-USER idiom: wide → tidy reshape via
+    pdf.stack(level=...) before handing the long frame to
+    sns.lineplot. The literal `level=` references an existing column;
+    the v1.10 PR-D2 arm validates the literal name and tags the
+    result Unknown (per spec §4.1 minimum-viable scope)."""
+# PROBE-RESOLVES: id=seaborn-stack-literal-level -- v1.10 PR-D2 positive: literal `level="measure_a"` is in TidyDataStack; the arm validates and resolves cleanly with no D-code; vacuity-falsifying because typoing the literal would fire D0030 against TidyDataStack (the sibling probes_negative/pandas_stack_unknown_level.pyk exercises that)
+    _ = df.stack(level="measure_a", dropna=True)
