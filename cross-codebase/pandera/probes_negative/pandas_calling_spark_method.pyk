@@ -1,0 +1,27 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera schema-validation idiom (sibling
+# annotated/canonical/user_validation.pyk). The user has adjudicated
+# the receiver as PandasFrame[X] (typical for the pandera flow where
+# a validator hands back a pandas frame) but then calls Spark's
+# `withColumn` on it — a realistic cross-dialect mistake when the
+# author is jumping between pandas-side validation and Spark-side
+# transforms in the same module.
+#
+# Failure mode exercised: v1.8 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning. The `withColumn` method is in SPARK_DISCRIMINATORS but the
+# receiver dialect is Pandas; the cross-dialect check at
+# operations/expr.rs:858 fires D0091 with the cross-dialect suggestion
+# `assign`.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrameXDialectNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+def add_flag(df: PandasFrame[ValidatedFrameXDialectNeg]) -> int:
+# PROBE-EXPECTS: D0091 on "withColumn" id=pandera-pandas-neg-cross-dialect-spark-method -- v1.8 PR-D1 D0091 crossDialectMethodMismatch: `withColumn` is in SPARK_DISCRIMINATORS but the receiver `df: PandasFrame[X]` is dialect-adjudicated as Pandas; the cross-dialect check at operations/expr.rs:858 fires D0091 with the cross-dialect suggestion `assign`; vacuity-falsifying because swapping `withColumn` for `assign` clears the fire
+    df.withColumn("is_valid", 1)
+    return 0

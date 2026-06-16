@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Delta read/transform shape (sibling
+# annotated/examples/python/quickstart.pyk). The user has adjudicated
+# the receiver as SparkFrame[X] — typical for a Delta-table-backed
+# DataFrame — but then calls pandas' `assign` on it, a realistic
+# cross-dialect mistake when the author is moving between pandas
+# scratch work and Spark-backed Delta transforms in the same module.
+#
+# Failure mode exercised: v1.8 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning. The `assign` method is in PANDAS_ONLY_SIGNALS but the
+# receiver dialect is Spark; the cross-dialect check at
+# operations/expr.rs:858 fires D0091 with the cross-dialect suggestion
+# `withColumn`.
+
+from pykrete import SparkFrame
+
+
+class DeltaRowXDialectNeg(Schema):
+    id: long
+    value: double
+
+
+def tag_row(df: SparkFrame[DeltaRowXDialectNeg]) -> int:
+# PROBE-EXPECTS: D0091 on "assign" id=delta-spark-neg-cross-dialect-pandas-method -- v1.8 PR-D1 D0091 crossDialectMethodMismatch: `assign` is in PANDAS_ONLY_SIGNALS but the receiver `df: SparkFrame[X]` is dialect-adjudicated as Spark; the cross-dialect check at operations/expr.rs:858 fires D0091 with the cross-dialect suggestion `withColumn`; vacuity-falsifying because swapping `assign` for `withColumn` clears the fire
+    df.assign(tagged=1)
+    return 0
