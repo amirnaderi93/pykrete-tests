@@ -7,7 +7,7 @@
       "endLine": 21,
       "file": "scikit-learn/probes_negative/pandas_dataframe_alias.pyk",
       "line": 21,
-      "message": "'DataFrame[FeatureMatrixDep]' is a deprecated alias for 'SparkFrame[FeatureMatrixDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[FeatureMatrixDep]'.",
+      "message": "'DataFrame[FeatureMatrixDep]' is a deprecated alias for 'SparkFrame[FeatureMatrixDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[FeatureMatrixDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

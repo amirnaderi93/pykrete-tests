@@ -7,7 +7,7 @@
       "endLine": 20,
       "file": "pandera/probes_negative/pandas_dataframe_alias.pyk",
       "line": 20,
-      "message": "'DataFrame[ValidatedFrameDep]' is a deprecated alias for 'SparkFrame[ValidatedFrameDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[ValidatedFrameDep]'.",
+      "message": "'DataFrame[ValidatedFrameDep]' is a deprecated alias for 'SparkFrame[ValidatedFrameDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[ValidatedFrameDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

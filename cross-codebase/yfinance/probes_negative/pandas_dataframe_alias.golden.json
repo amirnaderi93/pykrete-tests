@@ -7,7 +7,7 @@
       "endLine": 22,
       "file": "yfinance/probes_negative/pandas_dataframe_alias.pyk",
       "line": 22,
-      "message": "'DataFrame[OHLCRowDep]' is a deprecated alias for 'SparkFrame[OHLCRowDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[OHLCRowDep]'.",
+      "message": "'DataFrame[OHLCRowDep]' is a deprecated alias for 'SparkFrame[OHLCRowDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[OHLCRowDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

@@ -7,7 +7,7 @@
       "endLine": 45,
       "file": "spark/annotated/examples/src/main/python/sql/basic.pyk",
       "line": 45,
-      "message": "'DataFrame[People]' is a deprecated alias for 'SparkFrame[People]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[People]'.",
+      "message": "'DataFrame[People]' is a deprecated alias for 'SparkFrame[People]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[People]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

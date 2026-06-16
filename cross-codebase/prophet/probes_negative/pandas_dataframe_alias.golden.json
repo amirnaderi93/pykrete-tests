@@ -7,7 +7,7 @@
       "endLine": 20,
       "file": "prophet/probes_negative/pandas_dataframe_alias.pyk",
       "line": 20,
-      "message": "'DataFrame[ProphetFrameDep]' is a deprecated alias for 'SparkFrame[ProphetFrameDep]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[ProphetFrameDep]'.",
+      "message": "'DataFrame[ProphetFrameDep]' is a deprecated alias for 'SparkFrame[ProphetFrameDep]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[ProphetFrameDep]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",

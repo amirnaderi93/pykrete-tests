@@ -7,7 +7,7 @@
       "endLine": 24,
       "file": "python-deequ/probes_negative/to_pandas_then_unknown.pyk",
       "line": 24,
-      "message": "'DataFrame[CustomerRowHandoffNeg]' is a deprecated alias for 'SparkFrame[CustomerRowHandoffNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[CustomerRowHandoffNeg]'.",
+      "message": "'DataFrame[CustomerRowHandoffNeg]' is a deprecated alias for 'SparkFrame[CustomerRowHandoffNeg]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[CustomerRowHandoffNeg]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "error",

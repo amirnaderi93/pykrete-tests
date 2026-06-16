@@ -7,7 +7,7 @@
       "endLine": 23,
       "file": "dbt-spark/probes_negative/to_pandas_then_unknown.pyk",
       "line": 23,
-      "message": "'DataFrame[TwoIntColsHandoffNeg]' is a deprecated alias for 'SparkFrame[TwoIntColsHandoffNeg]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[TwoIntColsHandoffNeg]'.",
+      "message": "'DataFrame[TwoIntColsHandoffNeg]' is a deprecated alias for 'SparkFrame[TwoIntColsHandoffNeg]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[TwoIntColsHandoffNeg]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "error",

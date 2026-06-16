@@ -7,7 +7,7 @@
       "endLine": 49,
       "file": "mlflow/annotated/examples/spark_udf/spark_udf.pyk",
       "line": 49,
-      "message": "'DataFrame[IrisFeatures]' is a deprecated alias for 'SparkFrame[IrisFeatures]' and will be removed in pykrete v2.0. Rewrite as 'SparkFrame[IrisFeatures]'.",
+      "message": "'DataFrame[IrisFeatures]' is a deprecated alias for 'SparkFrame[IrisFeatures]', slated for removal in a future pykrete v2.0. Rewrite as 'SparkFrame[IrisFeatures]', or run `pykrete check --deprecation-report` to inventory remaining sites.",
       "relatedInformation": [],
       "ruleName": "deprecatedDataFrameAlias",
       "severity": "warning",
