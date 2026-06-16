@@ -7,7 +7,7 @@
       "endLine": 25,
       "file": "delta/probes_negative/spark_calling_pandas_method.pyk",
       "line": 25,
-      "message": "'assign' is a pandas-only DataFrame method but the receiver is a SparkFrame. Use '.withColumn(...)' instead.",
+      "message": "'assign' is a pandas-only DataFrame method but the receiver is a SparkFrame. Use '.withColumn(...)' instead — note arg shape differs.",
       "relatedInformation": [],
       "ruleName": "crossDialectMethodMismatch",
       "severity": "warning",
