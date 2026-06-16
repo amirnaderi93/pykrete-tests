@@ -1,0 +1,42 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the MLflow metric-logging idiom (sibling
+# annotated/mlflow/data/run_status_enum.pyk RunInfo voice). MLflow
+# evaluation pipelines commonly project a metrics frame whose row
+# shape declares a non-null `metric_value` column (the post-aggregate
+# value that gets sent to `mlflow.log_metric`). This fixture's
+# upstream LoggedMetricBody schema declares `metric_value` Optional
+# (a nullable post-aggregation slot, before the metrics frame is
+# finalized) but the declared return schema LoggedMetricRow declares
+# it non-nullable — so v1.0 D0083 (nullabilityMismatch) fires under
+# strict mode at operations/driver.rs:854 on the return expression.
+# Strict mode is inherited from the sibling pykrete.json in this
+# directory (31 bytes, `typeCheckingMode: strict`).
+#
+# Failure mode exercised: a column nullable in the body but
+# non-nullable in the declared return type fires D0083 in strict
+# mode via the body-vs-declared per-column type check at
+# operations/driver.rs:850-864.
+#
+# Synthesis disclosure: MLflow's library code doesn't expose a named
+# transform that surfaces this exact nullability transition; this
+# fixture mirrors the MLflow-USER idiom (a metrics-aggregation
+# pipeline where the staging frame carries Optional values and the
+# logged-row contract declares them non-null) around the MLflow API,
+# not a verbatim donor cite.
+
+from pyspark.sql import DataFrame
+
+
+class LoggedMetricBody(Schema):
+    run_id: string
+    metric_value: Optional[double]
+
+
+class LoggedMetricRow(Schema):
+    run_id: string
+    metric_value: double
+
+
+def finalize_logged_metrics(metrics: DataFrame[LoggedMetricBody]) -> DataFrame[LoggedMetricRow]:
+# PROBE-EXPECTS: D0083 on "metrics" id=mlflow-neg-log-metrics-nullable -- v1.0 D0083 nullabilityMismatch under strict mode: body produces `metric_value: Optional[double]` from LoggedMetricBody but the declared return schema LoggedMetricRow declares it non-nullable double; the body-vs-declared per-column type check at operations/driver.rs:850-864 fires D0083 on the return expression range; strict-mode inherited from sibling pykrete.json
+    return metrics

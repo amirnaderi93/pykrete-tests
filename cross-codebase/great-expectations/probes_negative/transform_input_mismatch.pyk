@@ -1,0 +1,43 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the GE expectation-suite runner idiom (sibling
+# annotated/canonical/expectation_pattern.pyk). GE USERS commonly
+# wrap an expectation step as a callable taking a validated dataset
+# and feed the input frame through `df.transform(<expectation>)` so
+# the expectation's expected input columns are statically reachable.
+# This fixture takes the same shape but the upstream frame's schema
+# (RawCheckInputNeg) does NOT match the expectation's declared
+# parameter schema (ValidatedDatasetNegInput) — so v1.0 D0073
+# (transformInputMismatch) fires at the `.transform(...)` call site
+# per the input-shape check at operations/expr.rs:2133.
+#
+# Failure mode exercised: `df.transform(fn)` where `fn`'s first
+# parameter schema differs from the receiver schema by column-name
+# set; the input check fires D0073 with a missing/extra summary.
+#
+# Synthesis disclosure: GE's library code doesn't expose a named
+# callable that takes `PandasFrame[X]` and feeds it through
+# `.transform`; this fixture mirrors the GE-USER idiom (an
+# expectation-shaped callable in a transform pipeline) around the
+# GE API, not a verbatim donor cite. The schema (ValidatedDataset
+# derivative) IS faithful to the donor.
+
+from pykrete import PandasFrame
+
+
+class RawCheckInputNeg(Schema):
+    row_count: long
+    raw_value: double
+
+
+class ValidatedDatasetNegInput(Schema):
+    row_count: long
+    value: double
+
+
+def expect_value_in_range(df: PandasFrame[ValidatedDatasetNegInput]) -> PandasFrame[ValidatedDatasetNegInput]:
+    return df
+
+
+def run_expectation_suite(df: PandasFrame[RawCheckInputNeg]) -> PandasFrame[ValidatedDatasetNegInput]:
+# PROBE-EXPECTS: D0073 on "df" id=ge-pandas-neg-transform-input-mismatch -- v1.0 D0073 transformInputMismatch: expect_value_in_range() expects PandasFrame[ValidatedDatasetNegInput{row_count, value}] but the receiver is PandasFrame[RawCheckInputNeg{row_count, raw_value}]; the column-name sets differ (missing=[value]; extra=[raw_value]) so the input-shape check at operations/expr.rs:2054 fires D0073 with attr.value.range() — the receiver-token span "df" (line 43, columns 12-14)
+    return df.transform(expect_value_in_range)
