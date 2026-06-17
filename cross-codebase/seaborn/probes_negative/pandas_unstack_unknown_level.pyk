@@ -1,0 +1,33 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the seaborn-USER unstack idiom in sibling
+# annotated/seaborn/unstack_demo.pyk. seaborn's library code at v0.13.2
+# does not call DataFrame.unstack itself; this fixture captures the
+# seaborn-USER reshape idiom (long → wide before sns.heatmap) on the
+# same TidyData schema. The `level=` string literal is misspelled so
+# the v1.11 PR-D1 arm fires D0030.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.unstack(...)`; this
+# fixture is the user-side idiom around the seaborn API, not a verbatim
+# donor cite. The schema (TidyDataUnstackNeg) IS faithful to the donor.
+#
+# Failure mode exercised: v1.11 PR-D1 — pandas unstack(level=,
+# fill_value=) literal-form check (per `docs/design/v1.11-spec.md`
+# §4.1); a literal string `level=` not present on the receiver schema
+# fires D0030 on the literal's range with a "did you mean" suggestion.
+# The sibling positive at annotated/seaborn/unstack_demo.pyk verifies
+# the clean shape; this fixture exercises the typo'd-level D0030.
+
+from pykrete import PandasFrame
+
+
+class TidyDataUnstackNeg(Schema):
+    unit_id: long
+    measure_a: double
+    measure_b: double
+    measure_c: double
+
+
+def unstack_unknown_level(df: PandasFrame[TidyDataUnstackNeg]) -> None:
+# PROBE-EXPECTS: D0030 on "\"measure_x\"" id=seaborn-pandas-neg-unstack-unknown-level -- v1.11 PR-D1 negative: `level="measure_x"` is a typo; the literal is absent from TidyDataUnstackNeg so the pandas unstack literal-form arm fires D0030 on the literal's range against the donor schema (the v1.11 arm validates each literal string `level=` independently per spec §4.1)
+    _ = df.unstack(level="measure_x")
