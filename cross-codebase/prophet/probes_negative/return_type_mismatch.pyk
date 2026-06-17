@@ -1,0 +1,42 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the prophet user-side ProphetFrame shape (sibling
+# annotated/prophet/forecaster.pyk fluent_assign_chain + the sibling
+# pandas_typo_in_assign probe in this dir). Prophet's canonical
+# input columns are `ds` (timestamp) and `y` (double); real upstream
+# code keeps `y` as a numeric target; this fixture declares the
+# return Out's `y` slot as `string`, so the body-vs-declared check
+# at operations/driver.rs:898 fires D0080 (returnTypeMismatch) on
+# the shared column with incompatible types (double vs string).
+#
+# Failure mode exercised: column NAME match (`y` is in both
+# ProphetFrameIn and ProphetFrameOutDeclaredNeg), column TYPE
+# mismatch (double vs string) — the D0080 path distinct from
+# D0050's columns-mismatch arm. Vacuity-falsifying because flipping
+# ProphetFrameOutDeclaredNeg.y back to `double` clears the fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work prophet USERS do
+# AROUND the forecaster API (annotate a return Schema for the
+# ds/y-shaped input frame, then forward the frame) with one
+# deliberate type-slot mismatch. The ProphetFrame shape IS faithful
+# to the donor.
+
+from pykrete import PandasFrame
+
+
+class ProphetFrameIn(Schema):
+    ds: timestamp
+    y: double
+
+
+class ProphetFrameOutDeclaredNeg(Schema):
+    ds: timestamp
+    y: string
+
+
+def prophet_frame_forward(
+    df: PandasFrame[ProphetFrameIn],
+) -> PandasFrame[ProphetFrameOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=prophet-pandas-neg-return-type-mismatch-y-string -- v1.0 D0080 returnTypeMismatch: `y` is shared between ProphetFrameIn and ProphetFrameOutDeclaredNeg but the input declares it `double` while the return type declares it `string`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping ProphetFrameOutDeclaredNeg.y back to `double` clears the fire
+    return df

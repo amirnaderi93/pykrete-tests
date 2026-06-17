@@ -1,0 +1,41 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera user-side ValidatedFrame shape (sibling
+# annotated/canonical/user_validation.pyk + the pandera-USER
+# return_schema_mismatch fixture in the same probes_negative dir).
+# Real upstream user code keeps `row_count` as a `long`; this fixture
+# declares the return Out's `row_count` slot as `string`, so the
+# body-vs-declared check at operations/driver.rs:898 fires D0080
+# (returnTypeMismatch) on the shared column with incompatible types
+# (long vs string).
+#
+# Failure mode exercised: column NAME match (`row_count` is in both
+# ValidatedFrameIn and ValidatedFrameOutDeclaredNeg), column TYPE
+# mismatch (long vs string) — the D0080 path distinct from D0050's
+# columns-mismatch arm. Vacuity-falsifying because flipping
+# ValidatedFrameOutDeclaredNeg.row_count back to `long` clears the
+# fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work pandera USERS do
+# AROUND the validation API (annotate a return Schema for the
+# validated row, then forward the frame) with one deliberate
+# type-slot mismatch. The ValidatedFrame shape IS faithful to the
+# donor.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrameIn(Schema):
+    raw_amount: double
+    row_count: long
+
+
+class ValidatedFrameOutDeclaredNeg(Schema):
+    raw_amount: double
+    row_count: string
+
+
+def validate_forward(df: PandasFrame[ValidatedFrameIn]) -> PandasFrame[ValidatedFrameOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=pandera-pandas-neg-return-type-mismatch-row-count-string -- v1.0 D0080 returnTypeMismatch: `row_count` is shared between ValidatedFrameIn and ValidatedFrameOutDeclaredNeg but the input declares it `long` while the return type declares it `string`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping ValidatedFrameOutDeclaredNeg.row_count back to `long` clears the fire
+    return df

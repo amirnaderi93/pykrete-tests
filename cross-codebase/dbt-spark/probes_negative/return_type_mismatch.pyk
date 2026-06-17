@@ -1,0 +1,39 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from dbt-spark's Cursor.execute QueryResult shape
+# (sibling probes_negative/sql_then_unknown.pyk + the upstream
+# dbt/adapters/spark/session.py Cursor result at dbt-labs/dbt-spark
+# pinned-commit 42700b5d). Real upstream code reads `msg` as a string
+# off the Cursor result; this fixture declares the return Out's `msg`
+# slot as `int`, so the body-vs-declared check at
+# operations/driver.rs:898 fires D0080 (returnTypeMismatch) on the
+# shared `msg` column with incompatible types (string vs int).
+#
+# Failure mode exercised: column NAME match (`msg` is in both
+# QueryResultIn and QueryResultOutDeclaredNeg), column TYPE mismatch
+# (string vs int) — the D0080 path distinct from D0050's
+# columns-mismatch arm. Vacuity-falsifying because flipping
+# QueryResultOutDeclaredNeg.msg back to `string` clears the fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work users do AROUND
+# dbt-spark's Cursor wrapper (annotate a return Schema for the
+# adapter result row, then hand it back) with one deliberate
+# type-slot mismatch. The QueryResult shape IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class QueryResultIn(Schema):
+    id: int
+    msg: string
+
+
+class QueryResultOutDeclaredNeg(Schema):
+    id: int
+    msg: int
+
+
+def cursor_forward(df: SparkFrame[QueryResultIn]) -> SparkFrame[QueryResultOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=dbt-spark-spark-neg-return-type-mismatch-msg-int -- v1.0 D0080 returnTypeMismatch: `msg` is shared between QueryResultIn and QueryResultOutDeclaredNeg but the input declares it `string` while the return type declares it `int`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping QueryResultOutDeclaredNeg.msg back to `string` clears the fire
+    return df

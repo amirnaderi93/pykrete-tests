@@ -1,0 +1,47 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the statsmodels-USER RegressionInput shape (sibling
+# annotated/canonical/regression_pattern.pyk + the sibling pandera-
+# style return-shape fixtures). Real upstream user code keeps
+# `condition` as a `string` categorical label (treatment group /
+# study arm); this fixture declares the return Out's `condition`
+# slot as `int`, so the body-vs-declared check at
+# operations/driver.rs:898 fires D0080 (returnTypeMismatch) on the
+# shared column with incompatible types (string vs int).
+#
+# Failure mode exercised: column NAME match (`condition` is in both
+# RegressionInputIn and RegressionInputOutDeclaredNeg), column TYPE
+# mismatch (string vs int) — the D0080 path distinct from D0050's
+# columns-mismatch arm. Vacuity-falsifying because flipping
+# RegressionInputOutDeclaredNeg.condition back to `string` clears
+# the fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work statsmodels USERS
+# do AROUND the formula API (annotate a return Schema for the
+# aligned regression frame, then forward the frame) with one
+# deliberate type-slot mismatch. The RegressionInput shape IS
+# faithful to the donor.
+
+from pykrete import PandasFrame
+
+
+class RegressionInputIn(Schema):
+    raw_y: double
+    raw_x1: double
+    subject_id: long
+    condition: string
+
+
+class RegressionInputOutDeclaredNeg(Schema):
+    raw_y: double
+    raw_x1: double
+    subject_id: long
+    condition: int
+
+
+def regression_input_forward(
+    df: PandasFrame[RegressionInputIn],
+) -> PandasFrame[RegressionInputOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=statsmodels-pandas-neg-return-type-mismatch-condition-int -- v1.0 D0080 returnTypeMismatch: `condition` is shared between RegressionInputIn and RegressionInputOutDeclaredNeg but the input declares it `string` while the return type declares it `int`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping RegressionInputOutDeclaredNeg.condition back to `string` clears the fire
+    return df
