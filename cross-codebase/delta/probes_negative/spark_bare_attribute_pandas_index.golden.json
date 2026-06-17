@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0091",
+      "column": 17,
+      "endColumn": 22,
+      "endLine": 24,
+      "file": "delta/probes_negative/spark_bare_attribute_pandas_index.pyk",
+      "line": 24,
+      "message": "'index' is a pandas-only DataFrame attribute but the receiver is a SparkFrame.",
+      "relatedInformation": [],
+      "ruleName": "crossDialectMethodMismatch",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

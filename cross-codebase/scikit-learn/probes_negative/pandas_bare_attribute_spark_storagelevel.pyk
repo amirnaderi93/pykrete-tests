@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Synthetic-disclosure: scikit-learn is eager / no caching surface, so
+# real sklearn code never touches `df.storageLevel` — but the
+# diagnostic surface still needs negative coverage. The receiver is
+# adjudicated as PandasFrame[X]; the bare `.storageLevel` attribute
+# is in SPARK_DISCRIMINATOR_PROPERTIES (added in v1.10 PR-D1) —
+# D0091 fires on the attribute access.
+#
+# Failure mode exercised: v1.10 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning on bare-attribute (no call paren) path for the v1.10 Spark
+# property surface. `storageLevel` is Spark RDD persistence info;
+# pandas is eager (no caching surface); the receiver dialect is
+# Pandas; the Expr::Attribute dispatch arm fires D0091.
+
+from pykrete import PandasFrame
+
+
+class FeaturesFrameCacheNeg(Schema):
+    sample: long
+    score: double
+
+
+def grab_storage_level(df: PandasFrame[FeaturesFrameCacheNeg]) -> None:
+# PROBE-EXPECTS: D0091 on "storageLevel" id=scikit-learn-pandas-neg-bare-attr-spark-storagelevel -- v1.10 PR-D1 D0091 bare-attribute path: `storageLevel` is in SPARK_DISCRIMINATOR_PROPERTIES but the receiver `df: PandasFrame[X]` is Pandas; Expr::Attribute arm dispatches without call paren and fires D0091; vacuity-falsifying because swapping `storageLevel` for `T` (pandas-native) clears the fire
+    handle = df.storageLevel
+    _ = handle

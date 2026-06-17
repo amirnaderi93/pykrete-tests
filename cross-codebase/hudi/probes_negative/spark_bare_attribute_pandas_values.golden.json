@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0091",
+      "column": 17,
+      "endColumn": 23,
+      "endLine": 25,
+      "file": "hudi/probes_negative/spark_bare_attribute_pandas_values.pyk",
+      "line": 25,
+      "message": "'values' is a pandas-only DataFrame attribute but the receiver is a SparkFrame.",
+      "relatedInformation": [],
+      "ruleName": "crossDialectMethodMismatch",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

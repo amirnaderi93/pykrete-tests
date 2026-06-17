@@ -1,0 +1,25 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Exercises v1.10 PR-D1's D0091 firing site in the Expr::Attribute
+# arm (cross-dialect bare-attribute access, no call paren). The
+# receiver is adjudicated as PandasFrame[X]; the bare `.na` attribute
+# is in SPARK_DISCRIMINATOR_PROPERTIES (added in v1.10 PR-D1) —
+# D0091 fires on the attribute access itself.
+#
+# Failure mode exercised: v1.10 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning on bare-attribute (no call paren) path for the v1.10 Spark
+# property surface. `na` is a Spark-only DataFrame accessor
+# (DataFrameNaFunctions); the receiver dialect is Pandas; the
+# Expr::Attribute dispatch arm fires D0091.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrameNaNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+def grab_na(df: PandasFrame[ValidatedFrameNaNeg]) -> None:
+# PROBE-EXPECTS: D0091 on "na" id=pandera-pandas-neg-bare-attr-spark-na -- v1.10 PR-D1 D0091 bare-attribute path: `na` is in SPARK_DISCRIMINATOR_PROPERTIES but the receiver `df: PandasFrame[X]` is Pandas; Expr::Attribute arm dispatches without call paren and fires D0091; vacuity-falsifying because swapping `na` for `values` (pandas-native) clears the fire
+    handle = df.na
+    _ = handle

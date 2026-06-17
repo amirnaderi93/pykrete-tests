@@ -1,0 +1,25 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Synthetic-disclosure: real pandera code never reaches for
+# `df.writeStream`, but the diagnostic surface still needs negative
+# coverage. The receiver is adjudicated as PandasFrame[X]; the bare
+# `.writeStream` attribute is in SPARK_DISCRIMINATOR_PROPERTIES
+# (added in v1.10 PR-D1) — D0091 fires on the attribute access.
+#
+# Failure mode exercised: v1.10 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning on bare-attribute (no call paren) path for the v1.10 Spark
+# property surface. `writeStream` is a Spark Structured Streaming
+# writer accessor; pandas has no streaming surface; the receiver
+# dialect is Pandas; the Expr::Attribute dispatch arm fires D0091.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrameStreamNeg(Schema):
+    raw_amount: double
+    row_count: long
+
+
+def grab_write_stream(df: PandasFrame[ValidatedFrameStreamNeg]) -> None:
+# PROBE-EXPECTS: D0091 on "writeStream" id=pandera-pandas-neg-bare-attr-spark-writestream -- v1.10 PR-D1 D0091 bare-attribute path: `writeStream` is in SPARK_DISCRIMINATOR_PROPERTIES but the receiver `df: PandasFrame[X]` is Pandas; Expr::Attribute arm dispatches without call paren and fires D0091; vacuity-falsifying because swapping `writeStream` for `index` (pandas-native) clears the fire
+    handle = df.writeStream
+    _ = handle

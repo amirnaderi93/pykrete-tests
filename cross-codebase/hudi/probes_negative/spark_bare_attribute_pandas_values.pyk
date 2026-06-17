@@ -1,0 +1,26 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Exercises v1.10 PR-D1's D0091 firing site in the Expr::Attribute
+# arm (cross-dialect bare-attribute access, no call paren). The
+# receiver is adjudicated as SparkFrame[X]; the bare `.values`
+# attribute is in PANDAS_INHERITED_PROPERTIES (added in v1.10
+# PR-D1) — D0091 fires on the attribute access itself.
+#
+# Failure mode exercised: v1.10 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning on bare-attribute (no call paren) path for the v1.10 pandas
+# property surface. `values` is a pandas-only numpy-backed array
+# accessor; Spark uses `.collect()` (returns `list[Row]`); the
+# receiver dialect is Spark; the Expr::Attribute dispatch arm fires
+# D0091.
+
+from pykrete import SparkFrame
+
+
+class HudiRowValuesNeg(Schema):
+    id: long
+    payload: string
+
+
+def grab_values(df: SparkFrame[HudiRowValuesNeg]) -> None:
+# PROBE-EXPECTS: D0091 on "values" id=hudi-spark-neg-bare-attr-pandas-values -- v1.10 PR-D1 D0091 bare-attribute path: `values` is in PANDAS_INHERITED_PROPERTIES but the receiver `df: SparkFrame[X]` is Spark; Expr::Attribute arm dispatches without call paren and fires D0091; vacuity-falsifying because swapping `values` for `columns` (Spark-native) clears the fire
+    handle = df.values
+    _ = handle
