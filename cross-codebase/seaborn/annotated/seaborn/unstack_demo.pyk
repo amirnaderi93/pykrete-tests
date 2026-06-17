@@ -1,0 +1,46 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from the seaborn API-USER convention around
+# long → wide reshaping via DataFrame.unstack. seaborn's own library
+# code at v0.13.2 does not call DataFrame.unstack itself (a grep across
+# upstream/seaborn at pinned-commit 9521ea1 returns 0 hits in *.py
+# source), but seaborn USERS routinely reshape long DataFrames with
+# pdf.unstack(level=...) into the wide shape that sns.heatmap, the
+# matrix/grid plot family, and `pivot()`-derived layouts expect — the
+# canonical "rows × columns × values" matrix shape comes from unstack
+# (the dual of stack). This fixture mirrors that user-side idiom on
+# the same TidyData schema the sibling annotated/seaborn/stack_demo.pyk
+# uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.unstack(...)`; this
+# fixture is the user-side idiom around the seaborn API, not a verbatim
+# donor cite. The schema (TidyDataUnstack) IS faithful to the donor.
+#
+# Features covered:
+#   - v1.11 PR-D1 pandas unstack(level=, fill_value=) literal-form arm
+#     on a PandasFrame-tagged receiver.
+#   - Single-string `level=` literal validated against the receiver
+#     schema (D0030 path); the column name is present so no diagnostic.
+#   - Result returns Unknown (Series isn't a PandasFrame schema in
+#     pykrete's model; full MultiIndex tracking deferred to v1.12+).
+#     The chain dies gracefully on no follow-up.
+
+from pykrete import PandasFrame
+
+
+class TidyDataUnstack(Schema):
+    unit_id: long
+    measure_a: double
+    measure_b: double
+    measure_c: double
+
+
+def unstack_literal_level(df: PandasFrame[TidyDataUnstack]) -> None:
+    """Mirrors the seaborn-USER idiom: long → wide reshape via
+    pdf.unstack(level=...) before handing the wide frame to
+    sns.heatmap. The literal `level=` references an existing column;
+    the v1.11 PR-D1 arm validates the literal name and tags the
+    result Unknown (per spec §4.1 minimum-viable scope)."""
+# PROBE-RESOLVES: id=seaborn-unstack-literal-level -- v1.11 PR-D1 positive: literal `level="measure_a"` is in TidyDataUnstack; the arm validates and resolves cleanly with no D-code; vacuity-falsifying because typoing the literal would fire D0030 against TidyDataUnstack (the sibling probes_negative/pandas_unstack_unknown_level.pyk exercises that)
+    _ = df.unstack(level="measure_a", fill_value=0)
