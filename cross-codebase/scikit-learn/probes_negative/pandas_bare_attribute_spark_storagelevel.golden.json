@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0091",
+      "column": 17,
+      "endColumn": 29,
+      "endLine": 25,
+      "file": "scikit-learn/probes_negative/pandas_bare_attribute_spark_storagelevel.pyk",
+      "line": 25,
+      "message": "'storageLevel' is a Spark-only DataFrame attribute but the receiver is a PandasFrame.",
+      "relatedInformation": [],
+      "ruleName": "crossDialectMethodMismatch",
+      "severity": "warning",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 0,
+    "filesChecked": 1,
+    "warningCount": 1
+  }
+}

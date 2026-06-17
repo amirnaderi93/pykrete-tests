@@ -1,0 +1,27 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Exercises v1.10 PR-D1's D0091 firing site in the Expr::Attribute
+# arm (cross-dialect bare-attribute access, no call paren). The
+# receiver is adjudicated as SparkFrame[X]; the bare `.shape`
+# attribute is in PANDAS_INHERITED_PROPERTIES (added in v1.10
+# PR-D1) — D0091 fires on the attribute access itself.
+#
+# Failure mode exercised: v1.10 PR-D1 D0091 (crossDialectMethodMismatch)
+# warning on bare-attribute (no call paren) path for the v1.10 pandas
+# property surface. `shape` is a pandas-only `(rows, cols)` tuple
+# attribute; Spark uses `.count()` + `len(df.columns)`; the receiver
+# dialect is Spark; the Expr::Attribute dispatch arm fires D0091.
+# This is the canonical "give me dimensions" adopter mistake — a
+# pandas user porting code to Spark reaches for `.shape` first.
+
+from pykrete import SparkFrame
+
+
+class DeltaRowShapeNeg(Schema):
+    id: long
+    value: double
+
+
+def grab_shape(df: SparkFrame[DeltaRowShapeNeg]) -> None:
+# PROBE-EXPECTS: D0091 on "shape" id=delta-spark-neg-bare-attr-pandas-shape -- v1.10 PR-D1 D0091 bare-attribute path: `shape` is in PANDAS_INHERITED_PROPERTIES but the receiver `df: SparkFrame[X]` is Spark; Expr::Attribute arm dispatches without call paren and fires D0091; vacuity-falsifying because swapping `shape` for `columns` (Spark-native) clears the fire
+    handle = df.shape
+    _ = handle
