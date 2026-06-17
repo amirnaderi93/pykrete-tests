@@ -88,7 +88,7 @@ explicitly so the coverage claim stays honest:
 | **seaborn** | direct-dispatch | [mwaskom/seaborn](https://github.com/mwaskom/seaborn) | `v0.13.2` | Statistical visualization, pandas-first API. Direct-dispatch on `df.rename(columns={…})` dict-literal kwarg in `categorical.py`. |
 | **yfinance** | direct-dispatch | [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) | `0.2.55` | Financial market-data API → pandas DataFrames. Direct-dispatch on `df["new"] = expr`, `df.rename(columns={…})`, and `df.merge(...)` in `utils.py`. |
 
-`120 fixtures` total across the `17 donors` (49 annotated + 71 negative
+`130 fixtures` total across the `17 donors` (50 annotated + 80 negative
 under `probes_negative/`). Spark contributes eight annotated fixtures
 (basic, datasource, streaming wordcount, the four `tests/` files, and
 `examples/.../arrow.py` covering `pandas_udf` / `applyInPandas` /
@@ -175,9 +175,9 @@ release-blocking contract.
 
 ## Schema-tracking probes (v1.4)
 
-Every pykrete release is regression-tested with **`261
+Every pykrete release is regression-tested with **`271
 probes`** from the `17 donors` listed above.
-The repo vendors **`120 fixtures`** on disk (49 annotated + 71 negative
+The repo vendors **`130 fixtures`** on disk (50 annotated + 80 negative
 under `probes_negative/`); the probes cover the probe-anchored
 fixtures (a small number of streaming or import-only fixtures are
 annotated but probe-free, since they have no typed-DataFrame slot
@@ -189,12 +189,12 @@ columns resolve cleanly after schema-changing operations (`.select`,
 `df[col_list]`, `df[mask]`, `df["new"] = expr`); negative probes
 assert specific diagnostics fire on deliberately-corrupted fixtures.
 
-The v1.10 batch (per [PR-P1 #34](https://github.com/amirnaderi93/pykrete-tests/pull/34) + [#35](https://github.com/amirnaderi93/pykrete-tests/pull/35)) added 6 D0091 strict-mode / bare-attribute / shape-changes probes on `mlflow` / `dbt-spark` / `pandera` / `delta`, plus the seaborn `stack(level=)` literal-form arm, lifting cross-codebase coverage to `261 probes` across `120 fixtures` from `17 donors`. v1.10 PR-D1's 8 new D0091 properties (`na`, `write`, `writeStream`, `storageLevel`, `index`, `values`, `shape`, `T`) are unit-test-covered in the pykrete crate at v1.10.0; cross-codebase fixture probes filed for v1.11.
+The v1.10 batch (per [PR-P1 #34](https://github.com/amirnaderi93/pykrete-tests/pull/34) + [#35](https://github.com/amirnaderi93/pykrete-tests/pull/35)) added 6 D0091 strict-mode / bare-attribute / shape-changes probes on `mlflow` / `dbt-spark` / `pandera` / `delta`, plus the seaborn `stack(level=)` literal-form arm, lifting cross-codebase coverage to 261 probes across 120 fixtures from `17 donors`. The v1.11 batch (per [PR-P1 #39](https://github.com/amirnaderi93/pykrete-tests/pull/39) + [PR-D1 #38](https://github.com/amirnaderi93/pykrete-tests/pull/38)) ships cross-codebase property probes for the v1.10 PR-D1 D0091 8-property surface (`na`, `write`, `writeStream`, `storageLevel`, `index`, `values`, `shape`, `T`) — closing the v1.10 PR-D1 carve-out — plus the seaborn `unstack(level=)` literal-form arm mirror of v1.10's `stack`. Cross-codebase coverage climbs to `271 probes` across `130 fixtures` from `17 donors`.
 
-- **`186 positive` probes** across 49 annotated fixtures verify column
+- **`187 positive` probes** across 50 annotated fixtures verify column
   resolution, post-narrowing flow, and dtype propagation (`PROBE-RESOLVES`
   + `PROBE-TYPE-IS` + `PROBE-FILE-COUNT` + `PROBE-FILE-CLEAN-OF`).
-- **`75 negative` probes** across 71 deliberately-corrupted fixtures
+- **`84 negative` probes** across 80 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing —
   D0030 `unknownColumn`, D0040 `unionSchemaMismatch` /
   D0050 `returnColumnsMismatch` / D0051 `argumentColumnsMismatch`
