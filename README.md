@@ -88,7 +88,7 @@ explicitly so the coverage claim stays honest:
 | **seaborn** | direct-dispatch | [mwaskom/seaborn](https://github.com/mwaskom/seaborn) | `v0.13.2` | Statistical visualization, pandas-first API. Direct-dispatch on `df.rename(columns={…})` dict-literal kwarg in `categorical.py`. |
 | **yfinance** | direct-dispatch | [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) | `0.2.55` | Financial market-data API → pandas DataFrames. Direct-dispatch on `df["new"] = expr`, `df.rename(columns={…})`, and `df.merge(...)` in `utils.py`. |
 
-100 fixtures total across the 17 donors (47 annotated + 53 negative
+`120 fixtures` total across the `17 donors` (49 annotated + 71 negative
 under `probes_negative/`). Spark contributes eight annotated fixtures
 (basic, datasource, streaming wordcount, the four `tests/` files, and
 `examples/.../arrow.py` covering `pandas_udf` / `applyInPandas` /
@@ -175,13 +175,13 @@ release-blocking contract.
 
 ## Schema-tracking probes (v1.4)
 
-Every pykrete release is regression-tested with **241
-schema-tracking probes** from the 17 upstream codebases listed above.
-The repo vendors **100 fixtures** on disk (47 annotated + 53 negative
-under `probes_negative/`); the **241 probes cover 99 of those** (46
-annotated + 53 negative — the feast `spark_kafka_processor` streaming
-fixture is annotated but probe-free because it has no typed-DataFrame
-slot for a probe to anchor to). Probes are inline `# PROBE-*` comment
+Every pykrete release is regression-tested with **`261
+probes`** from the `17 donors` listed above.
+The repo vendors **`120 fixtures`** on disk (49 annotated + 71 negative
+under `probes_negative/`); the probes cover the probe-anchored
+fixtures (a small number of streaming or import-only fixtures are
+annotated but probe-free, since they have no typed-DataFrame slot
+for a probe to anchor to). Probes are inline `# PROBE-*` comment
 markers in `.pyk` fixtures that the runner expands into synthetic
 checks against `pykrete check --format json`. Positive probes assert
 columns resolve cleanly after schema-changing operations (`.select`,
@@ -189,16 +189,29 @@ columns resolve cleanly after schema-changing operations (`.select`,
 `df[col_list]`, `df[mask]`, `df["new"] = expr`); negative probes
 assert specific diagnostics fire on deliberately-corrupted fixtures.
 
-- **182 positive probes** across 46 annotated fixtures verify column
+The v1.10 batch (per [PR-P1 #34](https://github.com/amirnaderi93/pykrete-tests/pull/34) + [#35](https://github.com/amirnaderi93/pykrete-tests/pull/35)) added 6 D0091 strict-mode / bare-attribute / shape-changes probes on `mlflow` / `dbt-spark` / `pandera` / `delta`, plus the seaborn `stack(level=)` literal-form arm, lifting cross-codebase coverage to `261 probes` across `120 fixtures` from `17 donors`. v1.10 PR-D1's 8 new D0091 properties (`na`, `write`, `writeStream`, `storageLevel`, `index`, `values`, `shape`, `T`) are unit-test-covered in the pykrete crate at v1.10.0; cross-codebase fixture probes filed for v1.11.
+
+- **`186 positive` probes** across 49 annotated fixtures verify column
   resolution, post-narrowing flow, and dtype propagation (`PROBE-RESOLVES`
-  + `PROBE-TYPE-IS`).
-- **59 negative probes** across 53 deliberately-corrupted fixtures
+  + `PROBE-TYPE-IS` + `PROBE-FILE-COUNT` + `PROBE-FILE-CLEAN-OF`).
+- **`75 negative` probes** across 71 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing —
-  D0030 `unknownColumn`, D0060 `missingJoinKey` (v1.3), D0081
-  `nonNumericArithmetic` (v1.4-widened to subscript-on-name receivers),
-  D0082 `crossTypeComparison` (v1.4-widened correspondingly), D0084
-  `enumValueMismatch` (v1.1), and D0090 `deprecatedDataFrameAlias`
-  (v1.3 — warns on `DataFrame[X]`, removed in v2.0). The v1.5 PR-G
+  D0030 `unknownColumn`, D0040 `unionSchemaMismatch` /
+  D0050 `returnColumnsMismatch` / D0051 `argumentColumnsMismatch`
+  (cross-codebase coverage added in v1.7 per PR-P1 #27, 2 probes
+  each), D0060 `missingJoinKey` (v1.3), D0073
+  `transformInputMismatch` (cross-codebase coverage added in v1.8
+  per PR-P1 #30), D0081 `nonNumericArithmetic` (v1.4-widened to
+  subscript-on-name receivers), D0082 `crossTypeComparison`
+  (v1.4-widened correspondingly), D0083 `nullabilityMismatch`
+  (cross-codebase coverage added in v1.8 per PR-P1 #30), D0084
+  `enumValueMismatch` (v1.1), D0090 `deprecatedDataFrameAlias`
+  (v1.3 — warns on `DataFrame[X]`, removed in v2.0), and D0091
+  `crossDialectMethodMismatch` (cross-codebase coverage added in
+  v1.9 per PR-P1 #32 on pandera + delta, extended in v1.10 per
+  PR-P1 #34 with strict-mode escalation + bare-attribute +
+  shape-changes probes on `mlflow` / `dbt-spark` / `pandera` /
+  `delta`). The v1.5 PR-G
   expansion added 5 fixtures per donor under `dbt-spark/` and
   `python-deequ/` covering the most-frequent API, schema-introspection,
   DataFrame-output transformation, cross-dialect (`.toPandas()`
