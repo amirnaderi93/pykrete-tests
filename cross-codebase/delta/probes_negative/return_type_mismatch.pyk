@@ -1,0 +1,35 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Delta quickstart pattern (sibling
+# annotated/examples/python/quickstart.pyk) — `spark.read.format("delta")
+# .load(...)` yields a frame with `id: long`. Real upstream code keeps
+# the long-typed id; this fixture declares the input `id: long` and the
+# return Out `id: string`, so the body-vs-declared check at
+# operations/driver.rs:898 fires D0080 (returnTypeMismatch) on the
+# shared `id` column with incompatible types.
+#
+# Failure mode exercised: column NAME match (`id` is in both schemas),
+# column TYPE mismatch (long vs string) — the D0080 path distinct from
+# D0050's columns-mismatch arm. Vacuity-falsifying because flipping
+# `Out.id` to `long` clears the fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through unchanged. This fixture mirrors the shape of work users do
+# AROUND the Delta quickstart (annotate a return Schema and forward
+# a loaded frame) with one deliberate type-slot mismatch. The schema
+# (QuickstartRow derivative) IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class QuickstartRowIn(Schema):
+    id: long
+
+
+class QuickstartRowOutDeclaredNeg(Schema):
+    id: string
+
+
+def load_and_forward(df: SparkFrame[QuickstartRowIn]) -> SparkFrame[QuickstartRowOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=delta-spark-neg-return-type-mismatch-id-string -- v1.0 D0080 returnTypeMismatch: `id` is shared between QuickstartRowIn and QuickstartRowOutDeclaredNeg but the input declares it `long` while the return type declares it `string`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping QuickstartRowOutDeclaredNeg.id back to `long` clears the fire
+    return df

@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 14,
+      "endLine": 42,
+      "file": "prophet/probes_negative/return_type_mismatch.pyk",
+      "line": 42,
+      "message": "Return type mismatch: column 'y' is declared String in schema 'ProphetFrameOutDeclaredNeg', but the body produces Double.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

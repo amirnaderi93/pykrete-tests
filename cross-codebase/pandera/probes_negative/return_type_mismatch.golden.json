@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 14,
+      "endLine": 41,
+      "file": "pandera/probes_negative/return_type_mismatch.pyk",
+      "line": 41,
+      "message": "Return type mismatch: column 'row_count' is declared String in schema 'ValidatedFrameOutDeclaredNeg', but the body produces Long.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

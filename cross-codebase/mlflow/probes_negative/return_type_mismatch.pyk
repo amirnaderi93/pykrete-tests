@@ -1,0 +1,38 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from mlflow's eval-dataset LabelledRow shape (sibling
+# probes_negative/withColumn_arith_on_string.pyk distills the same
+# pattern from mlflow's evaluate/data tooling). Real upstream code
+# keeps `target` numeric; this fixture declares the return Out's
+# `target` slot as `string`, so the body-vs-declared check at
+# operations/driver.rs:898 fires D0080 (returnTypeMismatch) on the
+# shared column with incompatible types (int vs string).
+#
+# Failure mode exercised: column NAME match (`target` is in both
+# LabelledRowIn and LabelledRowOutDeclaredNeg), column TYPE mismatch
+# (int vs string) — the D0080 path distinct from D0050's
+# columns-mismatch arm. Vacuity-falsifying because flipping
+# LabelledRowOutDeclaredNeg.target back to `int` clears the fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work users do AROUND
+# mlflow's eval-dataset shape (annotate a return Schema for the
+# labelled-eval row, then forward it) with one deliberate type-slot
+# mismatch. The LabelledRow shape IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class LabelledRowIn(Schema):
+    label: string
+    target: int
+
+
+class LabelledRowOutDeclaredNeg(Schema):
+    label: string
+    target: string
+
+
+def eval_dataset_forward(df: SparkFrame[LabelledRowIn]) -> SparkFrame[LabelledRowOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=mlflow-spark-neg-return-type-mismatch-target-string -- v1.0 D0080 returnTypeMismatch: `target` is shared between LabelledRowIn and LabelledRowOutDeclaredNeg but the input declares it `int` while the return type declares it `string`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping LabelledRowOutDeclaredNeg.target back to `int` clears the fire
+    return df

@@ -1,0 +1,41 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the ScoreRow shape in iceberg-python's
+# tests/integration/test_writes/test_writes.py L1875-L1885
+# (sibling probes_negative/pandas_merge_unknown_key.pyk uses the
+# same ScoreRow shape against the .merge dispatch). Real upstream
+# code keeps `relevancy_score` as a double; this fixture declares
+# the return Out's `relevancy_score` slot as `string`, so the
+# body-vs-declared check at operations/driver.rs:898 fires D0080
+# (returnTypeMismatch) on the shared column with incompatible types
+# (double vs string).
+#
+# Failure mode exercised: column NAME match (`relevancy_score` is
+# in both ScoreRowIn and ScoreRowOutDeclaredNeg), column TYPE
+# mismatch (double vs string) — the D0080 path distinct from
+# D0050's columns-mismatch arm. Vacuity-falsifying because flipping
+# ScoreRowOutDeclaredNeg.relevancy_score back to `double` clears
+# the fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work users do AROUND
+# iceberg-python's score-row write tests (annotate a return Schema
+# for the row shape, then hand it back) with one deliberate
+# type-slot mismatch. The ScoreRow shape IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class ScoreRowIn(Schema):
+    id: long
+    relevancy_score: double
+
+
+class ScoreRowOutDeclaredNeg(Schema):
+    id: long
+    relevancy_score: string
+
+
+def score_row_forward(df: SparkFrame[ScoreRowIn]) -> SparkFrame[ScoreRowOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=iceberg-spark-neg-return-type-mismatch-score-string -- v1.0 D0080 returnTypeMismatch: `relevancy_score` is shared between ScoreRowIn and ScoreRowOutDeclaredNeg but the input declares it `double` while the return type declares it `string`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping ScoreRowOutDeclaredNeg.relevancy_score back to `double` clears the fire
+    return df

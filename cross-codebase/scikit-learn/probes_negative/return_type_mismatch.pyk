@@ -1,0 +1,44 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the sklearn-USER FeatureMatrix shape (sibling
+# annotated/canonical/preprocessing_pattern.pyk + the sibling
+# pandas_drop_typo probe in this dir). Real upstream user code
+# keeps `n_visits` as a `long`; this fixture declares the return
+# Out's `n_visits` slot as `string`, so the body-vs-declared check
+# at operations/driver.rs:898 fires D0080 (returnTypeMismatch) on
+# the shared column with incompatible types (long vs string).
+#
+# Failure mode exercised: column NAME match (`n_visits` is in both
+# FeatureMatrixIn and FeatureMatrixOutDeclaredNeg), column TYPE
+# mismatch (long vs string) — the D0080 path distinct from D0050's
+# columns-mismatch arm. Vacuity-falsifying because flipping
+# FeatureMatrixOutDeclaredNeg.n_visits back to `long` clears the
+# fire.
+#
+# Synthesis disclosure: D0080 cases are rare in real adopter code —
+# devs don't usually annotate a wrong type and then pass the frame
+# through. This fixture mirrors the shape of work sklearn USERS do
+# AROUND the preprocessing API (annotate a return Schema for the
+# engineered feature matrix, then forward the frame) with one
+# deliberate type-slot mismatch. The FeatureMatrix shape IS faithful
+# to the donor.
+
+from pykrete import PandasFrame
+
+
+class FeatureMatrixIn(Schema):
+    age: double
+    income: double
+    n_visits: long
+
+
+class FeatureMatrixOutDeclaredNeg(Schema):
+    age: double
+    income: double
+    n_visits: string
+
+
+def feature_matrix_forward(
+    df: PandasFrame[FeatureMatrixIn],
+) -> PandasFrame[FeatureMatrixOutDeclaredNeg]:
+# PROBE-EXPECTS: D0080 on "df" id=sklearn-pandas-neg-return-type-mismatch-n-visits-string -- v1.0 D0080 returnTypeMismatch: `n_visits` is shared between FeatureMatrixIn and FeatureMatrixOutDeclaredNeg but the input declares it `long` while the return type declares it `string`; the body-vs-declared types_compatible check at operations/driver.rs:898 fires D0080 on the return expression range; vacuity-falsifying because flipping FeatureMatrixOutDeclaredNeg.n_visits back to `long` clears the fire
+    return df
