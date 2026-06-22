@@ -1,0 +1,49 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the scikit-learn FeatureMatrix shape (sibling
+# annotated/canonical/preprocessing_pattern.pyk). Real upstream
+# scikit-learn user code that pre-aggregates a tidy feature matrix
+# via pdf.pivot_table(...) before handing to a sklearn estimator
+# would access the resulting wide frame by the `values=` column name;
+# this fixture deliberately typos the downstream access, so D0030
+# (unknownColumn) fires against the v1.13 PR-D2 synthesized Derived
+# (not against the receiver's FeatureMatrix).
+#
+# Failure mode exercised: v1.13 PR-D2 synthesizes a PandasFrame
+# carrying ONLY the `values=` column ("n_visits") at the aggfunc-
+# driven dtype (count → long). The downstream `pivoted["n_visits_typo"]`
+# Subscript fires D0030 against the synthesized schema. Verifies the
+# v1.13 PR-D2 Derived is correctly authoritative for downstream column
+# resolution — not silently falling back to the receiver's schema.
+#
+# Vacuity-falsifying: fixing the typo to `pivoted["n_visits"]` clears
+# the fire — the column IS in the synthesized schema.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): scikit-learn's
+# library source does not literally write `pdf.pivot_table(...)`; this
+# fixture is the user-side idiom around the sklearn API (pre-aggregate
+# tidy feature frames before fit_transform), not a verbatim donor cite.
+# The FeatureMatrix schema IS faithful to the donor.
+#
+# Closes v1.13 PR-D2 cross-codebase gap (architecture audit I1):
+# verifies the synthesized Derived's NEGATIVE half — D0030 fires on
+# typoed access against the synthesized column set, not silently
+# passing.
+
+from pykrete import PandasFrame
+
+
+class FeatureMatrix(Schema):
+    age: double
+    income: double
+    n_visits: long
+    category: string
+    region_code: string
+    feature_blob: binary
+
+
+def pivot_then_typo_synthesized_access(
+    df: PandasFrame[FeatureMatrix],
+) -> None:
+    pivoted = df.pivot_table(index="category", values="n_visits", aggfunc="count")
+# PROBE-EXPECTS: D0030 on "\"n_visits_typo\"" id=scikit-learn-pandas-neg-pivot-table-synthesized-column-typo -- v1.13 PR-D2 negative: aggfunc='count' synthesizes PandasFrame with values column "n_visits"; downstream pivoted["n_visits_typo"] Subscript fires D0030 against the synthesized Derived (not the receiver's FeatureMatrix); vacuity-falsifying because fixing the typo to pivoted["n_visits"] clears the fire
+    _ = pivoted["n_visits_typo"]

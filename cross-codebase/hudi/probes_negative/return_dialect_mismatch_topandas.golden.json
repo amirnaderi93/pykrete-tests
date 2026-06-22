@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 25,
+      "endLine": 46,
+      "file": "hudi/probes_negative/return_dialect_mismatch_topandas.pyk",
+      "line": 46,
+      "message": "Return type mismatch: declared as SparkFrame schema 'HudiTrip' but the body produces PandasFrame schema 'HudiTrip'.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
