@@ -1,0 +1,37 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Delta quickstart pattern (sibling
+# annotated/examples/python/quickstart.pyk) — `spark.read.format("delta")
+# .load(...)` yields a Spark frame with `id: long`. Real upstream code
+# keeps the Spark dialect; this fixture declares the return as
+# SparkFrame[IdRow] but the body hands off to pandas via `.toPandas()`,
+# so the v1.13 PR-D1 dialect-on-return arm in
+# operations/driver.rs fires D0080 (returnTypeMismatch) with the
+# dialect-mismatch clause: declared SparkFrame, body produces PandasFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (IdRow on both
+# sides), but the DIALECT differs — declared SparkFrame, actual
+# PandasFrame after `.toPandas()`. The v1.13 PR-D1 arm closes the gap
+# the v1.12 D0080 probes filed as a known limitation: column set + type
+# match silently passes the v1.12 checker; the dialect-on-return arm
+# is the new fire.
+#
+# Vacuity-falsifying: removing the `.toPandas()` call (returning `df`
+# directly) clears the fire — both sides become SparkFrame[IdRow].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a Spark return and then
+# convert to pandas inside the function. This fixture mirrors the
+# shape of work users do AROUND the Delta quickstart (load a Spark
+# frame, then accidentally hand it off to pandas before returning).
+# The IdRow schema IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class IdRow(Schema):
+    id: long
+
+
+def load_then_topandas(df: SparkFrame[IdRow]) -> SparkFrame[IdRow]:
+# PROBE-EXPECTS: D0080 on "df.toPandas()" id=delta-spark-neg-return-dialect-mismatch-topandas -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared SparkFrame[IdRow] but body produces PandasFrame[IdRow] via .toPandas() handoff; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because removing the .toPandas() call clears the fire
+    return df.toPandas()
