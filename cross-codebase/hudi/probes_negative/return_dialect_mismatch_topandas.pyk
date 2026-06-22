@@ -1,0 +1,46 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the hudi PySpark quickstart pattern (sibling
+# annotated/hudi-examples/hudi-examples-spark/src/test/python/
+# HoodiePySparkQuickstart.pyk) — the trip schema canonical to hudi's
+# PySpark integration tests. Real upstream hudi code keeps the trip
+# frame in the Spark dialect (writes to hudi tables via Spark APIs);
+# this fixture declares the return as SparkFrame[HudiTrip] but the
+# body hands off to pandas via `.toPandas()`, so the v1.13 PR-D1
+# dialect-on-return arm in operations/driver.rs fires D0080 with the
+# dialect-mismatch clause: declared SparkFrame, body produces
+# PandasFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (HudiTrip on
+# both sides), but the DIALECT differs — declared SparkFrame, actual
+# PandasFrame after `.toPandas()`. Direct .toPandas() shape — widens
+# Spark-only donor coverage to hudi.
+#
+# Vacuity-falsifying: removing the `.toPandas()` call (returning `df`
+# directly) clears the fire — both sides become SparkFrame[HudiTrip].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a Spark return and then
+# convert to pandas inside the function. This fixture mirrors the
+# shape of work users do AROUND the hudi quickstart (load a hudi
+# trip frame, accidentally hand off to pandas before returning).
+# The HudiTrip schema IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class HudiTrip(Schema):
+    uuid: string
+    partitionpath: string
+    ts: long
+    rider: string
+    driver: string
+    begin_lat: double
+    begin_lon: double
+    end_lat: double
+    end_lon: double
+    fare: double
+
+
+def load_trips_then_topandas(df: SparkFrame[HudiTrip]) -> SparkFrame[HudiTrip]:
+# PROBE-EXPECTS: D0080 on "df.toPandas()" id=hudi-spark-neg-return-dialect-mismatch-topandas -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared SparkFrame[HudiTrip] but body produces PandasFrame[HudiTrip] via .toPandas() handoff; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because removing the .toPandas() call clears the fire
+    return df.toPandas()

@@ -1,0 +1,53 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from the seaborn API-USER convention around
+# tidy → wide reshaping. seaborn's own library code at v0.13.2 does not
+# call DataFrame.pivot_table itself (a grep across upstream/seaborn at
+# pinned-commit 9521ea1 returns 0 hits), but seaborn USERS routinely
+# pre-aggregate their tidy frames with pdf.pivot_table(index=,
+# columns=, values=, aggfunc=) and then access the resulting wide
+# frame by the `values=` column name before passing to sns.heatmap or
+# sns.barplot. This fixture mirrors that downstream-access idiom on
+# the same TidyDataPivot schema the sibling annotated/seaborn/
+# pivot_table_demo.pyk uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write `pdf.pivot_table(...)`; this
+# fixture is the user-side idiom around the seaborn API, not a
+# verbatim donor cite. The schema (TidyDataPivot) IS faithful to the
+# donor.
+#
+# Features covered:
+#   - v1.13 PR-D2 pivot_table aggfunc-driven Derived synthesis: with
+#     aggfunc='sum', the `values=` column type is preserved from the
+#     receiver. The synthesized PandasFrame[X'] has a column named
+#     "x_raw" of type double, which the downstream Subscript access
+#     `pivoted["x_raw"]` resolves cleanly against.
+#   - Closes v1.13 PR-D2 cross-codebase gap (architecture audit I1):
+#     prior to this fixture, no cross-codebase probe verified that
+#     downstream access on the synthesized Derived resolves; v1.0-retro
+#     "must verify correctness not just absence of false positives"
+#     rule applies.
+
+from pykrete import PandasFrame
+
+
+class TidyDataPivot(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+def pivot_table_then_access_synthesized_column(
+    df: PandasFrame[TidyDataPivot],
+) -> None:
+    """Mirrors the seaborn-USER idiom: tidy → wide reshape via
+    pdf.pivot_table(...) followed by downstream column access on the
+    synthesized result. v1.13 PR-D2 synthesizes a PandasFrame
+    carrying only the `values=` column ("x_raw"); the subsequent
+    `pivoted["x_raw"]` Subscript resolves against the synthesized
+    schema rather than the receiver's TidyDataPivot."""
+    pivoted = df.pivot_table(index="hue_raw", columns="unit_id", values="x_raw", aggfunc="sum")
+# PROBE-RESOLVES: id=seaborn-pivot-table-downstream-resolves-synthesized-column -- v1.13 PR-D2 positive: aggfunc='sum' preserves the values-column dtype, synthesizing PandasFrame with column "x_raw" of type double; downstream pivoted["x_raw"] Subscript resolves against the synthesized Derived, no D-code fires; vacuity-falsifying because typoing the downstream access to pivoted["x_raw_typo"] would fire D0030 against the synthesized Derived
+    _ = pivoted["x_raw"]

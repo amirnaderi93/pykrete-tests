@@ -1,0 +1,49 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the great-expectations canonical ValidatedDataset shape
+# (sibling annotated/canonical/expectation_pattern.pyk). Real upstream
+# great-expectations user code keeps the validated dataset in pandas
+# (GE expectations primarily target pandas frames in the user-facing
+# API); this fixture declares the return as
+# PandasFrame[ValidatedDataset] but the body hands off to Spark via
+# `spark.createDataFrame(pdf, schema=...)`, so the v1.13 PR-D1
+# dialect-on-return arm in operations/driver.rs fires D0080 with the
+# dialect-mismatch clause: declared PandasFrame, body produces
+# SparkFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (ValidatedDataset
+# on both sides), but the DIALECT differs — declared PandasFrame,
+# actual SparkFrame via the `spark.createDataFrame` handoff gate
+# (operations/driver.rs `cross_dialect_handoff_gate`). Widens
+# pandas-canonical donor coverage to great-expectations.
+#
+# Vacuity-falsifying: removing the `spark.createDataFrame(...)` wrap
+# (returning `pdf` directly) clears the fire — both sides become
+# PandasFrame[ValidatedDataset].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a pandas return and then
+# convert to Spark inside the function. This fixture mirrors the
+# shape of work users do AROUND great-expectations validation
+# (validate a pandas frame, accidentally promote to Spark before
+# returning to a downstream pipeline). The ValidatedDataset schema
+# IS faithful to the donor.
+
+from pykrete import PandasFrame
+from pyspark.sql import SparkSession
+
+
+class ValidatedDataset(Schema):
+    row_count: long
+    value: double
+    passes_check: bool
+    category: string
+    expectation_name: string
+    evidence_blob: binary
+
+
+def validate_then_promote_to_spark(
+    pdf: PandasFrame[ValidatedDataset],
+    spark: SparkSession,
+) -> PandasFrame[ValidatedDataset]:
+# PROBE-EXPECTS: D0080 on "spark.createDataFrame(pdf, schema=ValidatedDataset)" id=great-expectations-pandas-neg-return-dialect-mismatch-createdataframe -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared PandasFrame[ValidatedDataset] but body produces SparkFrame[ValidatedDataset] via spark.createDataFrame handoff (cross_dialect_handoff_gate in operations/driver.rs flips the dialect to Spark); v1.13 dialect comparison fires D0080 on the return expression range; vacuity-falsifying because returning pdf directly clears the fire
+    return spark.createDataFrame(pdf, schema=ValidatedDataset)

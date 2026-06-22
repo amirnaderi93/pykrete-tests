@@ -1,0 +1,38 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the kedro-datasets SparkDataset Weather shape (sibling
+# annotated/kedro_datasets/spark/spark_dataset.pyk). Real upstream
+# kedro-plugins code keeps the loaded SparkDataset frame in the Spark
+# dialect (Kedro pipelines wire DataFrame-typed nodes through);
+# this fixture declares the return as SparkFrame[Weather] but the
+# body hands off to pandas via `.toPandas()`, so the v1.13 PR-D1
+# dialect-on-return arm in operations/driver.rs fires D0080 with the
+# dialect-mismatch clause: declared SparkFrame, body produces
+# PandasFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (Weather on both
+# sides), but the DIALECT differs — declared SparkFrame, actual
+# PandasFrame after `.toPandas()`. Direct .toPandas() shape — widens
+# Spark-only donor coverage to kedro-plugins.
+#
+# Vacuity-falsifying: removing the `.toPandas()` call (returning `df`
+# directly) clears the fire — both sides become SparkFrame[Weather].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a Spark return and then
+# convert to pandas inside the function. This fixture mirrors the
+# shape of work users do AROUND kedro-plugins SparkDataset.load
+# (load a station-Weather frame, accidentally hand off to pandas
+# before returning). The Weather schema IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class Weather(Schema):
+    station_id: int
+    timestamp: timestamp
+    temperature_c: double
+
+
+def load_weather_then_topandas(df: SparkFrame[Weather]) -> SparkFrame[Weather]:
+# PROBE-EXPECTS: D0080 on "df.toPandas()" id=kedro-plugins-spark-neg-return-dialect-mismatch-topandas -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared SparkFrame[Weather] but body produces PandasFrame[Weather] via .toPandas() handoff; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because removing the .toPandas() call clears the fire
+    return df.toPandas()

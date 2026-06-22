@@ -1,0 +1,37 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the feast spark_transformation FeatureRow shape (sibling
+# annotated/sdk/python/feast/transformation/spark_transformation.pyk).
+# Real upstream feast code keeps the Spark transformation result in the
+# Spark dialect (feeds back into spark.sql temp views); this fixture
+# declares the return as SparkFrame[FeatureRow] but the body hands off
+# to pandas via `.toPandas()`, so the v1.13 PR-D1 dialect-on-return arm
+# in operations/driver.rs fires D0080 with the dialect-mismatch clause:
+# declared SparkFrame, body produces PandasFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (FeatureRow on
+# both sides), but the DIALECT differs — declared SparkFrame, actual
+# PandasFrame after `.toPandas()`. Direct .toPandas() shape, same as
+# delta/dbt-spark/spark v1.13 PR-P1 fixtures but widens donor coverage
+# to feast (Spark-arm of this hybrid donor).
+#
+# Vacuity-falsifying: removing the `.toPandas()` call (returning `df`
+# directly) clears the fire — both sides become SparkFrame[FeatureRow].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a Spark return and then
+# convert to pandas inside the function. This fixture mirrors the
+# shape of work users do AROUND feast's spark_transformation pipeline
+# (compute a Spark feature frame, accidentally hand off to pandas
+# before returning). The FeatureRow schema IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class FeatureRow(Schema):
+    entity_id: long
+    value: double
+
+
+def transform_then_topandas(df: SparkFrame[FeatureRow]) -> SparkFrame[FeatureRow]:
+# PROBE-EXPECTS: D0080 on "df.toPandas()" id=feast-spark-neg-return-dialect-mismatch-topandas -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared SparkFrame[FeatureRow] but body produces PandasFrame[FeatureRow] via .toPandas() handoff; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because removing the .toPandas() call clears the fire
+    return df.toPandas()

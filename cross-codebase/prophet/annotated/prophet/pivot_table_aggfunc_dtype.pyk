@@ -1,0 +1,57 @@
+# MIT License. Copyright (c) Facebook, Inc. and its affiliates.
+#
+# Annotated for pykrete from the prophet API-USER convention around
+# multi-model fan-out + aggregate reporting. prophet's own library
+# code at v1.1.6 does not call DataFrame.pivot_table itself (a grep
+# across upstream/prophet at pinned-commit 82180bb returns 0 hits),
+# but prophet USERS routinely pre-aggregate their per-run measurement
+# frames with pdf.pivot_table(index=, values=, aggfunc=) to compare
+# the scaled y column across model_name buckets. This fixture mirrors
+# that user-side dtype-override idiom on the same ProphetFrame schema
+# the sibling annotated/prophet/forecaster.pyk uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): prophet's
+# library source does not literally write `pdf.pivot_table(...)`; this
+# fixture is the user-side idiom around the prophet API, not a
+# verbatim donor cite. The schema (ProphetFrame) IS faithful to the
+# donor.
+#
+# Features covered:
+#   - v1.13 PR-D2 pivot_table aggfunc-driven Derived synthesis dtype
+#     override: aggfunc='mean' synthesizes Double regardless of input
+#     numeric dtype (per spec §5.1.1). Here input column `y` is
+#     already Double and synthesized stays Double — the declared
+#     return-type PandasFrame[YMeanFrame] with `y: double` matches
+#     the synthesized dtype, so D0080 must NOT fire.
+#   - Closes v1.13 PR-D2 cross-codebase gap (architecture audit I1):
+#     verifies the dtype-override TABLE binds correctly through the
+#     return-type check, not just the column-set. Vacuity-falsifying:
+#     declaring YMeanFrame's y as `string` (cross numeric/non-numeric
+#     boundary) would fire D0080 against the synthesized Double.
+
+from pykrete import PandasFrame
+
+
+class ProphetFrame(Schema):
+    ds: timestamp
+    y: double
+    cap: double
+    floor: double
+    model_name: string
+    serialized_model: binary
+
+
+class YMeanFrame(Schema):
+    y: double
+
+
+def mean_y_per_model(df: PandasFrame[ProphetFrame]) -> PandasFrame[YMeanFrame]:
+    """Mirrors the prophet-USER idiom: aggregate per-run scaled-y
+    values across model_name buckets via pivot_table(aggfunc='mean').
+    v1.13 PR-D2 synthesizes a PandasFrame carrying the values column
+    `y` at the aggfunc-driven dtype Double (per spec §5.1.1
+    mean → Double override). The declared return-type
+    YMeanFrame.y: double matches the synthesized dtype; D0080 does
+    NOT fire."""
+# PROBE-RESOLVES: id=prophet-pivot-table-aggfunc-mean-dtype-double -- v1.13 PR-D2 positive dtype-override: aggfunc='mean' synthesizes PandasFrame with column "y" at Double per spec §5.1.1; the declared return YMeanFrame.y: double matches, no D0080 fires; vacuity-falsifying because flipping YMeanFrame.y to `string` (cross numeric/non-numeric boundary) would fire D0080 against the synthesized Double
+    return df.pivot_table(index="model_name", values="y", aggfunc="mean")

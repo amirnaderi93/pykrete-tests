@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 17,
+      "endColumn": 32,
+      "endLine": 49,
+      "file": "scikit-learn/probes_negative/pivot_table_synthesized_column_typo.pyk",
+      "line": 49,
+      "message": "Column 'n_visits_typo' does not exist on inferred schema [n_visits].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
