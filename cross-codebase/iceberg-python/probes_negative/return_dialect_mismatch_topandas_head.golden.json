@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 32,
+      "endLine": 41,
+      "file": "iceberg-python/probes_negative/return_dialect_mismatch_topandas_head.pyk",
+      "line": 41,
+      "message": "Return type mismatch: declared as SparkFrame schema 'ScoreRow' but the body produces PandasFrame schema 'ScoreRow'.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

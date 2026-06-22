@@ -1,0 +1,40 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from statsmodels' canonical regression pattern (sibling
+# annotated/canonical/regression_pattern.pyk) — the RegressionInput
+# shape used in statsmodels OLS/GLS pipelines. Real upstream
+# statsmodels user code keeps the regression input in pandas (the
+# statsmodels API is pandas-native). This fixture declares the return
+# as PandasFrame[RegressionInput] but forwards a SparkFrame-typed
+# parameter directly, so the v1.13 PR-D1 dialect-on-return arm in
+# operations/driver.rs fires D0080 with the dialect-mismatch clause:
+# declared PandasFrame, body produces SparkFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (RegressionInput
+# on both sides), but the DIALECT differs — declared PandasFrame,
+# actual SparkFrame from the parameter binding. Direct-name return,
+# no chained handoff.
+#
+# Vacuity-falsifying: flipping the parameter annotation to
+# PandasFrame[RegressionInput] clears the fire — both sides become
+# PandasFrame.
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually pair a PandasFrame return with a
+# SparkFrame parameter and forward the parameter directly. This
+# fixture mirrors the shape of work users do AROUND statsmodels OLS
+# pipelines (annotate a pandas regression-input return, accidentally
+# take a Spark-typed input). The RegressionInput schema IS faithful
+# to the donor.
+
+from pykrete import PandasFrame, SparkFrame
+
+
+class RegressionInput(Schema):
+    raw_y: double
+    raw_x1: double
+    raw_x2: double
+
+
+def forward_spark_as_pandas_regression(sdf: SparkFrame[RegressionInput]) -> PandasFrame[RegressionInput]:
+# PROBE-EXPECTS: D0080 on "sdf" id=statsmodels-pandas-neg-return-dialect-mismatch-spark-name -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared PandasFrame[RegressionInput] but body produces SparkFrame[RegressionInput] via direct return of a SparkFrame-typed name; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because flipping the parameter annotation to PandasFrame[RegressionInput] clears the fire
+    return sdf

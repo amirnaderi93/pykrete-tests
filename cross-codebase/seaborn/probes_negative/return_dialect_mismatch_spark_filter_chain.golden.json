@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 35,
+      "endLine": 45,
+      "file": "seaborn/probes_negative/return_dialect_mismatch_spark_filter_chain.pyk",
+      "line": 45,
+      "message": "Return type mismatch: declared as PandasFrame schema 'TidyData' but the body produces SparkFrame schema 'TidyData'.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

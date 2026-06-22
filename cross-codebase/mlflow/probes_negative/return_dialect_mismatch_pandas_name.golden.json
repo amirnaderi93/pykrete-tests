@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 15,
+      "endLine": 40,
+      "file": "mlflow/probes_negative/return_dialect_mismatch_pandas_name.pyk",
+      "line": 40,
+      "message": "Return type mismatch: declared as SparkFrame schema 'TrainRow' but the body produces PandasFrame schema 'TrainRow'.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

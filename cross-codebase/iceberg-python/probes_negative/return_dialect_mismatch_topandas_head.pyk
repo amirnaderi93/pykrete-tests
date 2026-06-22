@@ -1,0 +1,41 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from iceberg-python's pandas_score_dataset pattern (sibling
+# annotated/tests/integration/test_writes/pandas_score_dataset.pyk).
+# Real upstream iceberg-python code keeps the score frame in the
+# dialect the test was set up with; this fixture declares the return
+# as SparkFrame[ScoreRow] but the body hands off to pandas via a
+# chained `.toPandas().head()` call, so the v1.13 PR-D1 dialect-on-
+# return arm in operations/driver.rs fires D0080 with the dialect-
+# mismatch clause: declared SparkFrame, body produces PandasFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (ScoreRow on both
+# sides), but the DIALECT differs through a CHAINED handoff —
+# `.toPandas()` flips the dialect tag, then `.head()` rides the
+# flipped tag down the chain. The v1.13 arm's chain-walker
+# (`inherited_chain_state`) propagates the post-handoff dialect to
+# the return expression. Exercises a deeper chain than the direct
+# `.toPandas()` shape (delta/dbt-spark fixtures).
+#
+# Vacuity-falsifying: removing the `.toPandas().head()` tail
+# (returning `df` directly) clears the fire — both sides become
+# SparkFrame[ScoreRow].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a Spark return and then
+# convert to pandas inside the function. This fixture mirrors the
+# shape of work users do AROUND iceberg-python's pandas integration
+# tests (forward a Spark frame, accidentally chain pandas helpers).
+# The ScoreRow schema IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class ScoreRow(Schema):
+    id: long
+    created_at: timestamp
+    relevancy_score: double
+
+
+def score_forward_topandas_head(df: SparkFrame[ScoreRow]) -> SparkFrame[ScoreRow]:
+# PROBE-EXPECTS: D0080 on "df.toPandas().head()" id=iceberg-python-spark-neg-return-dialect-mismatch-topandas-head -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared SparkFrame[ScoreRow] but body produces PandasFrame[ScoreRow] via .toPandas().head() chained handoff; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because removing the .toPandas().head() tail clears the fire
+    return df.toPandas().head()

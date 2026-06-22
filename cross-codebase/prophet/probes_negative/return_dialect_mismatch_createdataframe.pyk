@@ -1,0 +1,44 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the prophet user-side ProphetFrame shape (sibling
+# annotated/prophet/forecaster.pyk). Prophet's canonical input
+# columns are `ds` (timestamp) and `y` (double); real upstream
+# prophet user code keeps the input frame in pandas (the Prophet API
+# is pandas-only). This fixture declares the return as
+# PandasFrame[ProphetFrame] but the body hands off to Spark via
+# `spark.createDataFrame(pdf, schema=...)`, so the v1.13 PR-D1
+# dialect-on-return arm in operations/driver.rs fires D0080 with the
+# dialect-mismatch clause: declared PandasFrame, body produces
+# SparkFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (ProphetFrame on
+# both sides), but the DIALECT differs — declared PandasFrame, actual
+# SparkFrame via the `spark.createDataFrame` handoff gate
+# (operations/driver.rs `cross_dialect_handoff_gate`).
+#
+# Vacuity-falsifying: returning `pdf` directly clears the fire — both
+# sides become PandasFrame[ProphetFrame].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a pandas return and then
+# promote to Spark inside the function (especially for prophet, where
+# the Prophet model API is pandas-only). This fixture mirrors the
+# shape of work prophet USERS do AROUND the forecaster API (annotate
+# a pandas return on the ds/y-shaped frame, accidentally promote to
+# Spark). The ProphetFrame schema IS faithful to the donor.
+
+from pykrete import PandasFrame
+from pyspark.sql import SparkSession
+
+
+class ProphetFrame(Schema):
+    ds: timestamp
+    y: double
+    cap: double
+
+
+def prophet_promote_to_spark(
+    pdf: PandasFrame[ProphetFrame],
+    spark: SparkSession,
+) -> PandasFrame[ProphetFrame]:
+# PROBE-EXPECTS: D0080 on "spark.createDataFrame(pdf, schema=ProphetFrame)" id=prophet-pandas-neg-return-dialect-mismatch-createdataframe -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared PandasFrame[ProphetFrame] but body produces SparkFrame[ProphetFrame] via spark.createDataFrame handoff (cross_dialect_handoff_gate in operations/driver.rs flips the dialect to Spark); v1.13 dialect comparison fires D0080 on the return expression range; vacuity-falsifying because returning pdf directly clears the fire
+    return spark.createDataFrame(pdf, schema=ProphetFrame)

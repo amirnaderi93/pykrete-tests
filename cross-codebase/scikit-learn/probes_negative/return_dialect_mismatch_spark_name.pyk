@@ -1,0 +1,41 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from scikit-learn's canonical preprocessing pattern (sibling
+# annotated/canonical/preprocessing_pattern.pyk) — the FeatureMatrix
+# shape used in sklearn preprocessing pipelines. Real upstream
+# scikit-learn user code keeps the feature matrix in pandas; this
+# fixture declares the return as PandasFrame[FeatureMatrix] but
+# forwards a SparkFrame-typed parameter directly, so the v1.13 PR-D1
+# dialect-on-return arm in operations/driver.rs fires D0080 with the
+# dialect-mismatch clause: declared PandasFrame, body produces
+# SparkFrame.
+#
+# Failure mode exercised: column NAMES + TYPES match (FeatureMatrix on
+# both sides), but the DIALECT differs — declared PandasFrame, actual
+# SparkFrame from the parameter binding. Direct-name return, no
+# chained handoff — exercises the simplest shape distinct from the
+# `spark.createDataFrame` handoff fixtures.
+#
+# Vacuity-falsifying: flipping the parameter annotation to
+# PandasFrame[FeatureMatrix] clears the fire — both sides become
+# PandasFrame.
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually pair a PandasFrame return with a
+# SparkFrame parameter and forward the parameter directly. This
+# fixture mirrors the shape of work users do AROUND sklearn
+# preprocessing (annotate a pandas feature-matrix return on a Spark
+# code path, accidentally take a Spark-typed input). The FeatureMatrix
+# schema IS faithful to the donor.
+
+from pykrete import PandasFrame, SparkFrame
+
+
+class FeatureMatrix(Schema):
+    age: double
+    income: double
+    n_visits: long
+
+
+def forward_spark_as_pandas(sdf: SparkFrame[FeatureMatrix]) -> PandasFrame[FeatureMatrix]:
+# PROBE-EXPECTS: D0080 on "sdf" id=scikit-learn-pandas-neg-return-dialect-mismatch-spark-name -- v1.13 PR-D1 D0080 returnTypeMismatch dialect-on-return arm: declared PandasFrame[FeatureMatrix] but body produces SparkFrame[FeatureMatrix] via direct return of a SparkFrame-typed name; the v1.13 dialect comparison in operations/driver.rs fires D0080 on the return expression range; vacuity-falsifying because flipping the parameter annotation to PandasFrame[FeatureMatrix] clears the fire
+    return sdf
