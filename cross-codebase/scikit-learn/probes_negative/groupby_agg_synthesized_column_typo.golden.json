@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 13,
+      "endColumn": 28,
+      "endLine": 55,
+      "file": "scikit-learn/probes_negative/groupby_agg_synthesized_column_typo.pyk",
+      "line": 55,
+      "message": "Column 'n_visits_typo' does not exist on inferred schema [category, age, income, n_visits, region_code, feature_blob].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

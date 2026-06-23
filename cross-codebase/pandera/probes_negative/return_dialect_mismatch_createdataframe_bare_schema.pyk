@@ -1,0 +1,49 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera user-side ValidatedFrame shape (sibling
+# annotated/canonical/user_validation.pyk). Real upstream pandera
+# user code keeps the validated frame in the pandas dialect; this
+# fixture declares the return as PandasFrame[ValidatedFrame] but the
+# body constructs via the literal-rows form
+# `spark.createDataFrame([(...)], schema=ValidatedFrame)`, so the
+# v1.14 PR-D1 Arm 3 dialect-only structural recognizer
+# (operations/driver.rs:213-229) flips the dialect to Spark and the
+# v1.13 PR-D1 dialect-on-return arm fires D0080.
+#
+# Failure mode exercised: column NAMES + TYPES match (ValidatedFrame
+# on both sides), but the DIALECT differs — declared PandasFrame,
+# actual SparkFrame via the v1.14 PR-D1 Arm 3 createDataFrame
+# literal-rows + bare-Schema-class kwarg recognizer. Distinct from
+# the sibling pandera/probes_negative/return_dialect_mismatch_
+# createdataframe.pyk fixture, which exercises the v1.13/v1.5
+# PandasPositional handoff gate (first positional arg resolves to
+# a Pandas-tagged frame binding). Arm 3 covers the Python-literal-
+# rows form where the v1.5 PR-A2 gate stays silent because the first
+# arg is not a frame binding — the bare Schema class as `schema=`
+# kwarg structurally disambiguates.
+#
+# Vacuity-falsifying: removing the `spark.createDataFrame(...)` wrap
+# and returning a plain `pd.DataFrame({...})` (or a Pandas-tagged
+# binding) clears the fire — both sides become
+# PandasFrame[ValidatedFrame].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in
+# real adopter code — devs don't usually annotate a pandas return
+# and then construct via Spark inside the function. This fixture
+# mirrors the shape of work pandera USERS do AROUND the validation
+# API (annotate a return Schema for the validated frame, accidentally
+# promote to Spark via a literal-rows createDataFrame seed before
+# returning). The ValidatedFrame schema IS faithful to the donor.
+
+from pykrete import PandasFrame
+from pyspark.sql import SparkSession
+
+
+class ValidatedFrame(Schema):
+    raw_amount: double
+    row_count: long
+    category: string
+
+
+def seed_then_return_as_pandas(spark: SparkSession) -> PandasFrame[ValidatedFrame]:
+# PROBE-EXPECTS: D0080 on "spark.createDataFrame([(1.0, 1, \"a\")], schema=ValidatedFrame)" id=pandera-pandas-neg-return-dialect-mismatch-createdataframe-bare-schema -- v1.14 PR-D1 Arm 3 dialect-only structural recognizer createDataFrame(rows, schema=<bare Schema name>) flips dialect to Spark (operations/driver.rs:213-229); declared PandasFrame[ValidatedFrame] but body produces SparkFrame[ValidatedFrame] via literal-rows + bare-Schema-class kwarg; v1.5 PR-A2 PandasPositional gate stays silent because the first arg is not a frame binding; v1.13 PR-D1 dialect comparison fires D0080 on the return expression range; vacuity-falsifying because returning via plain pd.DataFrame({...}) (or a Pandas-tagged binding) clears the fire
+    return spark.createDataFrame([(1.0, 1, "a")], schema=ValidatedFrame)

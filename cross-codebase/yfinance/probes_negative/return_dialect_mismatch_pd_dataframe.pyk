@@ -1,0 +1,45 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the yfinance OHLCRow shape (sibling
+# annotated/yfinance/utils.pyk). Real upstream yfinance code returns
+# pandas frames built from the underlying HTTP payload via the
+# `pd.DataFrame({...})` constructor; this fixture declares the return
+# as SparkFrame[OHLCRow] but the body constructs via
+# `pd.DataFrame(...)`, so the v1.14 PR-D1 Arm 1 structural recognizer
+# (operations/driver.rs:239-256) flips the dialect to Pandas and the
+# v1.13 PR-D1 dialect-on-return arm fires D0080.
+#
+# Failure mode exercised: column NAMES + TYPES match (OHLCRow on both
+# sides), but the DIALECT differs — declared SparkFrame, actual
+# PandasFrame via the v1.14 PR-D1 Arm 1 `pd.DataFrame(...)` structural
+# constructor. Closes the v1.14 PR-D1 cross-codebase gap: the
+# previously-shipped 17 D0080 probes exercise v1.13 PR-D1 handoff
+# shapes (`.toPandas()`, `spark.createDataFrame(pdf, schema=...)`)
+# but no cross-codebase probe exercises the v1.14 PR-D1 Arm 1
+# constructor recognizer.
+#
+# Vacuity-falsifying: replacing the `pd.DataFrame(...)` constructor
+# with `spark.createDataFrame(...)` (or simply returning a Spark-tagged
+# binding) clears the fire — both sides become SparkFrame[OHLCRow].
+#
+# Synthesis disclosure: D0080 dialect-on-return cases are rare in real
+# adopter code — devs don't usually annotate a Spark return and then
+# construct a pandas frame inside the function. This fixture mirrors
+# the shape of work users do AROUND yfinance ticker pulls (build OHLC
+# pandas from raw payload, accidentally forget to promote to Spark
+# before returning to a downstream Spark pipeline). The OHLCRow
+# schema IS faithful to the donor.
+
+from pykrete import SparkFrame
+
+
+class OHLCRow(Schema):
+    Open: double
+    High: double
+    Low: double
+    Close: double
+    AdjClose: double
+
+
+def fetch_ohlc_build_via_pd_dataframe() -> SparkFrame[OHLCRow]:
+# PROBE-EXPECTS: D0080 on "pd.DataFrame({\"Open\": [1.0], \"High\": [1.0], \"Low\": [1.0], \"Close\": [1.0], \"AdjClose\": [1.0]})" id=yfinance-spark-neg-return-dialect-mismatch-pd-dataframe -- v1.14 PR-D1 Arm 1 structural recognizer pd.DataFrame(...) flips dialect to Pandas (operations/driver.rs:239-256); declared SparkFrame[OHLCRow] but body produces PandasFrame[OHLCRow] via the pd.DataFrame constructor; v1.13 PR-D1 dialect comparison fires D0080 on the return expression range; vacuity-falsifying because returning via spark.createDataFrame(...) (or a Spark-tagged binding) clears the fire
+    return pd.DataFrame({"Open": [1.0], "High": [1.0], "Low": [1.0], "Close": [1.0], "AdjClose": [1.0]})

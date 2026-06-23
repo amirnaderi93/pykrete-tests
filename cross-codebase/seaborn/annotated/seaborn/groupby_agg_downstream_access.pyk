@@ -1,0 +1,59 @@
+# BSD-3-Clause. Copyright (c) 2012-2023, Michael L. Waskom.
+#
+# Annotated for pykrete from the seaborn API-USER convention around
+# tidy → aggregate reshaping. seaborn's own library code at v0.13.2 does
+# not call DataFrame.groupby(...).agg("...") itself in the
+# single-string-aggfunc shape (a grep across upstream/seaborn at
+# pinned-commit 9521ea1 returns 0 hits for the literal
+# `.groupby(...).agg("...")` chain), but seaborn USERS routinely
+# pre-aggregate their tidy frames with
+# `pdf.groupby("hue_raw").agg("sum")` and then access the resulting
+# wide frame by a non-key column name before passing to sns.barplot or
+# sns.heatmap. This fixture mirrors that downstream-access idiom on the
+# same TidyDataPivot schema the sibling annotated/seaborn/
+# pivot_table_demo.pyk uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): seaborn's
+# library source does not literally write
+# `pdf.groupby(...).agg("...")` in the single-string-aggfunc form;
+# this fixture is the user-side idiom around the seaborn API, not a
+# verbatim donor cite. The schema (TidyDataPivot) IS faithful to the
+# donor.
+#
+# Features covered:
+#   - v1.14 PR-D2 groupby.agg single-string-aggfunc Derived synthesis:
+#     `pdf.groupby("hue_raw").agg("sum")` synthesizes a PandasFrame
+#     carrying `keys ++ (underlying.field_names() \ keys)` with
+#     aggfunc='sum' preserving the receiver dtype per spec §5.1.1.
+#     The downstream Subscript access `agg["x_raw"]` resolves cleanly
+#     against the synthesized Derived (non-key column survives, dtype
+#     preserved as double).
+#   - Closes v1.14 PR-D2 cross-codebase gap (v1.14 probe-density audit
+#     + v1.14 pandas-coverage audit): prior to this fixture, no
+#     cross-codebase probe verified that downstream access on the
+#     groupby.agg synthesized Derived resolves; mirrors the v1.13 PR-D2
+#     pivot_table closure pattern (sibling pivot_table_downstream_access).
+
+from pykrete import PandasFrame
+
+
+class TidyDataPivot(Schema):
+    x_raw: double
+    y_raw: double
+    hue_raw: string
+    unit_id: long
+
+
+def groupby_agg_then_access_synthesized_column(
+    df: PandasFrame[TidyDataPivot],
+) -> None:
+    """Mirrors the seaborn-USER idiom: tidy → aggregate reshape via
+    pdf.groupby(...).agg("sum") followed by downstream column access
+    on the synthesized result. v1.14 PR-D2 synthesizes a PandasFrame
+    carrying the key column ("hue_raw") plus the non-key columns
+    ("x_raw", "y_raw", "unit_id") with sum preserving the receiver
+    dtype; the subsequent `agg["x_raw"]` Subscript resolves against
+    the synthesized schema."""
+    agg = df.groupby("hue_raw").agg("sum")
+# PROBE-RESOLVES: id=seaborn-groupby-agg-downstream-resolves-synthesized-column -- v1.14 PR-D2 positive: aggfunc='sum' synthesizes PandasFrame keys ++ non-keys with receiver dtype preserved (x_raw stays double); downstream agg["x_raw"] Subscript resolves against the synthesized Derived, no D-code fires; vacuity-falsifying because typoing the downstream access to agg["x_raw_typo"] would fire D0030 against the synthesized Derived
+    _ = agg["x_raw"]

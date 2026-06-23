@@ -1,0 +1,55 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the scikit-learn FeatureMatrix shape (sibling
+# annotated/canonical/preprocessing_pattern.pyk). Real upstream
+# scikit-learn user code that pre-aggregates a tidy feature matrix
+# via `pdf.groupby(...).agg("...")` before handing to a sklearn
+# estimator would access the resulting aggregate frame by a non-key
+# column name; this fixture deliberately typos the downstream access,
+# so D0030 (unknownColumn) fires against the v1.14 PR-D2 synthesized
+# Derived (not against the receiver's FeatureMatrix).
+#
+# Failure mode exercised: v1.14 PR-D2 synthesizes a PandasFrame
+# carrying `keys ++ (underlying.field_names() \ keys)` with each
+# non-key column's dtype overridden per spec §5.1.1. With
+# aggfunc='count' every non-key column is overridden to Long; the
+# downstream `agg["n_visits_typo"]` Subscript fires D0030 against the
+# synthesized schema. Verifies the v1.14 PR-D2 Derived is correctly
+# authoritative for downstream column resolution — not silently
+# falling back to the receiver's schema.
+#
+# Vacuity-falsifying: fixing the typo to `agg["n_visits"]` clears
+# the fire — the column IS in the synthesized schema (as a count
+# override at type long).
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): scikit-learn's
+# library source does not literally write `pdf.groupby(...).agg("...")`
+# in the single-string-aggfunc form; this fixture is the user-side
+# idiom around the sklearn API (pre-aggregate per-category counts
+# before fit_transform), not a verbatim donor cite. The FeatureMatrix
+# schema IS faithful to the donor.
+#
+# Closes v1.14 PR-D2 cross-codebase gap (v1.14 probe-density audit +
+# v1.14 pandas-coverage audit): verifies the synthesized Derived's
+# NEGATIVE half — D0030 fires on typoed access against the
+# synthesized column set, not silently passing. Mirrors the v1.13
+# PR-D2 pivot_table negative-closure pattern (sibling
+# pivot_table_synthesized_column_typo).
+
+from pykrete import PandasFrame
+
+
+class FeatureMatrix(Schema):
+    age: double
+    income: double
+    n_visits: long
+    category: string
+    region_code: string
+    feature_blob: binary
+
+
+def groupby_then_typo_synthesized_access(
+    df: PandasFrame[FeatureMatrix],
+) -> None:
+    agg = df.groupby("category").agg("count")
+# PROBE-EXPECTS: D0030 on "\"n_visits_typo\"" id=scikit-learn-pandas-neg-groupby-agg-synthesized-column-typo -- v1.14 PR-D2 negative: aggfunc='count' synthesizes PandasFrame with non-key column "n_visits" at Long override; downstream agg["n_visits_typo"] Subscript fires D0030 against the synthesized Derived (not the receiver's FeatureMatrix); vacuity-falsifying because fixing the typo to agg["n_visits"] clears the fire
+    _ = agg["n_visits_typo"]

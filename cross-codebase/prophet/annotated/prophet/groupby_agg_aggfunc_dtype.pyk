@@ -1,0 +1,69 @@
+# MIT License. Copyright (c) Facebook, Inc. and its affiliates.
+#
+# Annotated for pykrete from the prophet API-USER convention around
+# multi-model fan-out + aggregate reporting. prophet's own library
+# code at v1.1.6 does not call `pdf.groupby(...).agg("...")` itself in
+# the single-string-aggfunc shape (a grep across upstream/prophet at
+# pinned-commit 82180bb returns 0 hits for the literal
+# `.groupby(...).agg("...")` chain), but prophet USERS routinely
+# pre-aggregate per-run measurement frames with
+# `pdf.groupby("model_name").agg("mean")` to compare the scaled y
+# column's mean across model_name buckets. This fixture mirrors that
+# user-side dtype-override idiom on a narrowed (model_name, y)
+# projection of the ProphetFrame schema the sibling
+# annotated/prophet/forecaster.pyk uses.
+#
+# Synthesis disclosure (per v15-PR-#24 .loc precedent): prophet's
+# library source does not literally write
+# `pdf.groupby(...).agg("...")` in the single-string-aggfunc form;
+# this fixture is the user-side idiom around the prophet API, not a
+# verbatim donor cite. The narrowed (model_name, y) projection is
+# faithful to the prophet ProphetFrame surface (sibling
+# annotated/prophet/forecaster.pyk).
+#
+# Features covered:
+#   - v1.14 PR-D2 groupby.agg single-string-aggfunc Derived synthesis
+#     dtype override: aggfunc='mean' synthesizes Double regardless of
+#     input numeric dtype (per spec §5.1.1). Here input non-key
+#     column `y` is already Double and synthesized stays Double — the
+#     declared return-type PandasFrame[YMeanFrame] with `y: double`
+#     and the key `model_name: string` matches the synthesized dtype
+#     map, so D0080 must NOT fire.
+#   - Closes v1.14 PR-D2 cross-codebase gap (v1.14 probe-density
+#     audit + v1.14 pandas-coverage audit): verifies the dtype-override
+#     TABLE binds correctly through the return-type check, not just
+#     the column-set. Vacuity-falsifying: declaring YMeanFrame's y as
+#     `string` (cross numeric/non-numeric boundary) would fire D0080
+#     against the synthesized Double. Mirrors the v1.13 PR-D2
+#     pivot_table dtype-override pattern (sibling
+#     pivot_table_aggfunc_dtype).
+
+from pykrete import PandasFrame
+
+
+# Narrow input schema chosen deliberately: the v1.14 PR-D2 synthesis
+# emits ALL non-key columns from the receiver with the dtype override
+# applied uniformly (per spec §5.1.1 / operations/expr.rs:770-779).
+# A 1-non-key receiver lets us declare a matching narrow return-type
+# YMeanFrame that exercises the dtype override cleanly without
+# needing to populate every receiver column on the LHS.
+class ProphetMeanRecv(Schema):
+    model_name: string
+    y: double
+
+
+class YMeanFrame(Schema):
+    model_name: string
+    y: double
+
+
+def mean_y_per_model(df: PandasFrame[ProphetMeanRecv]) -> PandasFrame[YMeanFrame]:
+    """Mirrors the prophet-USER idiom: aggregate per-run scaled-y
+    values across model_name buckets via groupby.agg('mean').
+    v1.14 PR-D2 synthesizes a PandasFrame carrying the key
+    `model_name` plus the non-key column `y` at the aggfunc-driven
+    dtype Double (per spec §5.1.1 mean → Double override). The
+    declared return-type YMeanFrame matches the synthesized
+    schema; D0080 does NOT fire."""
+# PROBE-RESOLVES: id=prophet-groupby-agg-aggfunc-mean-dtype-double -- v1.14 PR-D2 positive dtype-override: aggfunc='mean' synthesizes PandasFrame with key model_name (string preserved) plus non-key y at Double per spec §5.1.1; the declared return YMeanFrame matches, no D0080 fires; vacuity-falsifying because flipping YMeanFrame.y to `string` (cross numeric/non-numeric boundary) would fire D0080 against the synthesized Double
+    return df.groupby("model_name").agg("mean")

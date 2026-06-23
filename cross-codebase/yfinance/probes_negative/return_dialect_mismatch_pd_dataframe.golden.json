@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 105,
+      "endLine": 45,
+      "file": "yfinance/probes_negative/return_dialect_mismatch_pd_dataframe.pyk",
+      "line": 45,
+      "message": "Return type mismatch: declared as SparkFrame schema 'OHLCRow' but the body produces an unresolved PandasFrame value.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
