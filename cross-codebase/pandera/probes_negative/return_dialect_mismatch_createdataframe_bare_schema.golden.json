@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 73,
+      "endLine": 49,
+      "file": "pandera/probes_negative/return_dialect_mismatch_createdataframe_bare_schema.pyk",
+      "line": 49,
+      "message": "Return type mismatch: declared as PandasFrame schema 'ValidatedFrame' but the body produces an unresolved SparkFrame value.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0080",
+      "column": 12,
+      "endColumn": 50,
+      "endLine": 43,
+      "file": "delta/probes_negative/return_dialect_mismatch_spark_read_parquet.pyk",
+      "line": 43,
+      "message": "Return type mismatch: declared as PandasFrame schema 'IdRow' but the body produces an unresolved SparkFrame value.",
+      "relatedInformation": [],
+      "ruleName": "returnTypeMismatch",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
