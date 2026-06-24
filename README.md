@@ -88,7 +88,7 @@ explicitly so the coverage claim stays honest:
 | **seaborn** | direct-dispatch | [mwaskom/seaborn](https://github.com/mwaskom/seaborn) | `v0.13.2` | Statistical visualization, pandas-first API. Direct-dispatch on `df.rename(columns={…})` dict-literal kwarg in `categorical.py`. |
 | **yfinance** | direct-dispatch | [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) | `0.2.55` | Financial market-data API → pandas DataFrames. Direct-dispatch on `df["new"] = expr`, `df.rename(columns={…})`, and `df.merge(...)` in `utils.py`. |
 
-`164 fixtures` total across the `17 donors` (54 annotated + 110 negative
+`164 fixtures` total across the `17 donors` (`54 annotated` + `110 negative`
 under `probes_negative/`). Spark contributes eight annotated fixtures
 (basic, datasource, streaming wordcount, the four `tests/` files, and
 `examples/.../arrow.py` covering `pandas_udf` / `applyInPandas` /
@@ -177,7 +177,7 @@ release-blocking contract.
 
 Every pykrete release is regression-tested with **`305
 probes`** from the `17 donors` listed above.
-The repo vendors **`164 fixtures`** on disk (54 annotated + 110 negative
+The repo vendors **`164 fixtures`** on disk (`54 annotated` + `110 negative`
 under `probes_negative/`); the probes cover the probe-anchored
 fixtures (a small number of streaming or import-only fixtures are
 annotated but probe-free, since they have no typed-DataFrame slot
