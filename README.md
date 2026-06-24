@@ -88,7 +88,7 @@ explicitly so the coverage claim stays honest:
 | **seaborn** | direct-dispatch | [mwaskom/seaborn](https://github.com/mwaskom/seaborn) | `v0.13.2` | Statistical visualization, pandas-first API. Direct-dispatch on `df.rename(columns={…})` dict-literal kwarg in `categorical.py`. |
 | **yfinance** | direct-dispatch | [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) | `0.2.55` | Financial market-data API → pandas DataFrames. Direct-dispatch on `df["new"] = expr`, `df.rename(columns={…})`, and `df.merge(...)` in `utils.py`. |
 
-`158 fixtures` total across the `17 donors` (52 annotated + 106 negative
+`164 fixtures` total across the `17 donors` (54 annotated + 110 negative
 under `probes_negative/`). Spark contributes eight annotated fixtures
 (basic, datasource, streaming wordcount, the four `tests/` files, and
 `examples/.../arrow.py` covering `pandas_udf` / `applyInPandas` /
@@ -175,9 +175,9 @@ release-blocking contract.
 
 ## Schema-tracking probes (v1.4)
 
-Every pykrete release is regression-tested with **`299
+Every pykrete release is regression-tested with **`305
 probes`** from the `17 donors` listed above.
-The repo vendors **`158 fixtures`** on disk (52 annotated + 106 negative
+The repo vendors **`164 fixtures`** on disk (54 annotated + 110 negative
 under `probes_negative/`); the probes cover the probe-anchored
 fixtures (a small number of streaming or import-only fixtures are
 annotated but probe-free, since they have no typed-DataFrame slot
@@ -189,12 +189,12 @@ columns resolve cleanly after schema-changing operations (`.select`,
 `df[col_list]`, `df[mask]`, `df["new"] = expr`); negative probes
 assert specific diagnostics fire on deliberately-corrupted fixtures.
 
-The v1.10 batch (per [PR-P1 #34](https://github.com/amirnaderi93/pykrete-tests/pull/34) + [#35](https://github.com/amirnaderi93/pykrete-tests/pull/35)) added 6 D0091 strict-mode / bare-attribute / shape-changes probes on `mlflow` / `dbt-spark` / `pandera` / `delta`, plus the seaborn `stack(level=)` literal-form arm, lifting cross-codebase coverage to `261 probes` across `120 fixtures` from `17 donors`. The v1.11 batch (per [PR-P1 #39](https://github.com/amirnaderi93/pykrete-tests/pull/39) + [PR-D1 #38](https://github.com/amirnaderi93/pykrete-tests/pull/38)) ships cross-codebase property probes for the v1.10 PR-D1 D0091 8-property surface (`na`, `write`, `writeStream`, `storageLevel`, `index`, `values`, `shape`, `T`) — closing the v1.10 PR-D1 carve-out — plus the seaborn `unstack(level=)` literal-form arm mirror of v1.10's `stack`. Cross-codebase coverage climbs to `271 probes` across `130 fixtures` from `17 donors`. The v1.12 batch (per [PR-P1 #42](https://github.com/amirnaderi93/pykrete-tests/pull/42)) adds D0080 `returnTypeMismatch` cross-codebase probes — the longest-standing trust gap since v1.6 closed — lifting cross-codebase coverage to `279 probes` across `138 fixtures` from `17 donors`. The v1.13 batch (per [PR-P1 #45](https://github.com/amirnaderi93/pykrete-tests/pull/45)) adds 10 D0080 `dialect-on-return` cross-codebase probes spanning 10 donors, closing the v1.12 PR-P1 cross-codebase trust gap for the v1.13 PR-D1 dialect-on-return checker arm. The v1.14 batch (per [PR-P1 #47](https://github.com/amirnaderi93/pykrete-tests/pull/47)) adds 7 D0080 wider-donor probes plus 3 `pivot_table` downstream cross-codebase probes (cap 10), closing the v1.13 architecture-audit I1 gap. Cross-codebase coverage climbs to `299 probes` across `158 fixtures` from `17 donors`. All 17 of 17 donors now carry coverage for at least one D-code (v1.13 PR-P1 covered 10 donors; v1.14 PR-P1 covered the remaining 7).
+The v1.10 batch (per [PR-P1 #34](https://github.com/amirnaderi93/pykrete-tests/pull/34) + [#35](https://github.com/amirnaderi93/pykrete-tests/pull/35)) added 6 D0091 strict-mode / bare-attribute / shape-changes probes on `mlflow` / `dbt-spark` / `pandera` / `delta`, plus the seaborn `stack(level=)` literal-form arm, lifting cross-codebase coverage to `261 probes` across `120 fixtures` from `17 donors`. The v1.11 batch (per [PR-P1 #39](https://github.com/amirnaderi93/pykrete-tests/pull/39) + [PR-D1 #38](https://github.com/amirnaderi93/pykrete-tests/pull/38)) ships cross-codebase property probes for the v1.10 PR-D1 D0091 8-property surface (`na`, `write`, `writeStream`, `storageLevel`, `index`, `values`, `shape`, `T`) — closing the v1.10 PR-D1 carve-out — plus the seaborn `unstack(level=)` literal-form arm mirror of v1.10's `stack`. Cross-codebase coverage climbs to `271 probes` across `130 fixtures` from `17 donors`. The v1.12 batch (per [PR-P1 #42](https://github.com/amirnaderi93/pykrete-tests/pull/42)) adds D0080 `returnTypeMismatch` cross-codebase probes — the longest-standing trust gap since v1.6 closed — lifting cross-codebase coverage to `279 probes` across `138 fixtures` from `17 donors`. The v1.13 batch (per [PR-P1 #45](https://github.com/amirnaderi93/pykrete-tests/pull/45)) adds 10 D0080 `dialect-on-return` cross-codebase probes spanning 10 donors, closing the v1.12 PR-P1 cross-codebase trust gap for the v1.13 PR-D1 dialect-on-return checker arm. The v1.14 batch (per [PR-P1 #47](https://github.com/amirnaderi93/pykrete-tests/pull/47)) adds 7 D0080 wider-donor probes plus 3 `pivot_table` downstream cross-codebase probes (cap 10), closing the v1.13 architecture-audit I1 gap. Cross-codebase coverage climbs to `299 probes` across `158 fixtures` from `17 donors`. All 17 of 17 donors now carry coverage for at least one D-code (v1.13 PR-P1 covered 10 donors; v1.14 PR-P1 covered the remaining 7). The v1.15 batch (per [PR-P1 #50](https://github.com/amirnaderi93/pykrete-tests/pull/50)) adds 3 `groupby.agg` synthesized-Derived cross-codebase probes (mirroring the v1.13 PR-D2 `pivot_table` synthesis closure pattern) plus 3 D0080 constructor-arm cross-codebase probes (closing the v1.14 PR-D1 honest-silence carve-out), lifting cross-codebase coverage to `305 probes` across `164 fixtures` from `17 donors`.
 
-- **`187 positive` probes** across 52 annotated fixtures verify column
+- **`191 positive` probes** across 54 annotated fixtures verify column
   resolution, post-narrowing flow, and dtype propagation (`PROBE-RESOLVES`
   + `PROBE-TYPE-IS` + `PROBE-FILE-COUNT` + `PROBE-FILE-CLEAN-OF`).
-- **`112 negative` probes** across 106 deliberately-corrupted fixtures
+- **`114 negative` probes** across 110 deliberately-corrupted fixtures
   under `probes_negative/` verify diagnostic firing —
   D0030 `unknownColumn`, D0040 `unionSchemaMismatch` /
   D0050 `returnColumnsMismatch` / D0051 `argumentColumnsMismatch`
