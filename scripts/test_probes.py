@@ -1656,5 +1656,62 @@ class V12CrossCodebaseMarkerMutationTests(unittest.TestCase):
         )
 
 
+class SpanLintTests(unittest.TestCase):
+    """PROBE-EXPECTS unquoted-span author-time lint (v1.16 PR-A1)."""
+
+    def _warnings(self, *lines: str) -> list[str]:
+        source = _src(*lines)
+        probes_list = probes.extract_from_source(source, "f.pyk", CATALOG)
+        return probes.span_lint_warnings(probes_list, source)
+
+    def test_bareword_span_on_quoted_literal_warns(self):
+        # `on "typo"` on a `df["typo"]` subscript — the D0030 range covers the
+        # quotes, so the bareword span silently fails to match at runtime.
+        warns = self._warnings(
+            '# PROBE-EXPECTS: D0030 on "typo"',
+            'df["typo"]',
+        )
+        self.assertEqual(len(warns), 1)
+        self.assertIn("PROBE-EXPECTS D0030", warns[0])
+        self.assertIn('on "typo"', warns[0])
+        self.assertIn('on "\\"typo\\""', warns[0])
+
+    def test_escaped_quote_span_is_clean(self):
+        # The correct form `on "\"typo\""` (span text == "typo" with quotes)
+        # must not warn.
+        warns = self._warnings(
+            '# PROBE-EXPECTS: D0030 on "\\"typo\\""',
+            'df["typo"]',
+        )
+        self.assertEqual(warns, [])
+
+    def test_d0051_argument_range_bareword_is_clean(self):
+        # D0051 fires on the argument RANGE (a bareword variable), which is
+        # written bareword in the source — no quoted literal on the target
+        # line, so the lint stays quiet (the real python-deequ/seaborn case).
+        warns = self._warnings(
+            '# PROBE-EXPECTS: D0051 on "metric_df"',
+            "run_input_analysis(metric_df)",
+        )
+        self.assertEqual(warns, [])
+
+    def test_non_quote_anchored_code_is_clean(self):
+        # D0060 is not in the quote-anchored set; a bareword span never warns.
+        warns = self._warnings(
+            '# PROBE-EXPECTS: D0060 on "id"',
+            'df.join(other, on="id")',
+        )
+        self.assertEqual(warns, [])
+
+    def test_bareword_span_without_quoted_literal_is_clean(self):
+        # Attribute-style access: `df.typo` has no quoted `typo`, so a bareword
+        # `on "typo"` is plausibly correct and must not warn.
+        warns = self._warnings(
+            '# PROBE-EXPECTS: D0030 on "typo"',
+            "df.typo",
+        )
+        self.assertEqual(warns, [])
+
+
 if __name__ == "__main__":
     unittest.main()

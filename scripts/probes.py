@@ -745,6 +745,64 @@ def extract_from_source(
     return probes
 
 
+# D-codes whose diagnostic range covers a QUOTED column literal, so an
+# `on "<col>"` span must itself include the quotes: `on "\"<col>\""`. Authors
+# routinely write the bareword form and the probe then silently fails to match
+# at runtime (flagged by the v1.14/v1.15 PR-P1 devs). See span_lint_warnings.
+_QUOTE_ANCHORED_CODES = frozenset({"D0030", "D0050", "D0051"})
+_BAREWORD_COLUMN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _span_lint_warning(probe: Probe, source_lines: list[str]) -> Optional[str]:
+    """Author-time warning for a likely quote-escaping mistake in an `on` span.
+
+    A PROBE-EXPECTS on a quote-anchored D-code (D0030/D0050/D0051) whose span
+    is a bareword column name (`on "Open"`) that ALSO appears as a quoted
+    string literal on the target statement (`df["Open"]`) almost certainly
+    needs the escaped form `on "\\"Open\\""` — the diagnostic range covers the
+    quotes, so the bareword span won't match. This is a heuristic WARNING, not
+    a hard failure: D0051 argument-range spans (`plot(meta)` → `on "meta"`) and
+    attribute accesses are legitimately bareword, and those don't write the
+    span as a quoted literal on the target line, so they don't trip the lint.
+    """
+    if probe.kind != "EXPECTS":
+        return None
+    code = probe.expected_code
+    if code not in _QUOTE_ANCHORED_CODES:
+        return None
+    span = probe.span_text
+    if not span or span.startswith('"'):
+        return None
+    if _BAREWORD_COLUMN.fullmatch(span) is None:
+        return None
+    target = probe.target_line
+    if target is None or not (1 <= target <= len(source_lines)):
+        return None
+    line_text = source_lines[target - 1]
+    if re.search(r"""["']""" + re.escape(span) + r"""["']""", line_text) is None:
+        return None
+    bad_form = 'on "' + span + '"'
+    good_form = 'on "\\"' + span + '\\""'
+    return (
+        f"PROBE-LINT: {probe.fixture_path}:{probe.comment_line}: "
+        f"PROBE-EXPECTS {code} uses `{bad_form}` (unquoted bareword), but the target "
+        f"statement writes `{span}` as a quoted string literal, so {code}'s diagnostic "
+        f"range includes the quotes. The probe likely needs `{good_form}` to match at "
+        f"runtime. If it deliberately targets a bareword/attribute reference, ignore this."
+    )
+
+
+def span_lint_warnings(probes_list: list[Probe], source: str) -> list[str]:
+    """Collect author-time span-lint warnings for a fixture's probes."""
+    source_lines = source.splitlines()
+    out: list[str] = []
+    for probe in probes_list:
+        warning = _span_lint_warning(probe, source_lines)
+        if warning is not None:
+            out.append(warning)
+    return out
+
+
 def _synthesize_id(fixture_path: str, line_no: int, kind: str) -> str:
     stem = Path(fixture_path).stem
     return f"{stem}-L{line_no}-{kind.lower()}"
@@ -1403,6 +1461,8 @@ def _cmd_extract(args: argparse.Namespace) -> int:
         except ProbeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+        for warning in span_lint_warnings(probes, Path(fixture).read_text(encoding="utf-8")):
+            print(warning, file=sys.stderr)
         for p in probes:
             out_records.append(dataclasses.asdict(p))
     json.dump(
@@ -1471,6 +1531,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         except CheckerError as exc:
             print(f"CHECKER ERROR ({fixture}): {exc}", file=sys.stderr)
             return 2
+        for warning in span_lint_warnings(probes_list, Path(fixture).read_text(encoding="utf-8")):
+            print(warning, file=sys.stderr)
         if not probes_list:
             continue
         donor = _donor_root(fixture)
