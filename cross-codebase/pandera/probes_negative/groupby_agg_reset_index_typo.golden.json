@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 14,
+      "endColumn": 31,
+      "endLine": 48,
+      "file": "pandera/probes_negative/groupby_agg_reset_index_typo.pyk",
+      "line": 48,
+      "message": "Column 'raw_amount_typo' does not exist on inferred schema [category, raw_amount, row_count, checksum, validated_at]. Did you mean 'raw_amount'?",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": "raw_amount"
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}

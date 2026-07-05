@@ -1,0 +1,54 @@
+# BSD-3-Clause. Copyright (C) 2006, Jonathan E. Taylor +
+# 2006-2008 Scipy Developers + 2009-2018 statsmodels Developers.
+#
+# Canonical example inspired by the statsmodels regression API; NOT
+# extracted verbatim from statsmodels internal code (the regression core
+# targets numpy/scipy arrays — see sibling
+# annotated/canonical/regression_pattern.pyk for the canonical-fixture-
+# only scoping rationale and the round-4 paste-from-source audit note).
+#
+# So this fixture models the SAME shape of work statsmodels USERS write
+# AROUND the statsmodels API: count observations per experimental
+# condition with `groupby("condition").agg("count")` as an EDA
+# design-check step before fitting, then read a per-condition aggregate
+# column. This is the canonical group-and-count design-check idiom.
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): statsmodels' library
+# source does not literally write this groupby.agg chain; this is the
+# user-side idiom around the statsmodels API, not a verbatim donor cite.
+# The RegressionInput schema is the same one the sibling
+# annotated/canonical/regression_pattern.pyk uses (faithful to the donor
+# surface).
+#
+# Features covered:
+#   - v1.14 PR-D2 groupby.agg single-string-aggfunc Derived synthesis:
+#     `df.groupby("condition").agg("count")` synthesizes a PandasFrame
+#     carrying the key ("condition") plus the non-key columns (raw_y,
+#     raw_x1, raw_x2, subject_id, model_payload) at the count Long
+#     override (spec §5.1.1); the downstream `agg["raw_y"]` Subscript
+#     resolves against the synthesized Derived.
+#   - Widens groupby.agg synthesized-Derived cross-codebase donor
+#     coverage to statsmodels (v1.16 backlog #16): v1.15 covered 3/17
+#     donors (seaborn, scikit-learn, prophet); this adds statsmodels.
+
+from pykrete import PandasFrame
+
+
+class RegressionInput(Schema):
+    raw_y: double
+    raw_x1: double
+    raw_x2: double
+    subject_id: long
+    condition: string
+    model_payload: binary
+
+
+def count_observations_per_condition(df: PandasFrame[RegressionInput]) -> None:
+    """Canonical statsmodels-USER pattern: count observations per
+    experimental condition as a design-check EDA step before fitting,
+    then read a per-condition aggregate column. v1.14 PR-D2 synthesizes a
+    PandasFrame carrying the key plus non-key count columns; the
+    downstream access resolves against the synthesized Derived."""
+    agg = df.groupby("condition").agg("count")
+# PROBE-RESOLVES: id=statsmodels-groupby-agg-downstream-resolves-synthesized-column -- v1.14 PR-D2 positive: aggfunc='count' synthesizes PandasFrame [condition ++ non-keys at Long]; downstream agg["raw_y"] Subscript resolves against the synthesized Derived, no D-code fires; vacuity-falsifying because typoing to agg["raw_y_typo"] fires D0030 against the synthesized Derived
+    _ = agg["raw_y"]

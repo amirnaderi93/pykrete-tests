@@ -1,0 +1,49 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the statsmodels RegressionInput shape (sibling
+# annotated/canonical/regression_pattern.pyk).
+#
+# Failure mode exercised: the canonical statsmodels-USER idiom of
+# promoting a key column to the frame index before modeling —
+# `df.set_index(["subject_id"])` — moves `subject_id` OFF the columns and
+# onto the index (pandas semantics: set_index with the default drop=True
+# removes the key from the column set). v1.15 PR-D2 synthesizes the
+# result as RegressionInput MINUS the literal key
+# (operations/expr.rs:1738-1744), so `subject_id` is no longer a column.
+# This fixture deliberately accesses the removed key
+# `indexed["subject_id"]`, so D0030 fires — the key moved to the index
+# and is not accessible via df["subject_id"] any more.
+#
+# Vacuity-falsifying: accessing a NON-key column (e.g.
+# `indexed["raw_y"]`) resolves cleanly — that column survives set_index
+# (sibling annotated/canonical/set_index_remaining_column.pyk is that
+# positive). Removing the `.set_index(["subject_id"])` call clears the
+# fire (subject_id is on the receiver RegressionInput).
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): statsmodels' library
+# source does not literally write this set_index chain (numeric-array
+# idioms predominate in the regression core — see sibling
+# annotated/canonical/regression_pattern.pyk for the canonical-fixture-
+# only scoping); this is the user-side idiom around the statsmodels API,
+# not a verbatim donor cite. The RegressionInput schema is faithful to
+# the donor surface.
+#
+# Closes the v1.15 cross-codebase MANDATE (v1.16 backlog #15): the
+# set_index([key])-then-access-removed-key → D0030 half — proves pykrete
+# tracks that the literal key is subtracted from the column set.
+
+from pykrete import PandasFrame
+
+
+class RegressionInput(Schema):
+    raw_y: double
+    raw_x1: double
+    raw_x2: double
+    subject_id: long
+    condition: string
+    model_payload: binary
+
+
+def index_then_access_removed_key(df: PandasFrame[RegressionInput]) -> None:
+    indexed = df.set_index(["subject_id"])
+# PROBE-EXPECTS: D0030 on "\"subject_id\"" id=statsmodels-pandas-neg-set-index-removed-key -- v1.15 PR-D2 set_index([literal-key]) negative: set_index(["subject_id"]) moves subject_id to the index (output = RegressionInput MINUS subject_id, expr.rs:1738-1744), so downstream indexed["subject_id"] fires D0030 (key no longer a column); vacuity-falsifying because accessing a surviving non-key column indexed["raw_y"] resolves clean (sibling annotated/canonical/set_index_remaining_column.pyk)
+    _ = indexed["subject_id"]
