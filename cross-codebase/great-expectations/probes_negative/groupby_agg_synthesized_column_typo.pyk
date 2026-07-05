@@ -1,0 +1,44 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the Great Expectations ValidatedDataset shape (sibling
+# annotated/canonical/expectation_pattern.pyk).
+#
+# Failure mode exercised: v1.14 PR-D2 synthesizes
+# `df.groupby("category").agg("count")` as a PandasFrame carrying
+# [category ++ (row_count, value, passes_check, expectation_name,
+# evidence_blob) at the count Long override] (spec §5.1.1). This fixture
+# deliberately typos the downstream access to `agg["value_typo"]`, so
+# D0030 fires against the synthesized Derived (not against the receiver
+# ValidatedDataset) — proving the synthesized Derived is authoritative
+# for downstream column resolution.
+#
+# Vacuity-falsifying: fixing the typo to `agg["value"]` clears the fire —
+# the column IS in the synthesized schema (sibling
+# annotated/canonical/groupby_agg_downstream_access.pyk is that
+# positive).
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): GE's library source
+# does not literally write this groupby.agg chain; this is the user-side
+# idiom around the GE API, not a verbatim donor cite. The ValidatedDataset
+# schema is faithful to the donor surface.
+#
+# Widens groupby.agg synthesized-Derived cross-codebase donor coverage to
+# great-expectations (v1.16 backlog #16): the NEGATIVE half — D0030 fires
+# on typoed access against the synthesized column set, not silently
+# passing.
+
+from pykrete import PandasFrame
+
+
+class ValidatedDataset(Schema):
+    row_count: long
+    value: double
+    passes_check: bool
+    category: string
+    expectation_name: string
+    evidence_blob: binary
+
+
+def count_then_typo(df: PandasFrame[ValidatedDataset]) -> None:
+    agg = df.groupby("category").agg("count")
+# PROBE-EXPECTS: D0030 on "\"value_typo\"" id=ge-pandas-neg-groupby-agg-synthesized-column-typo -- v1.14 PR-D2 negative: aggfunc='count' synthesizes PandasFrame [category ++ non-keys at Long]; downstream agg["value_typo"] fires D0030 against the synthesized Derived (not the receiver ValidatedDataset); vacuity-falsifying because fixing the typo to agg["value"] clears the fire
+    _ = agg["value_typo"]

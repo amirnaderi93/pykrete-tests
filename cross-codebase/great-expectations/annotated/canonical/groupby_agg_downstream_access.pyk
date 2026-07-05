@@ -1,0 +1,56 @@
+# Apache License 2.0. Copyright (c) 2024 Great Expectations Labs, Inc.
+#
+# Canonical example inspired by the Great Expectations data-quality API;
+# NOT extracted verbatim from Great Expectations internal code (GE's
+# execution engine pushes row-level checks through a metric abstraction,
+# not raw pandas ops — see sibling
+# annotated/canonical/expectation_pattern.pyk for the canonical-fixture-
+# only scoping rationale and the round-4 paste-from-source audit note).
+#
+# So this fixture models the SAME shape of work GE USERS write AROUND the
+# Great Expectations API: profile a validated dataset by counting
+# per-category outcomes with `groupby("category").agg("count")`, then
+# read a per-category aggregate column for expectation-by-category
+# reporting. This is the canonical group-and-count profiling idiom.
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): GE's library source
+# does not literally write this groupby.agg chain; this is the user-side
+# idiom around the GE API, not a verbatim donor cite. The ValidatedDataset
+# schema is the same one the sibling
+# annotated/canonical/expectation_pattern.pyk uses (faithful to the donor
+# surface).
+#
+# Features covered:
+#   - v1.14 PR-D2 groupby.agg single-string-aggfunc Derived synthesis:
+#     `df.groupby("category").agg("count")` synthesizes a PandasFrame
+#     carrying the key ("category") plus the non-key columns (row_count,
+#     value, passes_check, expectation_name, evidence_blob) at the count
+#     Long override (spec §5.1.1); the downstream `agg["value"]` Subscript
+#     resolves against the synthesized Derived.
+#   - Widens groupby.agg synthesized-Derived cross-codebase donor
+#     coverage to great-expectations (v1.16 backlog #16): v1.15 covered
+#     3/17 donors (seaborn, scikit-learn, prophet); this adds GE. The
+#     D0030 negative half is the sibling
+#     probes_negative/groupby_agg_synthesized_column_typo.pyk.
+
+from pykrete import PandasFrame
+
+
+class ValidatedDataset(Schema):
+    row_count: long
+    value: double
+    passes_check: bool
+    category: string
+    expectation_name: string
+    evidence_blob: binary
+
+
+def count_outcomes_per_category(df: PandasFrame[ValidatedDataset]) -> None:
+    """Canonical GE-USER pattern: profile a validated dataset by counting
+    per-category outcomes, then read a per-category aggregate column for
+    expectation-by-category reporting. v1.14 PR-D2 synthesizes a
+    PandasFrame carrying the key plus non-key count columns; the
+    downstream access resolves against the synthesized Derived."""
+    agg = df.groupby("category").agg("count")
+# PROBE-RESOLVES: id=ge-groupby-agg-downstream-resolves-synthesized-column -- v1.14 PR-D2 positive: aggfunc='count' synthesizes PandasFrame [category ++ non-keys at Long]; downstream agg["value"] Subscript resolves against the synthesized Derived, no D-code fires; vacuity-falsifying because typoing to agg["value_typo"] fires D0030 against the synthesized Derived (sibling probes_negative/groupby_agg_synthesized_column_typo.pyk)
+    _ = agg["value"]

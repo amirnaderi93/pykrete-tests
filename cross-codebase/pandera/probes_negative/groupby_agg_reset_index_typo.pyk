@@ -1,0 +1,48 @@
+# probes_negative/ fixture — deliberately broken, NOT donor-faithful.
+# Derived from the pandera ValidatedFrame shape (sibling
+# annotated/canonical/user_validation.pyk + the positive-half chain
+# fixture annotated/canonical/groupby_agg_reset_index_chain.pyk).
+#
+# Failure mode exercised: the canonical pandera-USER rollup-then-flatten
+# chain `df.groupby("category").agg("count").reset_index(drop=True)`
+# synthesizes a PandasFrame carrying [category ++ (raw_amount, row_count,
+# checksum, validated_at) at the count Long override] and passes it
+# through reset_index(drop=True) unchanged (v1.15 PR-D2,
+# operations/expr.rs:1698). This fixture deliberately typos the
+# downstream access to `flat["raw_amount_typo"]`, so D0030 fires against
+# the synthesized-and-flattened Derived TWO METHODS DEEP — proving the
+# schema envelope survives BOTH the aggregation boundary and the
+# reset_index boundary rather than degrading to Unknown.
+#
+# Vacuity-falsifying: fixing the typo to `flat["raw_amount"]` clears the
+# fire — the column IS in the synthesized-and-flattened schema (sibling
+# annotated/canonical/groupby_agg_reset_index_chain.pyk is that positive).
+# Removing the `.reset_index(drop=True)` call still fires D0030 against
+# the groupby.agg Derived (the reset_index arm is a pass-through), so the
+# load-bearing assertion is the 2-methods-deep tracking.
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): pandera's library
+# source does not literally write this chain; this is the user-side idiom
+# around the pandera API, not a verbatim donor cite. The ValidatedFrame
+# schema is faithful to the donor surface.
+#
+# Closes the v1.15 cross-codebase MANDATE (v1.16 backlog #15): the
+# NEGATIVE half of the reset_index(drop=True) chain-depth coverage —
+# D0030 fires on typoed access against the synthesized-and-flattened
+# Derived, not silently passing.
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrame(Schema):
+    raw_amount: double
+    row_count: long
+    category: string
+    checksum: binary
+    validated_at: timestamp
+
+
+def rollup_then_typo(df: PandasFrame[ValidatedFrame]) -> None:
+    flat = df.groupby("category").agg("count").reset_index(drop=True)
+# PROBE-EXPECTS: D0030 on "\"raw_amount_typo\"" id=pandera-pandas-neg-groupby-agg-reset-index-typo -- v1.15 PR-D2 reset_index(drop=True) negative: groupby("category").agg("count") synthesizes [category ++ non-keys at Long], reset_index(drop=True) passes it through (expr.rs:1698), downstream flat["raw_amount_typo"] fires D0030 against the synthesized-and-flattened Derived TWO METHODS DEEP; vacuity-falsifying because fixing the typo to flat["raw_amount"] clears the fire
+    _ = flat["raw_amount_typo"]

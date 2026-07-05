@@ -1,0 +1,55 @@
+# BSD-3-Clause. Copyright (C) 2006, Jonathan E. Taylor +
+# 2006-2008 Scipy Developers + 2009-2018 statsmodels Developers.
+#
+# Canonical example inspired by the statsmodels regression API; NOT
+# extracted verbatim from statsmodels internal code (the regression core
+# targets numpy/scipy arrays — see sibling
+# annotated/canonical/regression_pattern.pyk for the canonical-fixture-
+# only scoping rationale and the round-4 paste-from-source audit note).
+#
+# So this fixture models the SAME shape of work statsmodels USERS write
+# AROUND the statsmodels API: promote a key column (subject_id, a panel
+# or subject identifier) to the frame index with
+# `df.set_index(["subject_id"])` before modeling, while continuing to
+# read the response / regressor columns that remain on the frame. This is
+# the canonical set-the-index-then-model idiom.
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): statsmodels' library
+# source does not literally write this set_index chain; this is the
+# user-side idiom around the statsmodels API, not a verbatim donor cite.
+# The RegressionInput schema is the same one the sibling
+# annotated/canonical/regression_pattern.pyk uses (faithful to the donor
+# surface).
+#
+# Features covered:
+#   - v1.15 PR-D2 set_index([literal-key]) column-subtraction:
+#     `df.set_index(["subject_id"])` synthesizes RegressionInput MINUS
+#     the literal key subject_id (operations/expr.rs:1738-1744); the
+#     NON-key columns (raw_y, raw_x1, raw_x2, condition, model_payload)
+#     survive, so the downstream `indexed["raw_y"]` Subscript resolves
+#     against the key-subtracted Derived.
+#   - Closes the v1.15 cross-codebase MANDATE (v1.16 backlog #15): the
+#     set_index remaining-(non-key)-column PROBE-RESOLVES half; the
+#     removed-key → D0030 half is the sibling
+#     probes_negative/set_index_removed_key_access.pyk.
+
+from pykrete import PandasFrame
+
+
+class RegressionInput(Schema):
+    raw_y: double
+    raw_x1: double
+    raw_x2: double
+    subject_id: long
+    condition: string
+    model_payload: binary
+
+
+def index_then_access_remaining(df: PandasFrame[RegressionInput]) -> None:
+    """Canonical statsmodels-USER pattern: set a subject/panel key as the
+    frame index before modeling, then read a response column that
+    survives on the frame. v1.15 PR-D2 subtracts only the literal key
+    from the column set, so non-key columns remain resolvable."""
+    indexed = df.set_index(["subject_id"])
+# PROBE-RESOLVES: id=statsmodels-set-index-remaining-column-resolves -- v1.15 PR-D2 set_index([literal-key]) positive: set_index(["subject_id"]) subtracts only subject_id (output = RegressionInput MINUS subject_id, expr.rs:1738-1744); the non-key column raw_y survives, so indexed["raw_y"] resolves against the key-subtracted Derived; vacuity-falsifying because accessing the removed key indexed["subject_id"] fires D0030 (sibling probes_negative/set_index_removed_key_access.pyk)
+    _ = indexed["raw_y"]

@@ -1,0 +1,60 @@
+# MIT License. Copyright (c) 2018 Niels Bantilan.
+#
+# Canonical example inspired by the pandera schema-validation API at
+# unionai-oss/pandera v0.23.1; NOT extracted verbatim from pandera
+# internal code (pandera's own source targets the metric/validation
+# abstraction, not raw pandas reshape chains — see sibling
+# annotated/canonical/user_validation.pyk for the canonical-fixture-only
+# scoping rationale and the round-4 paste-from-source audit note).
+#
+# So this fixture models the SAME shape of work pandera USERS write
+# AROUND the pandera API: after validating a frame, roll it up per
+# category with `groupby("category").agg("count")` and flatten the group
+# key back into a positional frame with `.reset_index(drop=True)` before
+# handing the clean aggregate on for re-validation. This is the canonical
+# pandas rollup-then-flatten idiom pandera users reach for.
+#
+# Synthesis disclosure (per v1.13 PR-P1 convention): pandera's library
+# source does not literally write this groupby.agg().reset_index(drop=True)
+# chain; this fixture is the user-side idiom around the pandera API, not
+# a verbatim donor cite. The ValidatedFrame schema is the same one the
+# sibling annotated/canonical/user_validation.pyk uses (faithful to the
+# donor surface).
+#
+# Features covered:
+#   - v1.15 PR-D2 reset_index(drop=True) schema pass-through TWO METHODS
+#     DEEP: `df.groupby("category").agg("count")` synthesizes a
+#     PandasFrame carrying the key ("category") plus the non-key columns
+#     (raw_amount, row_count, checksum, validated_at) at the count Long
+#     override (spec §5.1.1); `.reset_index(drop=True)` passes that
+#     synthesized Derived through unchanged (operations/expr.rs:1698), so
+#     the downstream `flat["raw_amount"]` Subscript resolves against the
+#     synthesized-and-flattened Derived — Derived-tracked across the
+#     aggregation boundary AND the reset_index boundary.
+#   - Closes the v1.15 cross-codebase MANDATE (v1.16 backlog #15): v1.15
+#     PR-D2 shipped the reset_index(drop=True) CHECKER arm but ZERO
+#     cross-codebase probes; this is the canonical-idiom chain-depth
+#     positive (resolves) half. Also widens groupby.agg
+#     synthesized-Derived donor coverage to pandera (the groupby.agg
+#     synthesis is the first link of the chain).
+
+from pykrete import PandasFrame
+
+
+class ValidatedFrame(Schema):
+    raw_amount: double
+    row_count: long
+    category: string
+    checksum: binary
+    validated_at: timestamp
+
+
+def rollup_then_flatten(df: PandasFrame[ValidatedFrame]) -> None:
+    """Canonical pandera-USER pattern: roll up a validated frame per
+    category and flatten the group key back to a positional index via
+    reset_index(drop=True) before re-validation. v1.15 PR-D2 keeps the
+    groupby.agg synthesized Derived alive across the reset_index
+    boundary, so downstream column access resolves two methods deep."""
+    flat = df.groupby("category").agg("count").reset_index(drop=True)
+# PROBE-RESOLVES: id=pandera-groupby-agg-reset-index-chain-resolves -- v1.15 PR-D2 reset_index(drop=True) positive: groupby("category").agg("count") synthesizes PandasFrame [category ++ non-keys at Long], reset_index(drop=True) passes it through (expr.rs:1698), downstream flat["raw_amount"] resolves against the synthesized-and-flattened Derived (Derived-tracked 2 methods deep); vacuity-falsifying because typoing to flat["raw_amount_typo"] fires D0030 against the synthesized Derived (sibling probes_negative/groupby_agg_reset_index_typo.pyk)
+    _ = flat["raw_amount"]

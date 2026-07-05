@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "D0030",
+      "column": 13,
+      "endColumn": 25,
+      "endLine": 44,
+      "file": "great-expectations/probes_negative/groupby_agg_synthesized_column_typo.pyk",
+      "line": 44,
+      "message": "Column 'value_typo' does not exist on inferred schema [category, row_count, value, passes_check, expectation_name, evidence_blob].",
+      "relatedInformation": [],
+      "ruleName": "unknownColumn",
+      "severity": "error",
+      "source": "pykrete",
+      "suggestion": null
+    }
+  ],
+  "schemaVersion": "1",
+  "summary": {
+    "errorCount": 1,
+    "filesChecked": 1,
+    "warningCount": 0
+  }
+}
